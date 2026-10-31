@@ -1,0 +1,129 @@
+/* 猫の家具: 木の板と麻縄、布、段ボール。棚板と同じ木の色と、部屋の暗さに合わせた落ち着いた色で描く */
+.ctower, .cscr, .cfood, .cbox {
+  flex: 1; min-height: 0; position: relative; overflow: hidden;
+  --deck: 10px; --rope: #b49a72; --rope-lo: #8a7354; --carpet: #5b5650; --carpet-hi: #6d6760;
+}
+
+/* ---------- キャットタワー ---------- */
+.ctower { width: min(100%, 360px); margin: 0 auto; }
+.ct-post {
+  position: absolute; width: 16px; margin-left: -8px;
+  /* 麻縄を巻いた柱: 斜めの縞 */
+  background: repeating-linear-gradient(-28deg, var(--rope) 0 3px, var(--rope-lo) 3px 4.5px);
+  box-shadow: inset -4px 0 6px rgba(0, 0, 0, .35);
+}
+.ct-deck, .ct-base {
+  position: absolute; height: var(--deck); border-radius: 3px;
+  background: linear-gradient(to bottom, var(--carpet-hi), var(--carpet) 40%, #46423d);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, .35);
+}
+.ct-base { left: 0; right: 0; bottom: 0; height: calc(var(--deck) + 2px); border-radius: 2px; }
+.ct-bed { position: absolute; height: 16px; }
+/* 丸いベッド: ふちの盛り上がったクッション */
+.ct-bed::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50% 50% 40% 40% / 70% 70% 30% 30%;
+  background: linear-gradient(to bottom, #8a6f63, #6b5249); box-shadow: 0 2px 4px rgba(0, 0, 0, .4);
+}
+.ct-cushion {
+  position: absolute; left: 12%; right: 12%; top: 4px; height: 7px; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 30%, #c9b7a6, #9f8b7b);
+}
+.ct-toy { position: absolute; width: 0; transform-origin: 0 0; animation: ct-sway 6s ease-in-out infinite; }
+.ct-string { position: absolute; left: -.5px; top: 0; width: 1px; height: 46px; background: var(--muted); opacity: .7; }
+.ct-pom {
+  position: absolute; left: -7px; top: 44px; width: 14px; height: 14px; border-radius: 50%; cursor: pointer;
+  background: radial-gradient(circle at 35% 35%, #f3b8a0, #d77b62 70%);
+  box-shadow: 0 0 0 1.5px rgba(215, 123, 98, .35);
+}
+.ct-toy.hit { animation: ct-hit 1.6s cubic-bezier(.2, .7, .3, 1); }
+@keyframes ct-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes ct-hit {
+  0% { transform: rotate(0); } 12% { transform: rotate(38deg); } 32% { transform: rotate(-26deg); }
+  52% { transform: rotate(15deg); } 72% { transform: rotate(-7deg); } 100% { transform: rotate(0); }
+}
+
+/* ---------- 爪とぎ ---------- */
+.cscr { --wear: 0; }
+.cs-board, .cf-board {
+  position: absolute; left: 3%; right: 3%; bottom: 0; height: var(--board);
+  background: var(--board-bg);
+}
+.cs-pad {
+  position: absolute; left: 50%; bottom: var(--board); width: min(62%, 220px); height: 14px; transform: translateX(-50%);
+  border-radius: 2px 2px 0 0;
+  /* 段ボールの断面: 細かい波の縞 */
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, .18) 0 1px, transparent 1px 4px),
+    linear-gradient(to bottom, #c39a63, #9c7646);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .35);
+}
+/* といだところ: 真ん中ほど白っぽくけば立つ */
+.cs-wear {
+  position: absolute; left: 18%; right: 18%; top: 0; height: 5px; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 0, rgba(240, 222, 190, calc(var(--wear) * .9)), transparent 70%);
+}
+.cs-bits { position: absolute; left: 0; right: 0; bottom: var(--board); height: 6px; }
+.cs-bits b { position: absolute; bottom: 0; width: 4px; height: 2px; border-radius: 1px; background: #b48c58; opacity: .8; }
+
+/* ---------- ごはん ---------- */
+.cfood { --food: .6; }
+.cf-mat {
+  position: absolute; left: 50%; bottom: var(--board); width: min(70%, 240px); height: 3px; transform: translateX(-50%);
+  background: #4f5a5c; border-radius: 2px;
+}
+.cf-bowl {
+  position: absolute; left: 50%; bottom: calc(var(--board) + 3px); width: 46px; height: 22px; transform: translateX(-80%);
+  padding: 0; border: 0; background: none; cursor: pointer;
+}
+.cf-dish {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 15px;
+  background: linear-gradient(to bottom, #d9d2c6, #a8a196); clip-path: polygon(0 0, 100% 0, 86% 100%, 14% 100%);
+}
+/* カリカリ: 量に応じて盛り上がる */
+.cf-kibble {
+  position: absolute; left: 10%; right: 10%; bottom: 13px; height: calc(var(--food) * 10px); border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: radial-gradient(circle at 30% 60%, #9a6236 0 1.5px, transparent 2px) 0 0 / 5px 4px, #b9783f;
+  opacity: calc(var(--food) * 4);
+}
+.cf-bowl:hover .cf-dish, .cf-bowl:focus-visible .cf-dish { background: linear-gradient(to bottom, #f0e9dc, #b8b1a5); }
+.cf-water {
+  position: absolute; left: 50%; bottom: calc(var(--board) + 3px); width: 38px; height: 13px; transform: translateX(50%);
+  background: linear-gradient(to bottom, #8d9aa3, #66737b); clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%);
+}
+.cf-water i { position: absolute; left: 8%; right: 8%; top: 1px; height: 3px; border-radius: 50%; background: #9fc3d6; opacity: .7; }
+@media (prefers-reduced-motion: reduce) { .ct-toy, .ct-toy.hit { animation: none; } }
+
+/* ---------- 箱・紙袋 ---------- */
+.cb-board {
+  position: absolute; left: 3%; right: 3%; bottom: 0; height: var(--board);
+  background: linear-gradient(to bottom, var(--wood-hi), var(--wood) 30%, var(--wood-lo));
+}
+/* data-cat-plat の上の辺が箱の縁。猫はそこから 26px 沈んで、縁より下は隠れる */
+.cb-in { position: absolute; left: 50%; bottom: var(--board); width: 92px; height: 54px; transform: translateX(-50%); }
+.cb-back, .cb-front, .cb-flap { position: absolute; display: block; }
+/* 奥の壁: 少し上からのぞくので、前の壁の縁の上に内側の暗い面が細く見える */
+.cb-back { left: 3px; right: 3px; top: -5px; height: 12px; background: linear-gradient(to bottom, #8a6a42, #5a4329); border-radius: 1px; }
+.cb-front {
+  inset: 0; border-radius: 1px;
+  background:
+    linear-gradient(90deg, transparent 44%, rgba(214, 190, 140, .55) 44% 56%, transparent 56%) top / 100% 22px no-repeat, /* ガムテープ */
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 1px, transparent 1px 7px),
+    linear-gradient(to bottom, #c49a62, #a87f4b 70%, #93703f);
+  box-shadow: inset 0 2px 0 rgba(255, 236, 200, .25), inset -6px 0 10px rgba(0, 0, 0, .18), 0 2px 5px rgba(0, 0, 0, .4);
+}
+/* 開いたふた: 縁から外へ倒れている */
+.cb-flap { top: -10px; width: 40px; height: 10px; background: linear-gradient(to bottom, #b68b55, #9a7444); border-radius: 1px; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); }
+.cb-flap.l { left: -38px; transform-origin: 100% 100%; transform: rotate(16deg); }
+.cb-flap.r { right: -38px; transform-origin: 0 100%; transform: rotate(-16deg); }
+
+/* 紙袋: 細長く、口をぎざぎざに折り返したクラフト紙 */
+.cbox.bag .cb-in { width: 74px; height: 70px; }
+.cbox.bag .cb-flap { display: none; }
+.cbox.bag .cb-back { background: linear-gradient(to bottom, #9a7a52, #6b5236); clip-path: polygon(0 40%, 8% 0, 16% 40%, 24% 0, 32% 40%, 40% 0, 48% 40%, 56% 0, 64% 40%, 72% 0, 80% 40%, 88% 0, 96% 40%, 100% 20%, 100% 100%, 0 100%); }
+.cbox.bag .cb-front {
+  background:
+    linear-gradient(to bottom, rgba(255, 240, 210, .18) 0 9px, rgba(0, 0, 0, .12) 9px 10px, transparent 10px), /* 折り返し */
+    linear-gradient(90deg, rgba(0, 0, 0, .1), transparent 18% 82%, rgba(0, 0, 0, .14)),
+    linear-gradient(to bottom, #c8a476, #b08b5c);
+  border-radius: 1px 1px 2px 2px;
+}

@@ -1,0 +1,29 @@
+/* リスニングパーティー（party.ts）。ダイアログの骨組みは style.css の .dlg を使う */
+.party .dlg-body { gap: 10px; }
+.party-code { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-family: var(--font-mono); font-size: 11px; line-height: 1.5; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 4px; padding: 7px 9px; word-break: break-all; }
+.party-code:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.party-code[readonly] { background: var(--soft); color: var(--muted); }
+.party-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.party-row .btn { font-size: 12px; padding: 6px 12px; }
+.party-hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+.party-wait { color: var(--muted); }
+.party-people ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.party-people li { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--soft); }
+.party-now { display: grid; gap: 2px; padding: 10px 12px; border-radius: 6px; background: var(--soft); font-size: 13px; min-height: 2.6em; }
+.party-now b { font-weight: 500; overflow-wrap: anywhere; }
+.party-now span { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.party-now .party-state { font-family: var(--font-mono); color: var(--ink); opacity: .8; margin-top: 4px; }
+.party-ice summary { font-size: 11px; color: var(--muted); cursor: pointer; }
+.party-ice[open] { display: grid; gap: 8px; }
+.party-ice .dlg-field input { font-size: 12px; }
+
+/* 上の帯の札: 灯りの点と人数 */
+.party-pill { display: inline-flex; align-items: center; gap: 6px; flex: none; font-size: 12px; font-family: var(--font-mono); padding: 4px 10px; border: 1.5px solid var(--line); border-radius: 999px; white-space: nowrap; }
+.party-pill:hover { background: var(--soft); }
+.party-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.party-pill.off i { background: var(--muted); box-shadow: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .party-pill:not(.off) i { animation: party-glow 2.4s ease-in-out infinite; }
+}
+@keyframes party-glow { 50% { opacity: .45; } }
+body.focus-lock .party-pill { opacity: .3; }

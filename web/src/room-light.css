@@ -1,0 +1,7 @@
+/* 部屋の明かり: 画面全体にかぶせる薄い光の層（操作は下へ素通り）。メニューや通知（z-index 40 以上）はその上に出る */
+.room-light[hidden] { display: none; }
+.room-light { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
+.room-tint { mix-blend-mode: multiply; }
+.room-spill { mix-blend-mode: screen; }
+body[data-mini] .room-light, body:not([data-state="ready"]) .room-light { display: none; }
+@media print { .room-light { display: none; } }

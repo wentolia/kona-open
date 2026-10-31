@@ -1,0 +1,31 @@
+/* 部屋の壁・床・ラグの置き方（形と色の素は room-lowpoly.css） */
+
+/* ---------- 壁: 画面の奥いっぱいに、テーマ色を少し明るくした面をマスクで刻む ---------- */
+:root[data-wall] body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: color-mix(in srgb, var(--bg), var(--ink) 7%);
+  -webkit-mask: var(--wall-mask) left top / var(--wall-size) repeat;
+  mask: var(--wall-mask) left top / var(--wall-size) repeat;
+  opacity: .55;
+}
+:root[data-wall="brick"] body::before { opacity: .45; }
+
+/* ---------- 床: ホームのいちばん下に、画面の端から端まで。中身が少なくても画面の下に来る ---------- */
+:root { --floor-h: 0px; }
+:root[data-floor] { --floor-h: 56px; }
+:root[data-floor] .grid { min-height: 100%; padding-bottom: calc(var(--floor-h) + 34px); }
+:root[data-floor] .grid::after {
+  content: ""; position: absolute; bottom: 0; height: var(--floor-h); pointer-events: none;
+  left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); right: calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+  background: var(--floor-bg);
+  box-shadow: 0 -10px 18px -12px rgba(0, 0, 0, .55); filter: brightness(.86);
+}
+/* ラグ: 床のまんなかに寝かせる */
+:root[data-floor][data-rug] .grid::before {
+  content: ""; position: absolute; left: 50%; bottom: calc(var(--floor-h) * .1); transform: translateX(-50%);
+  width: min(38%, 440px); height: calc(var(--floor-h) * .74); z-index: 1; pointer-events: none;
+  background: var(--rug) center / 100% 100% no-repeat;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .4));
+}
+/* 傘立ては床の上に立てる */
+:root[data-floor] .room-umbrella { bottom: calc(var(--floor-h) * .45); }

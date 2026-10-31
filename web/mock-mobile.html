@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Kona スマホ版モック</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <style>
+    /* PC で開いたときは、スマホの大きさの枠に収める（transform で position: fixed の基準を枠にする） */
+    @media (min-width: 600px) and (min-height: 700px) {
+      html { background: #0e1013; display: grid; place-items: center; }
+      body.mock { width: 390px; height: min(844px, 96vh); flex: none; border-radius: 36px; overflow: hidden; transform: translateZ(0);
+        box-shadow: 0 0 0 10px #000, 0 0 0 11px #333, 0 30px 80px rgba(0,0,0,.6); }
+    }
+  </style>
+</head>
+<body data-state="ready" class="mock">
+  <script type="module" src="/src/mock-mobile.ts"></script>
+</body>
+</html>

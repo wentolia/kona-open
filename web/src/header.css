@@ -1,0 +1,62 @@
+/* ヘッダー（上の帯）: 猫・棚の小物・ローポリの棚板と同じ「平らな多角形と数段の濃淡」で控えめに。
+   帯は大きな三角形の面で塗り分け、下の端は低い稜線（形は header-lowpoly.css）。札とボタンも面で作る。
+   色はすべてテーマ色（--panel / --ink / --accent）から計算するので、テーマ・部屋の明かりと一緒に移る。 */
+@import "./header-lowpoly.css";
+
+/* ---------- 帯 ---------- */
+.top, .m-top { position: relative; isolation: isolate; }
+.top { padding-bottom: 18px; }
+.top::before, .m-top::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: color-mix(in srgb, var(--panel), var(--ink) 3%);
+  -webkit-mask: var(--top-band) left top / var(--top-band-w) 100% repeat-x;
+  mask: var(--top-band) left top / var(--top-band-w) 100% repeat-x;
+}
+body:not([data-state="ready"]) .top::before { display: none; }
+
+/* ---------- 札とボタン: 形と濃淡は ::before に持たせ、フォーカスの枠は切らない ---------- */
+.top :is(.tabs a, .win-btn, .open) { position: relative; isolation: isolate; border-radius: 0; background: none; }
+.top :is(.tabs a, .win-btn, .open)::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .15s;
+}
+/* タブ: 六角の札。上の面が明るく、下の面がやや沈む */
+.top .tabs a::before {
+  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 7px 100%, 0 50%);
+  background: linear-gradient(170deg, color-mix(in srgb, var(--ink) 12%, transparent) 50%, color-mix(in srgb, var(--ink) 7%, transparent) 50%);
+}
+.top .tabs a[aria-current="page"]::before { opacity: 1; }
+.top .tabs a:hover::before { opacity: .55; }
+/* 窓のボタン（写真・最小表示・小窓）: 触れると三面の六角が浮かぶ */
+.top .win-btn::before {
+  clip-path: polygon(50% 2px, 93% 26%, 93% 74%, 50% calc(100% - 2px), 7% 74%, 7% 26%);
+  background: conic-gradient(from -30deg,
+    color-mix(in srgb, var(--ink) 14%, transparent) 0 120deg,
+    color-mix(in srgb, var(--ink) 9%, transparent) 0 240deg,
+    color-mix(in srgb, var(--ink) 5%, transparent) 0);
+}
+.top .win-btn:hover::before { opacity: 1; }
+/* フォルダを開く・読み直す: 角を落とした板 */
+.top .open { border: 0; }
+.top button.open::before {
+  opacity: 1; clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--ink) 11%, transparent) 50%, color-mix(in srgb, var(--ink) 6%, transparent) 50%);
+}
+.top .open:hover::before {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--ink) 16%, transparent) 50%, color-mix(in srgb, var(--ink) 10%, transparent) 50%);
+}
+@media (prefers-reduced-motion: reduce) { .top :is(.tabs a, .win-btn, .open)::before { transition: none; } }
+
+/* ---------- スマホ版の上: 帯は同じ形を細かめに、検索欄は六角の札 ---------- */
+.m-top { padding-bottom: 16px; }
+.m-top::before { -webkit-mask-size: 900px 100%; mask-size: 900px 100%; }
+.m .m-search {
+  border-radius: 0;
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%);
+  background: linear-gradient(172deg, color-mix(in srgb, var(--ink) 11%, transparent) 50%, color-mix(in srgb, var(--ink) 6%, transparent) 50%);
+}
+
+/* モジュールを足す「＋」: ホームを開いているときだけ、タブと窓のボタンのあいだに。いつも薄く面を見せて、押せるものだと分かるように */
+body:not([data-view="home"]) .top .add-mod { display: none; }
+.top .add-mod::before { opacity: .45; }
+.top .add-mod:hover::before, .top .add-mod:focus-visible::before, body:has(#add-menu) .top .add-mod::before { opacity: 1; }
+.top .add-mod svg { width: 13px; height: 13px; }

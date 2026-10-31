@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Kona</title>
+  <meta name="theme-color" content="#1a1d22">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+</head>
+<body data-state="start">
+  <header class="top">
+    <div class="brand">KONA</div>
+    <span class="status" id="status"></span>
+    <nav class="tabs" aria-label="表示">
+      <a href="#home" id="tab-home">ホーム</a>
+      <a href="#library" id="tab-library">ライブラリ</a>
+      <a href="#settings" id="tab-settings">設定</a>
+    </nav>
+    <button class="win-btn add-mod" id="add-mod" aria-label="モジュールを足す" title="モジュールを足す"><svg viewBox="0 0 16 16"><path d="M7 2h2v5h5v2H9v5H7V9H2V7h5z"/></svg></button>
+    <div class="winctl" aria-label="ウィンドウ">
+      <button class="win-btn" id="to-photo" aria-label="写真を撮る" title="写真を撮る"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5.6 3 6.6 1.8h2.8L10.4 3H14v10H2V3zM8 11.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zm0-1.4a1.8 1.8 0 1 1 0-3.6 1.8 1.8 0 0 1 0 3.6z"/></svg></button>
+      <button class="win-btn" id="to-mini" aria-label="最小表示" title="最小表示"><svg viewBox="0 0 16 16"><path d="M2 9h12v4H2z"/><path d="M2 3h12v1.5H2z" opacity=".45"/></svg></button>
+      <button class="win-btn" id="to-pip" aria-label="小窓で手前に出す" title="小窓で手前に出す" hidden><svg viewBox="0 0 16 16"><path d="M1.5 2.5h13v11h-13zM3 4v8h10V4z"/><path d="M8 8h4.5v4H8z"/></svg></button>
+    </div>
+    <button class="open" id="rescan" hidden title="フォルダの中の変更（増えた・減ったアルバム）を反映します">読み直す</button>
+    <button class="open" id="open">フォルダを開く</button>
+    <input type="file" id="picker" webkitdirectory multiple hidden>
+  </header>
+  <section class="start" id="start" aria-live="polite"></section>
+  <main>
+    <section class="view" id="view-home"></section>
+    <section class="view" id="view-library" hidden></section>
+    <section class="view" id="view-settings" hidden></section>
+  </main>
+  <footer class="np np-host np-footer" id="np"></footer>
+  <section id="mini" aria-label="最小表示"></section>
+  <script type="module" src="/src/boot.ts"></script>
+</body>
+</html>

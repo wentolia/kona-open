@@ -1,0 +1,3 @@
+/* ---------- 起動画面の猫（wakecat.ts）。猫そのものの見た目は cat.css ---------- */
+.wake-cat { position: relative; width: 200px; height: 130px; margin-bottom: -4px; }
+.wake-cat .cat-layer { overflow: visible; }

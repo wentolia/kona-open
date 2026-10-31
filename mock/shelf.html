@@ -1,0 +1,427 @@
+<title>Kona Shelf</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: 本棚の段（細い線）に背表紙を並べ、面陳でアルバムを見せる。ホームは段の下にスピーカーとジャケットの「ステージ」。 */
+:root {
+  --bg: #e8ebec;
+  --panel: #f3f5f5;
+  --ink: #1b2126;
+  --muted: #6a737a;
+  --line: #1b2126;
+  --accent: #c2621a;
+  --soft: rgba(27, 33, 38, .08);
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171a; --panel: #1b1f23; --ink: #e2e6e8; --muted: #8b949b;
+    --line: #c9cfd3; --accent: #e8934a; --soft: rgba(226, 230, 232, .08); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171a; --panel: #1b1f23; --ink: #e2e6e8; --muted: #8b949b;
+  --line: #c9cfd3; --accent: #e8934a; --soft: rgba(226, 230, 232, .08); color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- top bar ---------- */
+.top {
+  display: flex; align-items: center; gap: 20px;
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.brand { font-weight: 700; letter-spacing: .3em; font-size: 13px; }
+.tabs { display: flex; gap: 4px; margin-left: auto; }
+.tabs a {
+  color: var(--muted); text-decoration: none; font-size: 13px; padding: 6px 10px; border-radius: 4px;
+}
+.tabs a[aria-current="page"] { color: var(--ink); background: var(--soft); }
+
+main { flex: 1; min-height: 0; display: flex; }
+.view { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+/* ---------- shelf primitives ---------- */
+.case {
+  border-left: 2px solid var(--line); border-right: 2px solid var(--line);
+  margin-left: max(16px, env(safe-area-inset-left, 0px));
+  margin-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.shelf { position: relative; }
+.shelf-label {
+  font-size: 11px; letter-spacing: .12em; color: var(--muted);
+  padding: 10px 12px 0;
+  display: flex; gap: 8px; align-items: baseline;
+}
+.shelf-label b { color: var(--ink); font-weight: 500; letter-spacing: .06em; }
+.shelf-label .count { font-family: var(--font-mono); font-size: 10px; }
+.row {
+  display: flex; align-items: flex-end; gap: 2px;
+  height: 132px; padding: 0 12px;
+  border-bottom: 2px solid var(--line);
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+.row::-webkit-scrollbar { display: none; }
+
+.spine {
+  flex: none; position: relative;
+  border-radius: 1px 1px 0 0;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 8px; overflow: hidden;
+  transition: transform .18s ease;
+}
+.spine span {
+  writing-mode: vertical-rl; font-size: 10px; line-height: 1; letter-spacing: .04em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: calc(100% - 14px);
+}
+.spine:hover, .spine:focus-visible { transform: translateY(-6px); }
+.spine.playing::after {
+  content: ""; position: absolute; bottom: 5px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px;
+  border-radius: 50%; background: var(--accent);
+}
+
+.face {
+  flex: none; width: 112px; height: 112px; margin: 0 6px; position: relative;
+  box-shadow: 0 1px 0 var(--line), 0 6px 14px rgba(0,0,0,.18);
+  transition: transform .18s ease;
+}
+.face img { width: 100%; height: 100%; display: block; }
+.face:hover, .face:focus-visible { transform: translateY(-4px); }
+.tag {
+  position: absolute; left: 0; top: -18px; font-size: 10px; letter-spacing: .08em; color: var(--muted); white-space: nowrap;
+}
+.tag.hot { color: var(--accent); }
+
+/* ---------- home stage ---------- */
+.home-shelves { flex: none; padding-top: 8px; }
+.stage {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; justify-items: center;
+  gap: 24px; padding: 20px 12px;
+}
+.speaker {
+  width: min(150px, 18vw); aspect-ratio: 3 / 4.4; max-width: 100%;
+  border: 2px solid var(--line); border-radius: 4px;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-around; padding: 10%;
+}
+.speaker .tw { width: 28%; aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--line); }
+.speaker .woof {
+  width: 82%; aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--line);
+  display: grid; place-items: center;
+}
+.speaker .woof::after { content: ""; width: 22%; aspect-ratio: 1; border-radius: 50%; background: var(--line); }
+.is-playing .speaker .woof { animation: thump .52s ease-in-out infinite alternate; }
+@keyframes thump { from { transform: scale(1); } to { transform: scale(1.035); } }
+.jacket {
+  width: min(320px, 38vh, 52vw); aspect-ratio: 1; max-width: 100%;
+  box-shadow: 0 2px 0 var(--line), 0 18px 40px rgba(0,0,0,.25);
+  position: relative;
+}
+.jacket img { width: 100%; height: 100%; display: block; }
+
+/* ---------- now playing bar ---------- */
+.np {
+  flex: none; border-top: 2px solid var(--line); background: var(--panel);
+  display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 14px; align-items: center;
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.np img { width: 52px; height: 52px; display: block; }
+.np-meta { min-width: 0; display: grid; gap: 4px; }
+.np-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-bar { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.np-track { flex: 1; height: 2px; background: var(--soft); position: relative; }
+.np-fill { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
+.np-ctrl { display: flex; gap: 6px; }
+.np-ctrl button { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; }
+.np-ctrl button:hover { background: var(--soft); }
+.np-ctrl svg { width: 16px; height: 16px; fill: var(--ink); }
+.np-ctrl .play { border: 2px solid var(--line); }
+
+/* ---------- library ---------- */
+.lib { flex: 1; min-height: 0; display: flex; }
+.side {
+  flex: none; width: 180px; overflow-y: auto; border-right: 1px solid var(--soft);
+  padding-block: 8px 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 12px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.side h2 { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: .14em; margin: 10px 0 6px; }
+.side button {
+  text-align: left; font-size: 13px; padding: 6px 8px; border-radius: 4px;
+  display: flex; justify-content: space-between; gap: 8px;
+}
+.side button:hover { background: var(--soft); }
+.side button .n { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.lib-shelves { flex: 1; min-width: 0; overflow-y: auto; padding-bottom: 24px; }
+.lib-shelves .case { margin-left: 16px; }
+.lib-shelves .shelf { padding-top: 18px; }
+.lib-shelves .shelf-label { padding-top: 0; padding-bottom: 22px; }
+
+.packed { display: flex; gap: 8px; padding: 0 12px; border-bottom: 2px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.packed::-webkit-scrollbar { display: none; }
+.box {
+  flex: none; border: 1.5px solid var(--line); border-bottom: 0; border-radius: 10px 10px 0 0;
+  padding: 0 8px; display: flex; flex-direction: column; margin-top: 4px;
+}
+.box .shelf-label { padding: 6px 2px 22px; }
+.box .row { border-bottom: 0; padding: 0; height: 132px; }
+
+.hint { font-size: 11px; color: var(--muted); padding: 8px 12px 0; }
+
+@media (max-width: 720px) {
+  .stage { grid-template-columns: 1fr; }
+  .speaker { display: none; }
+  .side { display: none; }
+  .lib-shelves .case { margin-left: max(16px, env(safe-area-inset-left, 0px)); }
+  .row { height: 112px; }
+  .face { width: 92px; height: 92px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spine, .face { transition: none; }
+  .is-playing .speaker .woof { animation: none; }
+}
+</style>
+
+<header class="top">
+  <div class="brand">KONA</div>
+  <nav class="tabs" aria-label="表示">
+    <a href="#home" id="tab-home">ホーム</a>
+    <a href="#library" id="tab-library">ライブラリ</a>
+  </nav>
+</header>
+
+<main>
+  <section class="view" id="view-home"></section>
+  <section class="view" id="view-library" hidden></section>
+</main>
+
+<footer class="np" id="np"></footer>
+
+<script>
+// ---------- サンプルデータ（架空のライブラリ） ----------
+const FOLDERS = [
+  { name: "Jazz", albums: [
+    ["Blue Hour Sessions","Mika Arden",9],["Late Train","The Quiet Quartet",7],["Smoke & Brass","Ollie Ferrant",11],
+    ["Night Walk","Sora Kimura Trio",8],["Small Rooms","Hanna Lys",10],["Standards Vol.2","June Okafor",12],
+    ["Rain on Lenox","Theo Marsh",6],["Corner Table","Ida Belle",9],["Midnight Cab","The Northbound",8],
+    ["Brushes","Kenji Ota",7],["Cold Coffee","Lena Voss",10],["After Hours","Max Rudd Septet",14],
+    ["Low Lights","Akiko Sato",9],["Quiet Fire","Ben Ashe",8]
+  ]},
+  { name: "Ambient", albums: [
+    ["Field Notes","Lumen",6],["Slow Water","Ana Teles",5],["Paper Sky","Hollow Pines",8],["Drift I","Mareo",4],
+    ["Drift II","Mareo",4],["Winter Glass","Sel",7],["Long Afternoon","Kaito Mori",9],["Moss","Fern & Stone",6],
+    ["Tidal","Orla Quinn",5],["Room Tone","Yuki Hara",11],["Haze","Northlight",7]
+  ]},
+  { name: "J-Pop", albums: [
+    ["夏の終わり","宮下ノエル",12],["ハイウェイ","サンセット通り",10],["白い部屋","小春",11],["coast","みなと",9],["光の速さ","ネオンテトラ",13]
+  ]},
+  { name: "Classical", albums: [
+    ["Goldberg Variations","Elena Varga",32],["Nocturnes","Tomas Weil",21],["Cello Suites","Rei Asano",36]
+  ]},
+  { name: "Soundtracks", albums: [
+    ["Harbor Lights OST","Various",24],["The Long Summer","Iris Cole",18],["Glass City","Mono Unit",15],["Pale Engine","Kurt Lind",20]
+  ]},
+];
+
+// 決定的な疑似乱数
+function rand(seed) { let s = seed % 2147483647; if (s <= 0) s += 2147483646; return () => (s = s * 16807 % 2147483647) / 2147483647; }
+function hash(str) { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return Math.abs(h); }
+
+// ジャケット画像をSVGで生成
+function coverSVG(a) {
+  const r = rand(a.seed), h = a.hue, kind = a.seed % 4;
+  const bg = `hsl(${h} ${25 + r()*30}% ${30 + r()*40}%)`;
+  const fg = `hsl(${(h + 150 + r()*60) % 360} ${40 + r()*30}% ${60 + r()*25}%)`;
+  const fg2 = `hsl(${(h + 30) % 360} 20% ${12 + r()*15}%)`;
+  let shapes = "";
+  if (kind === 0) shapes = `<circle cx="${30 + r()*40}" cy="${30 + r()*40}" r="${14 + r()*18}" fill="${fg}"/>`;
+  else if (kind === 1) { for (let i = 0; i < 6; i++) shapes += `<rect x="0" y="${i*16 + 4}" width="100" height="${3 + r()*6}" fill="${fg}" opacity="${.4 + r()*.6}"/>`; }
+  else if (kind === 2) shapes = `<rect x="${10 + r()*20}" y="${10 + r()*20}" width="${40 + r()*20}" height="${40 + r()*20}" fill="none" stroke="${fg}" stroke-width="3"/><rect x="0" y="78" width="100" height="22" fill="${fg2}"/>`;
+  else shapes = `<path d="M0 ${60 + r()*20} Q 50 ${20 + r()*30} 100 ${55 + r()*25} L100 100 L0 100Z" fill="${fg2}"/><circle cx="${60 + r()*25}" cy="${22 + r()*10}" r="6" fill="${fg}"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="${bg}"/>${shapes}</svg>`;
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+}
+
+const NOW = Date.now(), DAY = 864e5;
+const albums = [];
+FOLDERS.forEach(f => f.albums.forEach(([title, artist, tracks]) => {
+  const seed = hash(title + artist), r = rand(seed);
+  const a = { id: albums.length, folder: f.name, title, artist, tracks, seed, hue: Math.floor(r()*360),
+    plays: Math.floor(r()*r()*120), last: NOW - Math.floor(r()*60) * DAY };
+  a.cover = coverSVG(a);
+  a.spineBg = `hsl(${a.hue} ${15 + r()*25}% ${28 + r()*45}%)`;
+  a.width = 18 + Math.min(14, Math.round(tracks / 2.5));
+  a.height = 84 + Math.round(r()*30);
+  albums.push(a);
+}));
+
+let nowId = albums.find(a => a.title === "Night Walk").id;
+let playing = true, pos = 74, trackNo = 3, trackLen = 312;
+albums[nowId].last = NOW;
+
+// ---------- 部品 ----------
+function textColor(a) { return /% (2|3|4)\d(\.\d+)?%\)$/.test(a.spineBg) ? "#f2f2f0" : "#15181b"; }
+function spine(a) {
+  const b = document.createElement("button");
+  b.className = "spine" + (a.id === nowId ? " playing" : "");
+  b.style.cssText = `width:${a.width}px;height:${a.height}px;background:${a.spineBg};color:${textColor(a)}`;
+  b.title = `${a.title} — ${a.artist}`;
+  b.innerHTML = `<span>${a.title}</span>`;
+  b.onclick = () => play(a.id);
+  return b;
+}
+function face(a, label, hot) {
+  const b = document.createElement("button");
+  b.className = "face";
+  b.title = `${a.title} — ${a.artist}`;
+  b.innerHTML = `<img alt="" src="${a.cover}">` + (label ? `<span class="tag${hot ? " hot" : ""}">${label}</span>` : "");
+  b.onclick = () => play(a.id);
+  return b;
+}
+// 背表紙の列。faceMap: id → ラベル（面陳する）
+function fillRow(row, list, faceMap) {
+  list.forEach(a => row.append(faceMap.has(a.id) ? face(a, faceMap.get(a.id), a.id === nowId) : spine(a)));
+}
+const byTitle = (x, y) => x.title.localeCompare(y.title, "ja");
+
+// ---------- ホーム ----------
+function renderHome() {
+  const v = document.getElementById("view-home");
+  const top = [...albums].sort((x, y) => y.plays - x.plays).slice(0, 2);
+  const recent = [...albums].sort((x, y) => y.last - x.last).filter(a => a.id !== nowId).slice(0, 2);
+  const now = albums[nowId];
+
+  v.innerHTML = `
+    <div class="home-shelves case">
+      <div class="shelf"><div class="shelf-label"><b>上段</b>よく聴くアルバムを面陳</div><div class="row" id="h1"></div></div>
+      <div class="shelf"><div class="shelf-label"><b>下段</b>最近聴いたアルバムを面陳</div><div class="row" id="h2"></div></div>
+    </div>
+    <div class="stage ${playing ? "is-playing" : ""}">
+      <div class="speaker" aria-hidden="true"><div class="tw"></div><div class="woof"></div></div>
+      <div class="jacket"><img alt="${now.title}" src="${now.cover}"></div>
+      <div class="speaker" aria-hidden="true"><div class="tw"></div><div class="woof"></div></div>
+    </div>`;
+
+  // 上段: 全アルバムの前半を棚に、よく聴く2枚を面陳
+  const all = [...albums].sort(byTitle);
+  const half = Math.ceil(all.length / 2);
+  const m1 = new Map(top.map((a, i) => [a.id, i === 0 ? `よく聴く · ${a.plays}回` : `よく聴く`]));
+  const m2 = new Map(recent.map((a, i) => [a.id, i === 0 ? "最近聴いた" : ""]));
+  // 面陳アルバムが必ず見えるよう、各段に含める
+  const r1 = all.slice(0, half).filter(a => !m2.has(a.id));
+  const r2 = all.slice(half).filter(a => !m1.has(a.id));
+  top.forEach(a => { if (!r1.includes(a)) r1.splice(Math.floor(r1.length * .3), 0, a); });
+  recent.forEach(a => { if (!r2.includes(a)) r2.splice(Math.floor(r2.length * .15), 0, a); });
+  fillRow(v.querySelector("#h1"), r1, m1);
+  fillRow(v.querySelector("#h2"), r2, m2);
+}
+
+// ---------- ライブラリ ----------
+const SMALL = 6; // これ以下のフォルダは同じ段にまとめる
+function renderLibrary() {
+  const v = document.getElementById("view-library");
+  v.innerHTML = `<div class="lib"><nav class="side" aria-label="フォルダ"></nav><div class="lib-shelves"><div class="case" id="lib-case"></div><p class="hint">${SMALL}枚以下のフォルダは1段にまとめて表示。各フォルダで最近聴いた1枚を面陳。</p></div></div>`;
+  const side = v.querySelector(".side"), kase = v.querySelector("#lib-case");
+  side.innerHTML = `<h2>フォルダ</h2>`;
+
+  const groups = FOLDERS.map(f => ({ name: f.name, list: albums.filter(a => a.folder === f.name).sort(byTitle) }));
+  const big = groups.filter(g => g.list.length > SMALL), small = groups.filter(g => g.list.length <= SMALL);
+
+  function label(g) { return `<b>${g.name}</b><span class="count">${g.list.length}</span>`; }
+  function faceMapFor(g) { const r = [...g.list].sort((x, y) => y.last - x.last)[0]; return new Map([[r.id, "最近聴いた"]]); }
+
+  big.forEach(g => {
+    const s = document.createElement("div");
+    s.className = "shelf"; s.id = "shelf-" + g.name;
+    s.innerHTML = `<div class="shelf-label">${label(g)}</div><div class="row"></div>`;
+    fillRow(s.querySelector(".row"), g.list, faceMapFor(g));
+    kase.append(s);
+  });
+  if (small.length) {
+    const s = document.createElement("div");
+    s.className = "shelf";
+    s.innerHTML = `<div class="packed"></div>`;
+    small.forEach(g => {
+      const box = document.createElement("div");
+      box.className = "box"; box.id = "shelf-" + g.name;
+      box.innerHTML = `<div class="shelf-label">${label(g)}</div><div class="row"></div>`;
+      fillRow(box.querySelector(".row"), g.list, faceMapFor(g));
+      s.querySelector(".packed").append(box);
+    });
+    kase.append(s);
+  }
+  groups.forEach(g => {
+    const b = document.createElement("button");
+    b.innerHTML = `<span>${g.name}</span><span class="n">${g.list.length}</span>`;
+    b.onclick = () => document.getElementById("shelf-" + g.name).scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    side.append(b);
+  });
+}
+
+// ---------- 再生中バー ----------
+const ICON = {
+  prev: '<svg viewBox="0 0 16 16"><path d="M3 2h2v12H3zM14 2v12L6 8z"/></svg>',
+  next: '<svg viewBox="0 0 16 16"><path d="M11 2h2v12h-2zM2 2v12l8-6z"/></svg>',
+  play: '<svg viewBox="0 0 16 16"><path d="M4 2v12l10-6z"/></svg>',
+  pause: '<svg viewBox="0 0 16 16"><path d="M3 2h4v12H3zM9 2h4v12H9z"/></svg>',
+};
+const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+function renderNP() {
+  const a = albums[nowId], np = document.getElementById("np");
+  np.innerHTML = `
+    <img alt="" src="${a.cover}">
+    <div class="np-meta">
+      <div class="np-title">${a.title}</div>
+      <div class="np-sub">${a.artist} · ${String(trackNo).padStart(2, "0")} / ${a.tracks} · ${a.folder}</div>
+      <div class="np-bar"><span id="np-pos">${fmt(pos)}</span><div class="np-track"><div class="np-fill" id="np-fill" style="width:${pos / trackLen * 100}%"></div></div><span>${fmt(trackLen)}</span></div>
+    </div>
+    <div class="np-ctrl">
+      <button id="b-prev" aria-label="前の曲">${ICON.prev}</button>
+      <button id="b-play" class="play" aria-label="${playing ? "一時停止" : "再生"}">${playing ? ICON.pause : ICON.play}</button>
+      <button id="b-next" aria-label="次の曲">${ICON.next}</button>
+    </div>`;
+  np.querySelector("#b-play").onclick = () => { playing = !playing; renderAll(); };
+  np.querySelector("#b-prev").onclick = () => { trackNo = Math.max(1, trackNo - 1); pos = 0; renderNP(); };
+  np.querySelector("#b-next").onclick = () => { trackNo = trackNo % a.tracks + 1; pos = 0; renderNP(); };
+}
+setInterval(() => {
+  if (!playing) return;
+  pos += 1;
+  if (pos >= trackLen) { pos = 0; trackNo = trackNo % albums[nowId].tracks + 1; renderNP(); return; }
+  const p = document.getElementById("np-pos"), f = document.getElementById("np-fill");
+  if (p) p.textContent = fmt(pos);
+  if (f) f.style.width = pos / trackLen * 100 + "%";
+}, 1000);
+
+function play(id) {
+  nowId = id; albums[id].last = Date.now(); albums[id].plays++;
+  playing = true; pos = 0; trackNo = 1; trackLen = 180 + (albums[id].seed % 240);
+  renderAll();
+}
+
+// ---------- ルーティング ----------
+function route() {
+  const lib = location.hash === "#library";
+  document.getElementById("view-home").hidden = lib;
+  document.getElementById("view-library").hidden = !lib;
+  document.getElementById("tab-home").toggleAttribute("aria-current", !lib);
+  document.getElementById("tab-library").toggleAttribute("aria-current", lib);
+  if (!lib) document.getElementById("tab-home").setAttribute("aria-current", "page");
+  else document.getElementById("tab-library").setAttribute("aria-current", "page");
+}
+function renderAll() { renderHome(); renderLibrary(); renderNP(); route(); }
+addEventListener("hashchange", route);
+renderAll();
+</script>

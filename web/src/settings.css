@@ -1,0 +1,140 @@
+/* 設定ページ: 中央の細い 1 列。見出しは棚の札と同じ字間の小さな文字 */
+#view-settings { overflow-y: auto; }
+body { transition: background-color .6s ease, color .6s ease; }
+.set { width: min(620px, 100%); margin: 0 auto; padding: 12px 16px 64px; display: grid; gap: 34px; }
+.set-sec { display: grid; gap: 14px; }
+.set-sec h2 { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: .14em; color: var(--muted); padding-bottom: 8px; border-bottom: 1px solid var(--soft); }
+.set-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+.set-row > span:first-child { width: 128px; flex: none; color: var(--muted); font-size: 12px; }
+.set-row.set-top { align-items: flex-start; }
+.set-row select { font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; }
+.set-row select option { background: var(--panel); }
+.set-check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.set-check input, .set-checks input { accent-color: var(--accent); margin: 0; }
+.set-checks { flex: 1; min-width: 200px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 14px; }
+.set-num { font-family: var(--font-mono); font-size: 12px; min-width: 3.5em; }
+.set-btn { font-size: 12px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 4px; }
+.set-btn:hover:not(:disabled) { background: var(--soft); }
+.set-btn:disabled { opacity: .4; cursor: default; }
+
+.set-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; justify-self: start; }
+.set-seg button { padding: 5px 14px; font-size: 12px; color: var(--muted); }
+.set-seg button + button { border-left: 1px solid var(--line); }
+.set-seg button[aria-checked="true"] { background: var(--soft); color: var(--ink); }
+
+/* 色の見本: 地の色の小さな部屋に、灯りの色の点がともる */
+.set-sws { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.set-sw { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; background: var(--sw-bg); color: var(--sw-ink);
+  border: 1.5px solid color-mix(in srgb, var(--sw-ink) 14%, transparent); font-size: 12px; text-align: left; transition: border-color .15s ease; }
+.set-sw i { width: 10px; height: 10px; flex: none; border-radius: 50%; background: var(--sw-acc); box-shadow: 0 0 10px var(--sw-acc); }
+.set-sw span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.set-sw:hover { border-color: color-mix(in srgb, var(--sw-ink) 40%, transparent); }
+.set-sw[aria-pressed="true"] { border-color: var(--sw-acc); }
+.set-sws.small { display: flex; flex-wrap: wrap; gap: 5px; }
+.set-sw.small { width: 24px; height: 24px; padding: 0; justify-content: center; border-radius: 50%; }
+.set-sw.small i { width: 7px; height: 7px; box-shadow: 0 0 6px var(--sw-acc); }
+.set-sw.small[aria-pressed="true"] { border-width: 2px; }
+
+.set-slots { display: grid; gap: 8px; }
+.set-slot { display: grid; grid-template-columns: 22px 112px auto 1fr; align-items: center; gap: 10px; font-size: 13px; }
+.set-slot b { font-weight: 500; }
+.set-slot input[type=time] { font: inherit; font-family: var(--font-mono); font-size: 12px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; color-scheme: dark; }
+.set-slot-name { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.set-custom label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.set-custom input[type=color] { width: 30px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
+
+/* 1 日の帯: 上が地の色、下の細い線が灯りの色。いまの時刻に縦線 */
+.set-day { position: relative; padding-bottom: 16px; }
+.set-day-bg { height: 22px; border-radius: 4px 4px 0 0; border: 1px solid var(--soft); border-bottom: 0; }
+.set-day-acc { height: 3px; border-radius: 0 0 2px 2px; }
+.set-day b { position: absolute; top: -3px; height: 31px; width: 1.5px; margin-left: -.75px; background: var(--ink); opacity: .8; }
+.set-day-hours span { position: absolute; bottom: 0; transform: translateX(-50%); font-family: var(--font-mono); font-size: 9px; color: var(--muted); }
+.set-day-hours span:first-child { transform: none; }
+.set-day-hours span:last-child { transform: translateX(-100%); }
+
+@media (max-width: 520px) {
+  .set-row > span:first-child { width: 100%; }
+  .set-slot { grid-template-columns: 22px 112px 1fr; }
+  .set-slot .set-sws { grid-column: 1 / -1; }
+  .set-slot-name { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { body { transition: none; } }
+
+/* ================= 部屋全体の見た目（prefs.ts が <html> に付ける） ================= */
+/* 書体 */
+:root[data-font="mincho"] { --font-body: "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", serif; }
+/* 文字の大きさ: 文字の多い所だけを拡大する（棚・猫・キャンバスは位置を測っているので、そのまま） */
+.top, #view-library, #view-settings .set, #np, #mini, .pop, .pop-menu, .module-menu, .dlg, .toast, .m { zoom: var(--font-scale, 1); }
+/* 動きを減らす（端末の設定か、設定ページで） */
+:root[data-motion="reduce"] *, :root[data-motion="reduce"] *::before, :root[data-motion="reduce"] *::after {
+  animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important;
+}
+/* ジャケットがないときの頭文字 */
+.art-blank.initial { align-items: center; justify-content: center; padding: 0; font-size: clamp(14px, 40cqw, 64px); container-type: inline-size; font-weight: 500; opacity: .92; }
+
+/* ================= 設定ページの部品 ================= */
+.set-nav { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 2px 4px; padding: 6px 0 8px; margin: 0 -8px -20px; padding-inline: 4px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid var(--soft); }
+.set-nav a { font-size: 12px; color: var(--muted); text-decoration: none; padding: 4px 8px; border-radius: 4px; }
+.set-nav a:hover { color: var(--ink); background: var(--soft); }
+.set-sec { scroll-margin-top: 48px; }
+.set-sec h3 { margin: 6px 0 -4px; font-size: 12px; font-weight: 500; color: var(--ink); }
+.set-row.set-wide > span:first-child { width: auto; }
+.set-btns { gap: 8px; }
+.set-btn.danger, .set-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.set-btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.set-color { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.set-color input[type=color] { width: 30px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
+.set-note { margin: 0; font-size: 11px; color: var(--muted); }
+.set-num { color: var(--muted); }
+.set input[type=range] { accent-color: var(--accent); width: 160px; }
+.set input:not([type]), .set-cat-name, #set-preset-name {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; min-width: 0;
+}
+.set select { font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; }
+.set select option { background: var(--panel); }
+
+/* EQ のプリセット: 形の小さな絵と名前 */
+.set-presets { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.set-preset { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; }
+.set-preset.on { border-color: var(--accent); }
+.set-preset-apply { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 7px 10px; font-size: 12px; text-align: left; }
+.set-preset-apply span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-preset-apply svg { width: 42px; height: 24px; flex: none; fill: var(--muted); border-bottom: 1px solid var(--soft); }
+.set-preset.on svg { fill: var(--accent); }
+.set-preset-apply:hover { background: var(--soft); }
+.set-x { width: 28px; align-self: stretch; color: var(--muted); font-size: 15px; }
+.set-x:hover { color: var(--danger); }
+.set-save #set-preset-name { width: 160px; }
+
+/* 猫の一覧 */
+.set-cats { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.set-cats li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto; gap: 8px; align-items: center; }
+
+/* 読み込み元・端末に残したアルバム */
+.set-source { display: flex; align-items: baseline; gap: 12px; font-size: 13px; min-width: 0; }
+.set-source b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-source span { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.set-kept { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; border-top: 1px solid var(--soft); }
+.set-kept li { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--soft); font-size: 12px; }
+.set-kept span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-kept i { font-style: normal; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+/* キーボード */
+.set-keys { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 24px; }
+.set-keys li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--soft); font-size: 13px; }
+.set-key { font-family: var(--font-mono); font-size: 11px; padding: 3px 9px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; min-width: 44px; }
+.set-key:hover { background: var(--soft); }
+.set-key.rec { color: var(--accent); border-color: var(--accent); }
+
+/* Kona について */
+.set-about { display: grid; grid-template-columns: 112px 1fr; gap: 6px 10px; margin: 0; font-size: 13px; }
+.set-about dt { color: var(--muted); font-size: 12px; }
+.set-about dd { margin: 0; }
+.set-about a { color: var(--accent); }
+.set-privacy { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+@media (max-width: 520px) {
+  .set-cats li { grid-template-columns: 1fr 1fr; }
+  .set-cats .set-cat-bye { grid-column: 1 / -1; justify-self: start; }
+}

@@ -1,0 +1,113 @@
+/* 棚の上の小物: 棚板と、その上に立つローポリの小物たち */
+.objs {
+  flex: 1; min-height: 0; position: relative; overflow: hidden;
+  container-type: size;
+  --units: 400;
+}
+/* 灯りを点けると、棚の上がほんのり暖かくなる */
+.objs::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .8s ease;
+  background: radial-gradient(ellipse 60% 90% at 22% 100%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
+}
+.objs.lit::before { opacity: 1; }
+.objs-row {
+  position: absolute; left: 0; right: 0; top: 0; bottom: var(--board);
+  display: flex; align-items: flex-end; justify-content: space-evenly;
+  padding: 0 3%;
+}
+.objs-board {
+  position: absolute; left: 2%; right: 2%; bottom: 0; height: var(--board);
+  background: var(--board-bg);
+}
+/* 高さは段の高さいっぱい近くまで。並べる数が多くて幅が足りないときは、全部が収まる大きさに縮める */
+.objs svg {
+  display: block; overflow: visible; flex: 0 0 auto;
+  height: min(calc((100cqh - var(--board)) * .9), 260px, calc(94cqw / var(--units) * 100));
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .45));
+  transition: filter .8s ease;
+}
+.objs svg polygon { stroke-width: .5px; stroke-linejoin: round; }
+.objs.lit svg:not(.lamp) { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .45)) brightness(1.12) sepia(.08); }
+.objs [role="button"] { cursor: pointer; outline: none; }
+.objs svg[role="button"]:focus-visible { filter: drop-shadow(0 0 2px var(--accent)); }
+
+/* 灯り */
+.objs .lamp .cone, .objs .lamp .bulb { opacity: 0; transition: opacity .5s ease; }
+.objs .lamp .bulb { fill: #fff3d6; filter: drop-shadow(0 0 3px var(--accent)) drop-shadow(0 0 8px var(--accent)); }
+.objs .lamp.on .cone, .objs .lamp.on .bulb { opacity: 1; }
+.objs .lamp.on .rim { fill: color-mix(in srgb, var(--accent) 70%, #4f3b21) !important; stroke: color-mix(in srgb, var(--accent) 70%, #4f3b21) !important; }
+
+/* 鉢植え */
+.objs .stem { stroke: hsl(110 30% 40%); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+
+/* ろうそく */
+.objs .candle .halo { fill: var(--accent); }
+.objs .candle .flame { filter: drop-shadow(0 0 3px var(--accent)); }
+.objs .candle .f-l { fill: #ffd690; }
+.objs .candle .f-r { fill: #f0a24c; }
+.objs .candle .f-c { fill: #fff4d8; }
+.objs .candle .wick { stroke: #2a211a; stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.objs .candle.on .wick { stroke: #4a2a18; }
+.objs .candle .smoke { fill: none; stroke: var(--muted); stroke-width: 1px; vector-effect: non-scaling-stroke; opacity: 0; }
+
+/* 砂時計 */
+.objs .hourglass .stream { stroke: #e6c890; stroke-width: 1px; vector-effect: non-scaling-stroke; transition: opacity .3s; }
+
+/* きょうのレコード: 指した 1 枚が少し出てくる */
+.objs .rec { transition: transform .25s ease; }
+.objs .rec[role="button"]:hover, .objs .rec[role="button"]:focus-visible { transform: translateX(3px); }
+.objs .rec.now { filter: brightness(1.18); }
+.objs .rec.gone, .objs .rec.empty { opacity: .55; }
+
+/* 金魚鉢 */
+.objs .bowl .bowl-glass { fill: rgba(236, 228, 216, .05); stroke: rgba(236, 228, 216, .28); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.objs .bowl .bubbles circle { fill: rgba(220, 240, 245, .25); stroke: rgba(230, 245, 250, .7); stroke-width: .6px; vector-effect: non-scaling-stroke; }
+
+/* 夏の夜の虫 */
+.objs .lamp .moths { opacity: 0; pointer-events: none; }
+
+/* 読みかけの本: めくっているページ */
+.objs .book .turn { fill: #f3ebd8; stroke: #f3ebd8; }
+
+/* 編みもの */
+.objs .knit .yarn { fill: none; stroke-width: 1px; vector-effect: non-scaling-stroke; }
+
+/* ポスト: 手紙が届くと封筒がのぞき、旗が上がる */
+.objs .post .letter { opacity: 0; transform: translateY(5px); transition: opacity .4s, transform .4s; }
+.objs .post.mail .letter { opacity: 1; transform: none; animation: objs-letter 3s ease-in-out infinite; }
+.objs .post .flag { transform-box: view-box; transform-origin: 41.8px 58px; transform: rotate(90deg); transition: transform .6s ease; }
+.objs .post.mail .flag { transform: none; }
+/* 賞状: 届いたばかりのときだけ、額のガラスに光が流れる */
+.objs .award .glint { opacity: 0; }
+.objs .award.new .glint { animation: objs-glint 3.2s ease-in-out infinite; }
+@keyframes objs-glint { 0%, 60% { opacity: 0; transform: translateX(-4px); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateX(36px); } }
+@media (prefers-reduced-motion: reduce) { .objs .award.new .glint { animation: none; opacity: .6; } }
+@keyframes objs-letter { 50% { transform: translateY(-1px); } }
+@media (prefers-reduced-motion: reduce) { .objs .post.mail .letter { animation: none; } }
+
+/* 手紙 */
+.objs-letter {
+  width: min(380px, calc(100vw - 32px)); padding: 26px 26px 20px; border: none; border-radius: 3px;
+  background: #efe6d4; color: #2c261f; font-family: var(--font-body); box-shadow: 0 18px 50px rgba(0, 0, 0, .55);
+}
+.objs-letter::backdrop { background: rgba(8, 9, 12, .55); }
+.objs-letter h3 { margin: 0 0 10px; font-size: 16px; font-weight: 600; letter-spacing: .04em; }
+.objs-letter p { margin: 0 0 12px; font-size: 13px; line-height: 1.8; }
+.objs-letter .lt-date { font-size: 11px; color: #7a6c5c; letter-spacing: .1em; margin-bottom: 6px; }
+.objs-letter ol { list-style: none; margin: 0 0 12px; padding: 0; }
+.objs-letter li button {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 6px 4px; border: none; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: 2px;
+}
+.objs-letter li button:hover:not(:disabled), .objs-letter li button:focus-visible { background: rgba(80, 60, 40, .1); }
+.objs-letter li i { flex: 0 0 22px; height: 22px; border-radius: 1px; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); }
+.objs-letter li span { flex: 1; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.objs-letter li small { display: block; font-size: 11px; color: #7a6c5c; }
+.objs-letter li em { font-style: normal; font-size: 11px; color: #7a6c5c; font-family: var(--font-mono); }
+.objs-letter .lt-sign { font-size: 11px; color: #7a6c5c; text-align: right; }
+.objs-letter .lt-close { display: block; margin: 4px 0 0 auto; padding: 5px 14px; border: 1px solid rgba(80, 60, 40, .35); border-radius: 3px; background: none; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }
+
+/* 植物 */
+.objs .pothos .rope { fill: none; stroke: #b8a888; stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.objs .pothos .stem { fill: none; stroke: #4f7a3e; stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.objs .vase .stem { stroke: #4f7a3e; stroke-width: 1px; vector-effect: non-scaling-stroke; }
