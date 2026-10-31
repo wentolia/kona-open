@@ -6,6 +6,22 @@ import { prefs } from "./prefs";
 import pitchSource from "../public/pitch-worklet.js?raw";
 
 type Listener = () => void;
+
+/** ファイルを持たず、外のサービス（Spotify）が鳴らす再生先。音は Kona の Web Audio のグラフを通らない */
+export interface Remote {
+  readonly paused: boolean;
+  readonly position: number;   // 秒
+  readonly duration: number;   // 秒
+  readonly currentUri?: string;
+  play(uris: string[], offset: number, at?: number): Promise<void>;
+  pause(): void;
+  resume(): void;
+  seek(sec: number): void;
+  setVolume(v: number): void;
+  onChange?: () => void;
+  onEnded?: () => void;
+}
+const uriOf = (t: Track) => (t.entry as { uri?: string }).uri ?? "";
 interface Cue { album: Album; index: number }
 
 /** 再生のしかた: 通常 → アルバムをくり返す → 1 曲をくり返す → アルバムの中でシャッフル（ボタンを押すたびに巡る） */
@@ -100,6 +116,12 @@ export class Player {
   private nextStart?: Cue;                     // シャッフル中に次のアルバムへ移るときの最初の曲（先読みと合わせる）
   /** アルバムを聴き終えたあとに切り替わる先（アルバムの境目も先読みするため） */
   nextAlbum?: () => Album | undefined;
+  /** アルバムを外のサービスで鳴らすなら、その再生先（spotify-ui.ts が入れる） */
+  remoteFor?: (album: Album) => Remote | undefined;
+  private remote?: Remote;
+  private remoteList: number[] = [];   // 外の再生先に並べた曲（曲の番号）
+  private remoteStarted = false;       // 並べて鳴らし始めたか（開き直した直後は位置だけ覚えている）
+  private remoteAt = 0;                // 鳴らし始める前の位置（秒）
   /** 曲が再生できなかったとき（ブラウザが対応していない形式・壊れたファイル）。その曲は飛ばす */
   onTrackError?: (album: Album, track: Track) => void;
 
@@ -136,9 +158,14 @@ export class Player {
   }
 
   get track(): Track | undefined { return this.album?.tracks[this.index]; }
-  get playing(): boolean { return !this.audio.paused; }
-  get position(): number { return this.audio.currentTime; }
-  get duration(): number { return Number.isFinite(this.audio.duration) ? this.audio.duration : 0; }
+  get playing(): boolean { return this.remote ? !this.remote.paused : !this.audio.paused; }
+  get position(): number { return this.remote ? (this.remoteStarted ? this.remote.position : this.remoteAt) : this.audio.currentTime; }
+  get duration(): number {
+    if (this.remote) return (this.remoteStarted && this.remote.duration) || this.track?.duration || 0;
+    return Number.isFinite(this.audio.duration) ? this.audio.duration : 0;
+  }
+  /** いまの曲が外のサービスで鳴っている（DRM のため EQ・波形・速さとピッチ・クロスフェードなどは効かない） */
+  get external(): boolean { return !!this.remote; }
 
   on(fn: Listener): () => void { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   private emit() { this.listeners.forEach(fn => fn()); }
@@ -189,13 +216,14 @@ export class Player {
   }
   toggleMute() { this.muted = !this.muted; this.applyVolume(); }
   private applyVolume() {
+    this.remote?.setVolume(this.muted ? 0 : this.vol * this.vol);
     if (!this.gain || !this.ctx) return;
     this.gain.gain.setTargetAtTime(this.muted ? 0 : this.vol * this.vol, this.ctx.currentTime, 0.015);
   }
 
   /** 左右のレベル（RMS、0〜1） */
   levels(): [number, number] {
-    if (!this.meters.length || this.audio.paused) return [0, 0];
+    if (!this.meters.length || this.audio.paused || this.remote) return [0, 0];
     return this.meters.map(a => {
       a.getFloatTimeDomainData(this.meterBuf);
       let sum = 0;
@@ -206,13 +234,22 @@ export class Player {
 
   /** 周波数ごとの強さ（dB、0 Hz からサンプルレート/2 まで等間隔）。音の経路ができる前・止まっているときは undefined */
   spectrum(): Float32Array | undefined {
-    if (!this.spec || this.audio.paused) return undefined;
+    if (!this.spec || this.audio.paused || this.remote) return undefined;
     this.spec.getFloatFrequencyData(this.specBuf);
     return this.specBuf;
   }
 
   /** 何秒かかけて音を絞り、止める（スリープタイマー） */
   async fadeOutAndPause(seconds = 8) {
+    // 外の再生先は音の経路に入れないので、再生先の音量を少しずつ下げて止める
+    const r = this.remote;
+    if (r) {
+      if (r.paused) return;
+      const v0 = this.muted ? 0 : this.vol * this.vol, steps = Math.max(1, Math.round(seconds * 4));
+      for (let i = 1; i <= steps && this.remote === r && !r.paused; i++) { await new Promise(res => setTimeout(res, seconds * 1000 / steps)); r.setVolume(v0 * (1 - i / steps)); }
+      r.pause(); r.setVolume(v0); this.emit();
+      return;
+    }
     if (!this.ctx || !this.fader || this.audio.paused) { this.audio.pause(); return; }
     const t = this.ctx.currentTime, g = this.fader.gain;
     g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + seconds);
@@ -224,7 +261,7 @@ export class Player {
 
   /** 曲の終わりの余韻: 音楽が止まったあとも、部屋の音（環境音・時計）だけをしばらく残し、ゆっくり消す */
   linger(hold = 5, fade = 9) {
-    if (!this.ctx || !this.noise) return;
+    if (!this.ctx || !this.noise || this.remote) return; // Spotify の音にほかの音を重ねない
     this.endLinger();
     const t = this.ctx.currentTime, g = this.noise.gain;
     g.cancelScheduledValues(t); g.setValueAtTime(Math.max(g.value, .001), t);
@@ -382,6 +419,7 @@ export class Player {
     this.album = album;
     this.order = shuffled(album.tracks.length, index);
     await this.load(index, false);
+    if (this.remote) { this.remoteAt = Math.max(0, at); this.emit(); return; }
     if (at > 0) {
       const seek = () => { this.audio.currentTime = Math.min(at, Math.max(0, (this.audio.duration || at) - 1)); this.emit(); };
       if (this.audio.readyState >= 1) seek(); else this.audio.addEventListener("loadedmetadata", seek, { once: true });
@@ -390,6 +428,9 @@ export class Player {
 
   private async load(index: number, autoplay = true) {
     if (!this.album) return;
+    const r = this.remoteFor?.(this.album);
+    if (r !== this.remote) this.setRemote(r);
+    if (r) { this.index = index; this.disarmSwitch(); return this.loadRemote(index, autoplay); }
     this.ensureGraph();
     this.index = index;
     this.disarmSwitch();
@@ -417,6 +458,50 @@ export class Player {
     this.updateMediaSession();
     this.emit();
     this.cueNext();
+  }
+
+  // ---------- 外の再生先（Spotify） ----------
+  private setRemote(r?: Remote) {
+    const old = this.remote;
+    if (old) { old.onChange = old.onEnded = undefined; old.pause(); }
+    this.remote = r; this.remoteStarted = false; this.remoteAt = 0;
+    if (r) {
+      // 手元の曲は止める（2 つが同時に鳴らないように）
+      this.audio.pause(); this.fadingOut?.pause();
+      this.cued = this.cueTarget = undefined; this.cueing++;
+      r.onChange = () => this.remoteChanged();
+      r.onEnded = () => this.advance();
+      r.setVolume(this.muted ? 0 : this.vol * this.vol);
+    }
+    document.documentElement.toggleAttribute("data-drm", !!r);
+  }
+  private async loadRemote(index: number, autoplay: boolean) {
+    const a = this.album!;
+    // 鳴らす順に並べて渡す（同じアルバムの曲の境目は Spotify が切れ目なくつなぐ）。終わったら advance で次を決める
+    this.remoteList = this.playMode === "track" ? [index]
+      : this.playMode === "shuffle" ? this.order.slice(Math.max(0, this.order.indexOf(index)))
+      : a.tracks.map((_, i) => i).slice(index);
+    this.remoteStarted = false; this.remoteAt = 0;
+    this.updateMediaSession();
+    this.emit();
+    if (autoplay) await this.startRemote(0);
+  }
+  private async startRemote(at: number) {
+    const a = this.album, r = this.remote;
+    if (!a || !r) return;
+    this.remoteStarted = true; this.remoteAt = 0;
+    await r.play(this.remoteList.map(i => uriOf(a.tracks[i])), 0, at);
+  }
+  private remoteChanged() {
+    const r = this.remote, a = this.album;
+    if (!r || !a) return;
+    const uri = r.currentUri;
+    if (uri) {
+      const i = a.tracks.findIndex(t => uriOf(t) === uri);
+      if (i >= 0 && i !== this.index) { this.index = i; this.updateMediaSession(); }
+    }
+    this.syncMediaSession();
+    this.emit();
   }
 
   private setSource(el: HTMLAudioElement, file: Blob) {
@@ -474,6 +559,7 @@ export class Player {
   /** 次の曲を spare に読み込んでおく。曲の境目では読み込みを待たずに切り替えられる。
    *  再生中は何度も呼ばれ、「次に再生」が変わって次の曲が替わったときだけ読み直す */
   private async cueNext() {
+    if (this.remote) return;
     const want = this.successor(), cur = this.cueTarget;
     if (want?.album === cur?.album && want?.index === cur?.index) return;
     // クロスフェードで前の曲がまだ鳴っている間は、その再生器に次を読み込まない（終わってから）
@@ -518,6 +604,14 @@ export class Player {
 
   toggle() {
     if (!this.album) return;
+    const r = this.remote;
+    if (r) {
+      if (!this.remoteStarted) this.startRemote(this.remoteAt);
+      else if (r.paused) r.resume();
+      else r.pause();
+      this.emit();
+      return;
+    }
     if (this.audio.paused) { this.ctx?.resume(); this.audio.play().catch(() => {}); }
     else { this.audio.pause(); this.fadingOut?.pause(); }
   }
@@ -531,7 +625,11 @@ export class Player {
     if (this.playMode === "album" && this.onAlbumLoop?.() !== false) { this.load(this.firstIndex()); return; }
     this.endAlbum();
   }
-  private endAlbum() { this.audio.pause(); this.audio.currentTime = 0; this.emit(); this.onAlbumEnd?.(); }
+  private endAlbum() {
+    if (this.remote) { this.remote.pause(); this.remoteStarted = false; this.remoteAt = 0; }
+    else { this.audio.pause(); this.audio.currentTime = 0; }
+    this.emit(); this.onAlbumEnd?.();
+  }
 
   /** 次の曲へ（ボタン・メディアキー）。1 曲リピート中でも次の曲へ進む */
   next() {
@@ -546,15 +644,15 @@ export class Player {
     if (!this.album) return;
     // 3秒以上進んでいたら曲の頭に戻る
     const pi = this.prevIndex();
-    if (this.audio.currentTime > 3 || pi === undefined) this.audio.currentTime = 0;
+    if (this.position > 3 || pi === undefined) this.seekTo(0);
     else this.load(pi);
   }
 
   /** 再生中の曲のファイル（波形を描くため） */
-  async trackFile(): Promise<File | undefined> { return this.track?.entry.getFile(); }
+  async trackFile(): Promise<File | undefined> { return this.remote ? undefined : this.track?.entry.getFile(); }
 
   seek(ratio: number) {
-    if (this.duration) this.audio.currentTime = ratio * this.duration;
+    if (this.duration) this.seekTo(ratio * this.duration);
   }
 
   // ---------- メディアセッション ----------
@@ -563,20 +661,22 @@ export class Player {
     if (!("mediaSession" in navigator)) return;
     const ms = navigator.mediaSession;
     const set = (a: MediaSessionAction, fn: MediaSessionActionHandler) => { try { ms.setActionHandler(a, fn); } catch { /* 対応していない操作 */ } };
-    set("play", () => { if (this.audio.paused) this.toggle(); });
-    set("pause", () => { if (!this.audio.paused) this.toggle(); });
-    set("stop", () => { this.audio.pause(); });
+    set("play", () => { if (!this.playing) this.toggle(); });
+    set("pause", () => { if (this.playing) this.toggle(); });
+    set("stop", () => { if (this.playing) this.toggle(); });
     set("nexttrack", () => this.next());
     set("previoustrack", () => this.prev());
     set("seekto", d => { if (d.seekTime !== undefined) this.seekTo(d.seekTime); });
-    set("seekbackward", d => this.seekTo(this.audio.currentTime - (d.seekOffset ?? 10)));
-    set("seekforward", d => this.seekTo(this.audio.currentTime + (d.seekOffset ?? 10)));
+    set("seekbackward", d => this.seekTo(this.position - (d.seekOffset ?? 10)));
+    set("seekforward", d => this.seekTo(this.position + (d.seekOffset ?? 10)));
   }
 
   /** 秒で位置を合わせる */
   seekTo(sec: number) {
     if (!this.duration) return;
-    this.audio.currentTime = Math.max(0, Math.min(this.duration - .05, sec));
+    const t = Math.max(0, Math.min(this.duration - .05, sec));
+    if (this.remote) { if (this.remoteStarted) this.remote.seek(t); else this.remoteAt = t; this.emit(); return; }
+    this.audio.currentTime = t;
   }
 
   private updateMediaSession() {
@@ -596,10 +696,10 @@ export class Player {
   private syncMediaSession() {
     if (!("mediaSession" in navigator)) return;
     const ms = navigator.mediaSession;
-    ms.playbackState = !this.album ? "none" : this.audio.paused ? "paused" : "playing";
+    ms.playbackState = !this.album ? "none" : this.playing ? "playing" : "paused";
     const d = this.duration;
     try {
-      if (d) ms.setPositionState({ duration: d, position: Math.min(this.audio.currentTime, d), playbackRate: this.audio.playbackRate || 1 });
+      if (d) ms.setPositionState({ duration: d, position: Math.min(this.position, d), playbackRate: this.remote ? 1 : this.audio.playbackRate || 1 });
     } catch { /* 古いブラウザ */ }
   }
 }

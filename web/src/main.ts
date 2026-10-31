@@ -5,7 +5,6 @@ import { prefs } from "./prefs";
 import { libGroup, setLibGroup, groupKey, groupAlbums, type LibGroup } from "./libgroup";
 import { initShortcuts } from "./shortcuts";
 import { t, t as tr, translateStatic } from "./i18n";
-import { catVoice } from "./cat-voice";
 import { signOut, saveDriveConfig } from "./drive";
 import { type Album, type Entry, scan, walkHandle, walkFiles, walkDropped, enrichHead, enrichTracks, eachLimited } from "./library";
 import { Player, RATE_MIN, RATE_MAX, PITCH_MAX } from "./player";
@@ -18,12 +17,12 @@ import { mountSingle, mountTwin, unwatchRow, folderGap, installWheel } from "./p
 import { mountModule } from "./modules";
 import { setModuleContext, fadeSwap } from "./modctx";
 import { stopAtAlbumEnd, albumEndArmed, focusLocked } from "./mod-clock";
-import { setCats, randomCoat, breedCoat, setCatsMusic, setCatHooks, catPicksAlbum, toggleWand, wandOn, type Coat } from "./cat";
+import { setCats, randomCoat, isCoat, breedCoat, setCatsMusic, setCatHooks, catPicksAlbum, toggleWand, wandOn, type Coat } from "./cat";
 import { recordPlace } from "./mod-map";
 import { initNoise, roomTail } from "./noise";
 import { ritual, isPulled } from "./ritual";
 import { wakeCatHost, placeWakeCat, catAwake } from "./wakecat";
-import { mountMini, type MiniAction } from "./mini";
+import { initMini, setMini } from "./mini";
 import { windowRain, setWindowRain, WINDOW_SCENES, windowScene, setWindowScene, roomLightOn, setRoomLight } from "./mod-window";
 import { initRoomLight } from "./room-light";
 import { initRoomDecor } from "./room-decor";
@@ -41,15 +40,14 @@ import { spectrumPrefs, setSpectrumPrefs, type SpectrumPrefs } from "./mod-spect
 import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeDrive } from "./drive-ui";
 import { isDriveEntry, isKept, keepAlbum, forgetAlbum, driveConfig, driveToken, walkDrive, type DriveEntry } from "./drive";
 import { initMobile, renderMobile, mobileActive } from "./mobile";
+import { initSpotifyUI, openSpotify, spotifyConfigured, resumeSpotify, forgetSpotifyOpen } from "./spotify-ui";
 import { initParty, openParty, partySupported } from "./party";
 import { type Drop, loadHome, saveHome, place, removeModule, addModule, MIN_W as MIN_COL, MIN_H as MIN_STACK } from "./layout";
+import { $, esc, fmt, collator } from "./dom";
+import { hashOf, dailyShuffle, byLast, matches, sortAlbums } from "./album-sort";
 
 initTheme();
 
-const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
-const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
-const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-const collator = new Intl.Collator("ja", { numeric: true, sensitivity: "base" });
 
 let albums: Album[] = [];
 let allAlbums: Album[] = [];      // 読み込んだすべて（外したものも含む）
@@ -116,6 +114,7 @@ function openSourceMenu(anchor: HTMLElement) {
   const saved = driveSaved();
   el.innerHTML = `<button role="menuitem" data-s="local"><b>${t("この端末のフォルダ")}</b></button>
     <button role="menuitem" data-s="drive"><b>Google Drive</b>${saved ? `<span>${esc(saved.name)}</span>` : ""}</button>
+    ${spotifyConfigured() ? `<button role="menuitem" data-s="spotify"><b>Spotify</b><span>${t("保存したアルバム")}</span></button>` : ""}
     <hr>
     ${partySupported() ? `<button role="menuitem" data-s="party"><b>リスニングパーティー</b><span>同じ曲をいっしょに聴く</span></button>
     <hr>` : ""}
@@ -128,6 +127,7 @@ function openSourceMenu(anchor: HTMLElement) {
     closeSourceMenu();
     if (s === "local") openFolder();
     else if (s === "drive") openDrive();
+    else if (s === "spotify") openSpotify();
     else if (s === "party") openParty();
     else if (s === "export" || s === "export-all") { saveSession(); const n = exportSettings(s === "export-all"); toast(`${n} 項目を書き出しました`); }
     else loadSettingsFile();
@@ -182,7 +182,9 @@ async function reopenSaved() {
 }
 
 let loads = 0;   // 読み込みを始めた回数（起動の途中でフォルダが選ばれたかを見分ける）
-async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry>) {
+// entries の代わりに、アルバムをそのまま返す関数も渡せる（Spotify。ファイルを持たない）
+type Fetch = (progress: (n: number, total: number) => void) => Promise<Album[]>;
+async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry> | Fetch) {
   loads++;
   const prevRoot = rootName;
   rootName = name;
@@ -192,15 +194,26 @@ async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry
   progress("フォルダの中を探しています", `${name}`);
   await loadTagCache();
   let found: Album[];
-  try { found = await scan(entries, n => progress("フォルダの中を探しています", `${n} 曲`)); }
+  try {
+    found = typeof entries === "function"
+      ? await entries((n, total) => progress(`${name} から読んでいます`, `${n} / ${total} 枚`, total ? n / total : undefined))
+      : await scan(entries, n => progress("フォルダの中を探しています", `${n} 曲`));
+  }
   catch (e) {
-    const msg = (e as Error).name === "DriveAuthError" ? "Google Drive のサインインが切れました。もう一度開いてください。" : `「${name}」を読めませんでした。通信の具合を確かめて、もう一度どうぞ。`;
+    const err = (e as Error).name;
+    const msg = err === "DriveAuthError" ? "Google Drive のサインインが切れました。もう一度開いてください。"
+      : err === "SpotifyAuthError" ? "Spotify のサインインが切れました。もう一度開いてください。"
+      : `「${name}」を読めませんでした。通信の具合を確かめて、もう一度どうぞ。`;
     if (allAlbums.length) { rootName = prevRoot; setState("ready"); showCount(); toast(msg); return; } // 読み込み済みの棚はそのまま
     setStatus("");
-    setState("start", (e as Error).name === "DriveAuthError" ? "Google Drive のサインインが切れました。もう一度開いてください。" : `「${name}」を読めませんでした。通信の具合を確かめて、もう一度どうぞ。`);
+    setState("start", msg);
     return;
   }
-  if (!found.length) { setStatus(""); setState("start", `「${name}」の中に音楽ファイルが見つかりませんでした。別のフォルダを選んでください。`); return; }
+  const remote = found.some(a => a.remote);
+  // Spotify のジャケットは、写真ではいつも隠す（photo.ts が見る）
+  document.documentElement.toggleAttribute("data-art-locked", remote);
+  if (!remote) forgetSpotifyOpen();
+  if (!found.length) { setStatus(""); setState("start", typeof entries === "function" ? `${name} に保存したアルバムがありません。` : `「${name}」の中に音楽ファイルが見つかりませんでした。別のフォルダを選んでください。`); return; }
   // 2. アルバムごとにジャケットとタグを読む（ここからは全体に対する割合を出す）
   let done = 0;
   progress("ジャケットとタグを読んでいます", `0 / ${found.length} 枚`, 0);
@@ -211,7 +224,7 @@ async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry
   });
   allAlbums = found;
   albums = found.filter(a => !hidden.has(a.key));
-  pruneTagCache(new Set(found.map(a => a.key)));
+  if (!remote) pruneTagCache(new Set(found.map(a => a.key))); // Spotify を開いても、手元のフォルダの覚えは消さない
   showCount();
   await catAwake();
   setState("ready");
@@ -370,6 +383,8 @@ function toast(text: string, action?: string, run?: () => void) {
 
 // Drive のフォルダは、開いたフォルダ（設定に残る id）をあとで読み直せるように覚えておく
 initDriveUI({ load: (name, entries) => { liveRoot = undefined; liveDrive = driveConfig()?.folderId; return load(name, entries); }, toast });
+// Spotify: 保存したアルバムを棚に並べ、Web Playback SDK で鳴らす（spotify-ui.ts）
+initSpotifyUI({ player, load: (name, fetch) => { liveRoot = liveDrive = undefined; return load(name, fetch); }, toast });
 
 // Drive のアルバムを端末に残す（電波のないところでも聴ける・通信量を使わない）
 const driveFiles = (a: Album) => [...a.tracks.map(t => t.entry), ...(a.coverEntry ? [a.coverEntry] : [])].filter(isDriveEntry) as DriveEntry[];
@@ -426,6 +441,7 @@ function setState(state: AppState, note = "") {
           ${!savedRoot && driveSaved() ? `<button class="btn primary" id="s-drive-reopen">Drive の「${esc(driveSaved()!.name)}」を開く</button>` : ""}
           <button class="btn ${savedRoot || driveSaved() ? "" : "primary"}" id="s-open">${savedRoot ? "別のフォルダを選ぶ" : "フォルダを選ぶ"}</button>
           <button class="btn" id="s-drive">Google Drive から</button>
+          ${spotifyConfigured() ? `<button class="btn" id="s-spotify">Spotify から</button>` : ""}
         </div>
 `}
   </div>`;
@@ -434,11 +450,11 @@ function setState(state: AppState, note = "") {
   $("#s-reopen")?.addEventListener("click", reopenSaved);
   $("#s-drive")?.addEventListener("click", openDrive);
   $("#s-drive-reopen")?.addEventListener("click", openDriveSaved);
+  $("#s-spotify")?.addEventListener("click", openSpotify);
   $<HTMLButtonElement>(savedRoot ? "#s-reopen" : driveSaved() ? "#s-drive-reopen" : "#s-open")?.focus();
 }
 
 // ---------- 部品 ----------
-function hashOf(s: string) { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return Math.abs(h); }
 function fallbackColor(a: Album) { const h = hashOf(a.key); return `hsl(${h % 360} ${18 + h % 20}% ${30 + (h >> 8) % 20}%)`; }
 function isLight(color: string) {
   const m = color.match(/rgb\((\d+) (\d+) (\d+)\)/);
@@ -550,7 +566,8 @@ function spine(a: Album, rowId: string) {
   b.style.cssText = `width:${15 + Math.min(11, Math.round(a.tracks.length * .65))}px;height:${66 + h % 24}%;background:${bg};color:${isLight(bg) ? "#15181b" : "#f2f2f0"}`;
   b.title = a.artist ? `${a.title} — ${a.artist}` : a.title;
   // 棚板スキンでは、ジャケットの一部を縦に引き伸ばしてぼかしたものを背表紙の地にする（位置はアルバムごとに固定）
-  const tex = a.cover ? `<i class="spine-tex" style="background-image:url('${a.cover}');background-position:${h % 100}% 50%"></i>` : "";
+  // Spotify のジャケットは切り取ったり引き伸ばしたりしない（Spotify の表示の決まり）。背表紙は平均色だけ
+  const tex = a.cover && !a.remote ? `<i class="spine-tex" style="background-image:url('${a.cover}');background-position:${h % 100}% 50%"></i>` : "";
   b.innerHTML = `${tex}<span>${esc(a.title)}</span>`;
   onClicks(b, () => openPop(rowId, a, b), () => interrupt(a), a.key);
   if (selected.has(a.key)) b.classList.add("selected");
@@ -596,6 +613,7 @@ function renderPop() {
         <span class="opened-actions">
           ${removable(rowId, a) ? `<button class="opened-remove">この棚から外す</button>` : ""}
           ${rowId.startsWith("shelf-") ? `<button class="opened-remove opened-hide">ライブラリから外す</button>` : ""}
+          ${a.remote === "spotify" && a.link ? `<a class="opened-remove opened-link" href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">Spotify で開く</a>` : ""}
           ${driveFiles(a).length ? `<button class="opened-remove opened-keep"${keeping.has(a.key) ? " disabled" : ""}>${keeping.has(a.key) ? "残しています…" : isKept(a.key) ? "端末から消す" : "端末に残す"}</button>` : ""}
           <button class="opened-close" aria-label="閉じる">${ICON.close}</button>
         </span>
@@ -608,7 +626,7 @@ function renderPop() {
   $(".opened-cover", el).onclick = () => play(a);
   $(".opened-close", el).onclick = closePop;
   const rm = $(".opened-remove", el);
-  if (rm && !rm.classList.contains("opened-hide") && !rm.classList.contains("opened-keep")) rm.onclick = () => { removeFrom(rowId, a.key); closePop(); renderShelves(); };
+  if (rm && !rm.classList.contains("opened-hide") && !rm.classList.contains("opened-keep") && !rm.classList.contains("opened-link")) rm.onclick = () => { removeFrom(rowId, a.key); closePop(); renderShelves(); };
   const hide = $(".opened-hide", el);
   if (hide) hide.onclick = () => setHidden([a.key], true);
   const keep = $(".opened-keep", el);
@@ -727,11 +745,6 @@ const DND_ALBUM = "application/x-kona-album", DND_FROM = "application/x-kona-fro
 const DND_RETURN = "application/x-kona-return"; // 次に再生から持ち出したアルバム
 const DND_FACE = "application/x-kona-face-"; // + 棚の id。面陳の欄を同じ棚の中で動かすとき
 
-function dailyShuffle<T>(xs: T[], key: (x: T) => string): T[] {
-  const day = new Date().toDateString();
-  return [...xs].sort((a, b) => hashOf(key(a) + day) - hashOf(key(b) + day));
-}
-const byLast = (x: Album, y: Album) => stat(y.key).last - stat(x.key).last;
 const recentFace = (list: Album[]) => {
   const r = [...list].sort(byLast)[0];
   return r && stat(r.key).last ? new Map([[r, "最近聴いた"]]) : new Map<Album, string>();
@@ -747,33 +760,7 @@ function withFolderGaps(d: ShelfDef, c: Contents): Contents {
   return { ...c, list: [...groups.values()].flat(), folderGaps: true };
 }
 
-// 検索: 空白区切りの語をすべて含むもの。artist: / genre: / year: / folder:（a: g: y: f:）で項目を指定できる
-const norm = (s: string) => s.normalize("NFKC").toLowerCase();
-function matches(a: Album, q: string) {
-  return norm(q).split(/\s+/).filter(Boolean).every(tok => {
-    const m = tok.match(/^(artist|a|genre|g|year|y|folder|f):(.+)$/);
-    if (!m) return norm([a.title, a.artist, a.dir, a.shelf, a.genre ?? "", a.year ?? ""].join(" ")).includes(tok);
-    const [, k, v] = m;
-    if (k[0] === "y") {
-      const [lo, hi = lo] = v.split("-").map(Number);
-      return !!a.year && a.year >= lo && a.year <= hi;
-    }
-    return norm(k[0] === "a" ? a.artist : k[0] === "g" ? a.genre ?? "" : a.shelf).includes(v);
-  });
-}
 
-function sortAlbums(list: Album[], key: SortKey) {
-  const by: Record<SortKey, (x: Album, y: Album) => number> = {
-    title: (x, y) => collator.compare(x.title, y.title),
-    artist: (x, y) => collator.compare(x.artist, y.artist) || collator.compare(x.title, y.title),
-    year: (x, y) => (y.year ?? 0) - (x.year ?? 0),
-    // 古い順: 年のないものは最後に。同じ年は題名の順
-    yearAsc: (x, y) => (x.year ?? Infinity) - (y.year ?? Infinity) || collator.compare(x.title, y.title),
-    plays: (x, y) => stat(y.key).plays - stat(x.key).plays,
-    last: byLast,
-  };
-  return [...list].sort(by[key]);
-}
 
 function contentsOf(d: ShelfDef): Contents {
   const played = albums.filter(a => stat(a.key).plays > 0);
@@ -923,7 +910,7 @@ function moduleEl(d: ModuleDef) {
 function shelfBody(body: HTMLElement, d: ShelfDef) {
   const c = withFolderGaps(d, contentsOf(d));
   body.innerHTML = `
-    ${d.kind === "search" ? `<input class="mod-search${d.searchAlign ? ` search-${d.searchAlign}` : ""}" id="q-${d.id}" type="search" placeholder="検索" autocomplete="off" value="${esc(d.query ?? "")}" aria-label="${esc(d.title)}の中を検索">` : ""}
+    ${d.kind === "search" ? `<input class="mod-search${d.searchAlign ? ` search-${esc(d.searchAlign)}` : ""}" id="q-${esc(d.id)}" type="search" placeholder="検索" autocomplete="off" value="${esc(d.query ?? "")}" aria-label="${esc(d.title)}の中を検索">` : ""}
     <div class="row"></div>`;
   const row = $(".row", body);
   // 次に再生の棚は、再生中を欄の左に置けるよう、欄を端に寄せきらない
@@ -958,7 +945,7 @@ function openAddMenu(anchor: HTMLElement) {
       if (!catPicksAlbum()) { const a = albums[Math.floor(Math.random() * albums.length)]; if (a) play(a); }
       return;
     }
-    if (cat) { if (cat === "add") { coats.push(randomCoat()); catVoice("meow"); } else coats.pop(); placeCats(true); closeAddMenu(); return; }
+    if (cat) { if (cat === "add") { coats.push(randomCoat()); } else coats.pop(); placeCats(true); closeAddMenu(); return; }
     const type = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-type]:not([disabled])")?.dataset.type as ModuleType | undefined;
     if (!type) return;
     closeAddMenu();
@@ -1673,74 +1660,10 @@ initShortcuts(id => {
   }
 });
 
-// ---------- 最小表示と小窓 ----------
-// 最小表示: ジャケット・曲名・シーク・曲の操作だけにする。ウィンドウを低くしたときも自動でこの表示になる（CSS）
-// 小窓: 常に手前に出るミニプレイヤー（Document Picture-in-Picture。Chrome / Edge のみ）
-const MINI_KEY = "kona.mini";
-const MINI_SIZE = { width: 420, height: 132 };
-const standalone = () => matchMedia("(display-mode: standalone)").matches;
-let sizeBeforeMini: { w: number; h: number } | undefined;
-const W = {
-  expand: '<svg viewBox="0 0 16 16"><path d="M2 2h5v1.5H3.5V7H2zM14 14H9v-1.5h3.5V9H14z"/></svg>',
-  pip: '<svg viewBox="0 0 16 16"><path d="M1.5 2.5h13v11h-13zM3 4v8h10V4z"/><path d="M8 8h4.5v4H8z"/></svg>',
-  back: '<svg viewBox="0 0 16 16"><path d="M1.5 2.5h13v11h-13zM3 4v8h10V4z"/><path d="M5 6h4.5v1.5H7.6l3 3-1 1-3-3v1.9H5z"/></svg>',
-};
-// @ts-expect-error documentPictureInPicture は DOM 型定義に未収録
-const dpip: { requestWindow(o: { width: number; height: number }): Promise<Window>; window: Window | null } | undefined = window.documentPictureInPicture;
-const miniDeps = (actions: MiniAction[]) => ({ player, art, esc, fmt, actions });
-
-function setMini(on: boolean) {
-  document.body.toggleAttribute("data-mini", on);
-  try { localStorage.setItem(MINI_KEY, on ? "1" : ""); } catch { /* ignore */ }
-  // タスクバーに置いたアプリのウィンドウなら、ウィンドウごと小さくする（ブラウザのタブでは何もしない）
-  if (!standalone()) return;
-  try {
-    if (on) { sizeBeforeMini = { w: outerWidth, h: outerHeight }; resizeTo(MINI_SIZE.width, MINI_SIZE.height + (outerHeight - innerHeight)); }
-    else if (sizeBeforeMini) { resizeTo(sizeBeforeMini.w, sizeBeforeMini.h); sizeBeforeMini = undefined; }
-    else if (innerHeight < 400) resizeTo(Math.max(outerWidth, 1100), 760);
-  } catch { /* 大きさを変えられない環境 */ }
-}
-
-async function openPip() {
-  if (!dpip) return;
-  if (dpip.window) { dpip.window.focus(); return; }
-  const w = await dpip.requestWindow(MINI_SIZE).catch(() => undefined);
-  if (!w) return;
-  // 本体のスタイルを小窓に写す（読めない外部のスタイルシートはリンクで）
-  for (const sheet of Array.from(document.styleSheets)) {
-    try {
-      const style = w.document.createElement("style");
-      style.textContent = Array.from(sheet.cssRules).map(r => r.cssText).join("\n");
-      w.document.head.append(style);
-    } catch {
-      if (!sheet.href) continue;
-      const link = w.document.createElement("link");
-      link.rel = "stylesheet"; link.href = sheet.href;
-      w.document.head.append(link);
-    }
-  }
-  w.document.title = "Kona";
-  w.document.body.classList.add("pip");
-  const root = w.document.createElement("section");
-  w.document.body.append(root);
-  const off = mountMini(root, miniDeps([{ cls: "act-back", label: "元のウィンドウに戻る", icon: W.back, run: () => { window.focus(); w.close(); } }]));
-  w.addEventListener("pagehide", off, { once: true });
-}
-
-mountMini($("#mini"), miniDeps([
-  ...(dpip ? [{ cls: "act-pip", label: "小窓で手前に出す", icon: W.pip, run: () => { openPip(); } }] : []),
-  { cls: "act-expand", label: "元の表示に戻す", icon: W.expand, run: () => setMini(false) },
-]));
-$("#to-mini").onclick = () => setMini(true);
+// ---------- 最小表示と小窓（mini.ts） ----------
+initMini(player, art);
 initPhoto({ toast });
 initShelfMarks();
-$("#to-pip").hidden = !dpip;
-$("#to-pip").onclick = () => { openPip(); };
-try { if (localStorage.getItem(MINI_KEY)) document.body.toggleAttribute("data-mini", true); } catch { /* ignore */ }
-// 対応ブラウザでは、再生中にタブを離れたとき自動で小窓に出せる（ブラウザの設定で許可したとき）
-if (dpip && "mediaSession" in navigator) {
-  try { navigator.mediaSession.setActionHandler("enterpictureinpicture" as MediaSessionAction, () => { openPip(); }); } catch { /* 対応していない */ }
-}
 
 // タスクバーに置けるように（PWA）。オフラインでも開けるよう、読んだ画面のファイルを手元に残す
 if ("serviceWorker" in navigator && location.protocol !== "file:" && import.meta.env.PROD) {
@@ -1754,7 +1677,7 @@ const CATS_KEY = "kona.cats";
 let coats: Coat[] = (() => {
   try {
     const saved = localStorage.getItem(CATS_KEY);
-    if (saved) return JSON.parse(saved) as Coat[];
+    if (saved) { const list: unknown = JSON.parse(saved); return Array.isArray(list) ? list.filter(isCoat) : [randomCoat()]; }
     return localStorage.getItem("kona.cat") === "off" ? [] : [randomCoat()];
   } catch { return [randomCoat()]; }
 })();
@@ -1803,7 +1726,7 @@ setCatHooks({
 initSettings($("#view-settings"), {
   player,
   cats: () => coats,
-  addCat: () => { coats.push(randomCoat()); catVoice("meow"); placeCats(true); },
+  addCat: () => { coats.push(randomCoat()); placeCats(true); },
   removeCat: i => { coats.splice(i, 1); placeCats(true); },
   changeCat: (i, ch) => {
     const c = coats[i];
@@ -1814,7 +1737,7 @@ initSettings($("#view-settings"), {
     placeCats();
   },
   source: () => {
-    const kind = !rootName ? "none" : liveRoot ? "local" : driveSaved()?.name === rootName ? "drive" : "files";
+    const kind = !rootName ? "none" : liveRoot ? "local" : allAlbums[0]?.remote === "spotify" ? "spotify" : driveSaved()?.name === rootName ? "drive" : "files";
     return { name: rootName, kind, canRescan: !!liveRoot };
   },
   rescan: () => rescan(),
@@ -1823,7 +1746,7 @@ initSettings($("#view-settings"), {
     await kvSet("root", null);
     const c = driveConfig();
     if (c) saveDriveConfig({ clientId: c.clientId });
-    signOut();
+    signOut(); forgetSpotifyOpen();
     try { localStorage.removeItem(NOW_KEY); localStorage.removeItem(QUEUE_KEY); } catch { /* ignore */ }
     location.hash = "#home"; location.reload();
   },
@@ -1884,6 +1807,7 @@ async function boot() {
   else {
     setState("start");
     // サインインから戻ってきたところなら続きを。同じタブで開き直したなら、前の Drive のフォルダをそのまま
+    if (await resumeSpotify()) return;
     if (!await resumeDrive() && !savedRoot && driveReady()) await openDriveSaved();
   }
 }

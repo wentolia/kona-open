@@ -24,10 +24,8 @@ export interface Prefs {
   marks: boolean;
   /** 曲の切り替え: 0 ならギャップレス、正なら秒数ぶんクロスフェード */
   crossfade: number;
-  /** 猫: 出さない・鳴き声・その音量・いたずら（よく聴くアルバムを運んでくる） */
+  /** 猫: 出さない・いたずら（よく聴くアルバムを運んでくる）。猫は声を出さない */
   catsHidden: boolean;
-  catVoice: boolean;
-  catVolume: number;
   catMischief: "off" | "queue" | "play";
   /** 夜中にときどき猫が棚を駆け回る（夜の運動会） */
   catZoomies: boolean;
@@ -47,7 +45,7 @@ export interface Prefs {
 
 export const DEFAULT_PREFS: Prefs = {
   fontScale: 1, font: "gothic", motion: "system", decor: true, stars: true, hanging: "lamp", laundry: true, umbrella: true, scent: "coffee", marks: true, crossfade: 0,
-  catsHidden: false, catVoice: true, catVolume: .4, catMischief: "queue", catZoomies: true,
+  catsHidden: false, catMischief: "queue", catZoomies: true,
   autoRescan: true, libSort: "title", libGroup: "folder", blankArt: "title", lang: "ja", keys: {},
 };
 
@@ -73,8 +71,7 @@ export function prefs(): Prefs {
     scent: pick("scent", oneOf("off", "coffee", "incense")),
     marks: pick("marks", bool),
     crossfade: pick("crossfade", num(0, 12)),
-    catsHidden: pick("catsHidden", bool), catVoice: pick("catVoice", bool),
-    catVolume: pick("catVolume", num(0, 1)),
+    catsHidden: pick("catsHidden", bool),
     catMischief: pick("catMischief", oneOf("off", "queue", "play")),
     catZoomies: pick("catZoomies", bool),
     autoRescan: pick("autoRescan", bool),

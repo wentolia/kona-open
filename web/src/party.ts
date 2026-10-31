@@ -24,6 +24,32 @@ type Msg =
   | { t: "state"; track?: TrackInfo; playing: boolean; pos: number; rate: number; at: number }
   | { t: "bye" };
 
+// 相手から届いたものは信用しない: 形と大きさを確かめてから使う（壊れたもの・知らないものは捨てる）
+const MAX_TEXT = 2000, MAX_NAMES = 64;
+const isNum = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
+const isText = (x: unknown): x is string => typeof x === "string" && x.length <= MAX_TEXT;
+function isTrack(x: unknown): x is TrackInfo {
+  const o = x as TrackInfo;
+  return !!o && typeof o === "object" && isText(o.title) && isText(o.artist) && isText(o.album) && isNum(o.no) && isNum(o.disc) && isNum(o.dur);
+}
+function asMsg(x: unknown): Msg | undefined {
+  const m = x as Record<string, unknown>;
+  if (!m || typeof m !== "object") return undefined;
+  switch (m.t) {
+    case "bye": return { t: "bye" };
+    case "ping": return isNum(m.a) ? { t: "ping", a: m.a } : undefined;
+    case "pong": return isNum(m.a) && isNum(m.b) ? { t: "pong", a: m.a, b: m.b } : undefined;
+    case "peers":
+      return isText(m.host) && Array.isArray(m.names) && m.names.length <= MAX_NAMES && m.names.every(isText)
+        ? { t: "peers", host: m.host, names: m.names as string[] } : undefined;
+    case "state":
+      if (typeof m.playing !== "boolean" || !isNum(m.pos) || !isNum(m.rate) || !isNum(m.at)) return undefined;
+      if (m.track !== undefined && !isTrack(m.track)) return undefined;
+      return { t: "state", track: m.track as TrackInfo | undefined, playing: m.playing, pos: m.pos, rate: m.rate, at: m.at };
+  }
+  return undefined;
+}
+
 interface Peer { pc: RTCPeerConnection; dc?: RTCDataChannel; name: string; open: boolean }
 
 type Role = "idle" | "host" | "guest";
@@ -53,9 +79,23 @@ const label = (n: string) => n || "名無し";
 // ---------- 接続情報の文字化（圧縮して base64url） ----------
 const b64 = (u: Uint8Array) => { let s = ""; for (const c of u) s += String.fromCharCode(c); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
 const unb64 = (s: string) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+const MAX_UNPACKED = 256 * 1024;   // 接続情報は数 KB。貼られたコードを広げすぎない
 async function squeeze(data: Uint8Array, mode: "deflate-raw", back = false): Promise<Uint8Array> {
   const stream = new Blob([data as BlobPart]).stream().pipeThrough(back ? new DecompressionStream(mode) : new CompressionStream(mode));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  if (!back) return new Uint8Array(await new Response(stream).arrayBuffer());
+  const reader = stream.getReader(), parts: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > MAX_UNPACKED) { reader.cancel().catch(() => {}); throw new Error("コードが大きすぎます"); }
+    parts.push(value);
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const p of parts) { out.set(p, at); at += p.length; }
+  return out;
 }
 async function pack(head: string, name: string, sdp: string): Promise<string> {
   const raw = new TextEncoder().encode(JSON.stringify({ n: name.slice(0, 40), s: sdp }));
@@ -68,7 +108,7 @@ async function unpack(head: string, code: string): Promise<{ name: string; sdp: 
   let raw: Uint8Array = unb64(m[3]);
   if (m[2] === "z") raw = await squeeze(raw, "deflate-raw", true);
   const o = JSON.parse(new TextDecoder().decode(raw));
-  if (typeof o?.s !== "string") throw new Error("コードが壊れています");
+  if (typeof o?.s !== "string" || o.s.length > MAX_UNPACKED) throw new Error("コードが壊れています");
   return { name: String(o.n ?? "").slice(0, 40), sdp: o.s };
 }
 
@@ -98,7 +138,10 @@ function wire(peer: Peer, dc: RTCDataChannel) {
   peer.dc = dc;
   dc.onopen = () => { peer.open = true; opened(peer); };
   dc.onclose = () => dropped(peer);
-  dc.onmessage = e => { try { received(peer, JSON.parse(e.data)); } catch { /* 壊れたものは捨てる */ } };
+  dc.onmessage = e => {
+    if (typeof e.data !== "string" || e.data.length > 65_536) return;
+    try { const m = asMsg(JSON.parse(e.data)); if (m) received(peer, m); } catch { /* 壊れたものは捨てる */ }
+  };
   peer.pc.onconnectionstatechange = () => { if (["failed", "closed"].includes(peer.pc.connectionState)) dropped(peer); };
 }
 function send(peer: Peer, m: Msg) { if (peer.open && peer.dc?.readyState === "open") try { peer.dc.send(JSON.stringify(m)); } catch { /* ignore */ } }

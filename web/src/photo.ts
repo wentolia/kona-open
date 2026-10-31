@@ -5,6 +5,7 @@
 import { domToCanvas } from "modern-screenshot";
 import { holdCats } from "./cat";
 import { setPlainLabel } from "./mod-turntable";
+import { esc } from "./dom";
 
 const HIDE_KEY = "kona.photoHideArt";
 type Rect = { x: number; y: number; w: number; h: number };
@@ -22,7 +23,11 @@ const loaded = new Map<string, Promise<HTMLImageElement | undefined>>();
 export function loadImage(url: string) {
   let p = loaded.get(url);
   if (!p) {
-    p = new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(undefined); im.src = url; });
+    p = new Promise(res => {
+      const im = new Image(); im.onload = () => res(im); im.onerror = () => res(undefined);
+      if (url.startsWith("https:")) im.crossOrigin = "anonymous"; // Spotify のジャケット（平均色だけを取る）
+      im.src = url;
+    });
     loaded.set(url, p);
   }
   return p;
@@ -36,7 +41,8 @@ export function averageColor(url: string) {
       const c = document.createElement("canvas"); c.width = c.height = 8;
       const g = c.getContext("2d", { willReadFrequently: true })!;
       g.drawImage(im, 0, 0, 8, 8);
-      const d = g.getImageData(0, 0, 8, 8).data;
+      let d: Uint8ClampedArray;
+      try { d = g.getImageData(0, 0, 8, 8).data; } catch { return "#3a3530"; }
       let r = 0, gr = 0, b = 0;
       for (let i = 0; i < d.length; i += 4) { r += d[i]; gr += d[i + 1]; b += d[i + 2]; }
       const k = d.length / 4;
@@ -215,17 +221,18 @@ export function showPicture(o: {
   draw: (q: { hideArt: boolean; choice: number }) => Promise<HTMLCanvasElement>;
 }) {
   if (open) return;
-  let hideArt = hideArtPref(), choice = o.choice ?? 0;
+  // Spotify のアルバムを並べているときは、ジャケットをいつも隠す（Spotify の画像を外へ持ち出さない・加工しない）
+  const artLocked = document.documentElement.hasAttribute("data-art-locked");
+  let hideArt = artLocked || hideArtPref(), choice = o.choice ?? 0;
   const el = document.createElement("div");
   el.className = "photo photo-pict"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", o.label);
   const canShareFiles = typeof navigator.canShare === "function";
   const canCopy = typeof ClipboardItem !== "undefined" && !!navigator.clipboard?.write;
-  const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
   el.innerHTML = `<div class="photo-card">
     <div class="photo-pic" data-busy><img alt="${esc(o.label)}"></div>
     <div class="photo-bar">
       ${o.choices && o.choices.length > 1 ? `<select class="photo-choice" aria-label="どれにするか">${o.choices.map((c, i) => `<option value="${i}"${i === choice ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>` : ""}
-      ${o.hideToggle ? `<label class="photo-hide"><input type="checkbox"${hideArt ? " checked" : ""}>ジャケットを隠す</label>` : ""}
+      ${o.hideToggle ? `<label class="photo-hide"${artLocked ? ' title="Spotify のジャケットは画像に写しません"' : ""}><input type="checkbox"${hideArt ? " checked" : ""}${artLocked ? " disabled" : ""}>ジャケットを隠す</label>` : ""}
       <span class="photo-gap"></span>
       ${canCopy ? `<button class="photo-act" data-act="copy">コピー</button>` : ""}
       <button class="photo-act" data-act="save">保存</button>
@@ -292,7 +299,9 @@ export async function takePhoto() {
   holdCats(true);
   document.body.toggleAttribute("data-photo", true);
   const cats = catRects(room);
-  let hideArt = hideArtPref(), frame: Frame = { kind: "room" };
+  // Spotify のアルバムを並べているときは、ジャケットをいつも隠す（Spotify の画像を外へ持ち出さない）
+  const artLocked = document.documentElement.hasAttribute("data-art-locked");
+  let hideArt = artLocked || hideArtPref(), frame: Frame = { kind: "room" };
   const shots = new Map<boolean, Promise<HTMLCanvasElement>>();
   const shot = (hide: boolean) => { let p = shots.get(hide); if (!p) { p = shoot(hide); shots.set(hide, p); } return p; };
   shot(hideArt).catch(() => {}); // 画面を出す前に描き写し始める（撮影の画面は写さない）
@@ -308,7 +317,7 @@ export async function takePhoto() {
       <div class="photo-frame" role="group" aria-label="構図"${cats.length ? "" : " hidden"}>
         <button data-frame="room" aria-pressed="true">部屋</button><button data-frame="cat" aria-pressed="false">猫</button>
       </div>
-      <label class="photo-hide"><input type="checkbox"${hideArt ? " checked" : ""}>ジャケットを隠す</label>
+      <label class="photo-hide"${artLocked ? ' title="Spotify のジャケットは写真に写しません"' : ""}><input type="checkbox"${hideArt ? " checked" : ""}${artLocked ? " disabled" : ""}>ジャケットを隠す</label>
       <span class="photo-gap"></span>
       ${canCopy ? `<button class="photo-act" data-act="copy">コピー</button>` : ""}
       <button class="photo-act" data-act="save">保存</button>

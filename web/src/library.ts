@@ -4,6 +4,7 @@ import { parseBlob, parseBuffer, type IAudioMetadata } from "music-metadata";
 import { isDriveEntry, type DriveEntry } from "./drive";
 import { kvGet, kvSet } from "./store";
 import { fileSig, getHead, getTracks, putHead, putTracks } from "./tagcache";
+import { collator } from "./dom";
 
 export interface Entry { path: string; getFile: () => Promise<File> }
 // Google Drive の項目は、先頭だけを取る head() と、次の曲を先に取っておく prefetch() も持つ（drive.ts）
@@ -33,6 +34,8 @@ export interface Album {
   color?: string;       // 背表紙の色（ジャケットの平均色）
   ratio?: number;       // ジャケットの縦横比（幅 / 高さ）。正方形でないものも切らずに見せる
   tagged: boolean;      // 全曲のタグを読んだか
+  remote?: "spotify";   // ファイルを持たず、外のサービスで鳴らすアルバム（spotify.ts）。タグもジャケットも初めから入っている
+  link?: string;        // そのサービスで開く URL（Spotify の表示の決まり: 曲の情報の近くに元へのリンクを置く）
 }
 
 const AUDIO = /\.(flac|mp3|m4a|aac|alac|wav|ogg|oga|opus|aif|aiff|webm)$/i;
@@ -73,7 +76,6 @@ export function* walkFiles(files: FileList): Generator<Entry> {
 
 const parent = (p: string) => p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "";
 const base = (p: string) => p.slice(p.lastIndexOf("/") + 1);
-const collator = new Intl.Collator("ja", { numeric: true, sensitivity: "base" });
 
 export async function scan(entries: AsyncIterable<Entry> | Iterable<Entry>, onProgress?: (n: number) => void): Promise<Album[]> {
   const byDir = new Map<string, { audio: Entry[]; images: Entry[] }>();
@@ -148,6 +150,7 @@ function picture(m?: IAudioMetadata): Blob | undefined {
 // 前に読んだときから 1 曲目とジャケットの画像が変わっていなければ、覚えておいた結果を使う
 // （Drive の曲はファイル全体を取らずに先頭だけを読み、その結果は drive 側で覚えるので、ここでは覚えない）
 export async function enrichHead(a: Album): Promise<void> {
+  if (a.remote) return;
   const local = !isDriveEntry(a.tracks[0].entry);
   const first = local ? await a.tracks[0].entry.getFile() : undefined;
   const coverFile = await a.coverEntry?.getFile().catch(() => undefined);
@@ -220,9 +223,10 @@ async function readTracks(a: Album): Promise<void> {
   });
 }
 
-async function coverInfo(url: string): Promise<{ color?: string; ratio?: number }> {
+export async function coverInfo(url: string): Promise<{ color?: string; ratio?: number }> {
   try {
     const img = new Image();
+    if (url.startsWith("https:")) img.crossOrigin = "anonymous"; // Spotify のジャケット（平均色を取るため）
     img.src = url;
     await img.decode();
     const c = document.createElement("canvas");

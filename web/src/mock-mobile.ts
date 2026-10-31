@@ -4,8 +4,8 @@ import type { Album, Track } from "./library";
 import type { Player } from "./player";
 import { initMobile, renderMobile } from "./mobile";
 import { recordPlay } from "./store";
+import { esc } from "./dom";
 
-const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 let seed = 7;
 const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 

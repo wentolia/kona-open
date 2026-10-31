@@ -8,8 +8,9 @@ Less is more な音楽プレイヤー。
 
 ## 使う
 
-- 公開版: https://wentolia.github.io/kona-open/ （既定のブランチに入ると GitHub Actions が `web/` をビルドして出す。最初に一度だけ、Settings → Pages → Source を「GitHub Actions」にする）
+- 公開版: https://wentolia.github.io/kona-open/ （公開用のリポジトリ `wentolia/kona-open` に、履歴を持たない 1 コミットとして中身だけを置き、そこで GitHub Actions が `web/` をビルドして Pages に出す。このリポジトリは非公開なので、Pages のワークフローは飛ばす）
 - Google Drive から聴く: `web/docs/google-drive.md`
+- Spotify で聴く（任意・Premium が必要）: `web/docs/spotify.md`
 
 ## ライセンス
 

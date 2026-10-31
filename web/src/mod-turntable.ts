@@ -32,7 +32,7 @@ export function mountTurntable(body: HTMLElement) {
     speed += ((p.playing ? 1 : 0) - speed) * (1 - Math.exp(-dt / (p.playing ? 0.6 : 1.4)));
     angle += speed * dt * (2 * Math.PI * 33.333 / 60);
     const a = p.album;
-    const key = a?.cover ?? "";
+    const key = a?.remote ? "" : a?.cover ?? ""; // Spotify のジャケットは丸く切り抜かない（レーベルは無地）
     // レーベルが替わるときは、前のジャケットから次のジャケットへ溶けるように
     if (key !== labelKey) {
       labelKey = key; prevLabel = label.complete && label.naturalWidth ? label : undefined;

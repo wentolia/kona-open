@@ -2,12 +2,12 @@
 // 画面の文字はすべて textContent か esc() で入れ、Drive のファイル名をHTMLとして読ませない
 import type { Entry } from "./library";
 import { driveConfig, saveDriveConfig, redirectUri, driveToken, signIn, signOut, listFolders, walkDrive, DriveAuthError } from "./drive";
+import { esc } from "./dom";
 
 const GUIDE = "https://github.com/wentolia/kona/blob/main/web/docs/google-drive.md";
 const RESUME_KEY = "kona.drive.resume"; // 小窓が開けずにページごと移ったとき、戻ってから続きをする
 const CLIENT_RE = /^[\w-]+\.apps\.googleusercontent\.com$/;
 
-const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 
 interface Host {
   load(name: string, entries: AsyncIterable<Entry>): Promise<void>;

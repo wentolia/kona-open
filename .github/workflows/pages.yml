@@ -19,7 +19,8 @@ concurrency:
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || github.ref_name == github.event.repository.default_branch
+    # 非公開のリポジトリでは Pages を使えない（無料プラン）ので飛ばす。公開用の kona-open ではそのまま動く
+    if: "!github.event.repository.private && (github.event_name == 'workflow_dispatch' || github.ref_name == github.event.repository.default_branch)"
     runs-on: ubuntu-latest
     defaults:
       run:

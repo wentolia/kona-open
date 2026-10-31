@@ -13,6 +13,7 @@ import { libGroup, groupAlbums } from "./libgroup";
 import { SHELF_SKINS, shelfSkin, setShelfSkin } from "./shelf-skin";
 import { modeButtonHTML } from "./modeui";
 import { openReceipt } from "./receipt";
+import { $, esc, fmt } from "./dom";
 
 export interface MobileCtx {
   player: Player;
@@ -30,9 +31,6 @@ export interface MobileCtx {
   status: () => string;
 }
 
-const $ = <T extends HTMLElement = HTMLElement>(sel: string, root: ParentNode = document) => root.querySelector(sel) as T;
-const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
-const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 const hashOf = (s: string) => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return Math.abs(h); };
 
 const ICON = {
@@ -205,7 +203,7 @@ function spineEl(a: Album, shelfId?: string, isFeatured = false) {
   b.dataset.key = a.key;
   b.style.cssText = `width:${20 + Math.min(12, Math.round(a.tracks.length * .7))}px;height:${68 + h % 22}%;background:${bg}`;
   b.setAttribute("aria-label", a.artist ? `${a.title} — ${a.artist}` : a.title);
-  const tex = a.cover ? `<i class="spine-tex" style="background-image:url('${a.cover}');background-position:${h % 100}% 50%"></i>` : "";
+  const tex = a.cover && !a.remote ? `<i class="spine-tex" style="background-image:url('${a.cover}');background-position:${h % 100}% 50%"></i>` : "";
   b.innerHTML = `${tex}<span>${esc(a.title)}</span>`;
   // 面陳のある棚では、背表紙のタップはジャケットの欄をこのアルバムに替えるだけ。シートはジャケットのタップで開く
   touchable(b, a, shelfId ? () => { if (!b.classList.contains("featured")) feature(b, shelfId, a); } : undefined);

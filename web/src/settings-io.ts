@@ -3,8 +3,8 @@
 const FORMAT = "kona-settings";
 const VERSION = 1;
 
-// 書き出さないもの: Drive のサインイン情報と一時的な状態、この端末だけの状態（再生位置・次に再生・端末に残した曲・スマホ表示の強制）
-const NEVER = new Set(["kona.drive.token", "kona.drive.state", "kona.drive.resume", "kona.drive.kept", "kona.now", "kona.queue", "kona.mobile"]);
+// 書き出さないもの: Drive と Spotify のサインイン情報（トークン）と一時的な状態、この端末だけの状態（再生位置・次に再生・端末に残した曲・スマホ表示の強制）
+const NEVER = new Set(["kona.drive.token", "kona.drive.state", "kona.drive.resume", "kona.drive.kept", "kona.spotify.token", "kona.spotify.pkce", "kona.spotify.last", "kona.now", "kona.queue", "kona.mobile"]);
 const isNever = (k: string) => NEVER.has(k) || k.startsWith("kona.mock.");
 // 聴いた記録（再生回数・日時・場所・聴いた時間）。頼まれたときだけ入れる
 const RECORDS = new Set(["kona.history", "kona.log", "kona.listened", "kona.awards"]);

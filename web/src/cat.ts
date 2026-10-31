@@ -1,9 +1,11 @@
 import "./cat.css";
 import { reduceMotion, onMotionChange, prefs } from "./prefs";
-import { catVoice } from "./cat-voice";
 import { SILL, windowRain, roomLightOn } from "./mod-window";
 import { noiseLevel } from "./noise";
 import { markNap, markClaw } from "./shelf-marks";
+import { esc } from "./dom";
+import { type Shades, seeded, breedOf, nameOf, randomPersona, type Coat, type Persona, randomCoat } from "./cat-coat";
+export { BREEDS, randomCoat, breedCoat, isCoat, type Coat, type Persona, type Pattern } from "./cat-coat";
 
 // ホームの猫: 棚板の上を歩き、跳び移り、座り、香箱を組んで眠る。ほとんどの時間はじっとしている。
 // 何匹でも置ける。毛並みと性格（元気さ・眠たがり・人なつこさ・遊び好き・好奇心・足の速さ・体の大きさ）は
@@ -70,134 +72,6 @@ function flight(keys: number[][], k: number): [number, number, number, number] {
   return [1, 2, 3, 4].map(j => a[j] + (b[j] - a[j]) * u) as [number, number, number, number];
 }
 
-// 毛並み: 体の濃淡 4 段（hi/mid/lo/deep）+ 口元・胸（cream）+ 目（ink）
-export interface Persona {
-  energy: number;  // 元気さ: 歩く・跳ぶ回数
-  sleepy: number;  // 眠たがり: 寝ている長さ
-  social: number;  // 人なつこさ: ほかの猫のそばへ行く
-  playful: number; // 遊び好き: じゃれる・ちょっかい・追いかけっこ
-  curious: number; // 好奇心: 遠く・高い所へ行きたがる
-  speed: number;   // 足の速さ（倍率）
-  size: number;    // 体の大きさ（倍率）
-}
-export type Pattern = "tabby" | "spots" | "calico" | "point";
-export interface Coat {
-  hi: string; mid: string; lo: string; deep: string; cream: string; ink: string; p?: Persona; fav?: string;
-  breed?: string;            // 品種（BREEDS のキー）。ないものは雑種
-  name?: string;             // 名前（名札から変えられる）
-  gloss?: number;            // 毛づや（0〜1）。撫でてもらうほど、毛づくろいしてもらうほど少しずつ増す
-  likes?: Record<string, number>; // 音楽の好き嫌い（ジャンルかアーティストごとに -1〜1）。聴くうちに育つ
-  pat?: Pattern;             // 柄
-  mark?: string;             // 縞・斑点の色
-  pt?: Shades;               // ポイント（顔・耳・脚・しっぽ）や三毛のぶちの色
-  pt2?: Shades;              // 三毛の 2 色目
-}
-interface Shades { hi: string; mid: string; lo: string; deep: string }
-const randomPersona = (r: () => number = Math.random): Persona => ({
-  energy: r(), sleepy: r(), social: r(), playful: r(), curious: r(), speed: .85 + r() * .4, size: .86 + r() * .24,
-});
-// 性格を持たない以前の猫は、毛並みから決まった性格にする（開き直しても同じ）
-function seeded(seed: string) {
-  let h = 2166136261;
-  for (const ch of seed) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
-  return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
-}
-const hsl = (h: number, s: number, l: number) => `hsl(${h.toFixed(0)} ${(s * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%)`;
-// 色の型 [色相, 彩度, 明るさ] から体の濃淡 4 段を作る。少しだけ個体差を足す
-function shades([h0, s0, l0]: [number, number, number], jitter = true): Shades {
-  const h = h0 + (jitter ? rnd(-6, 6) : 0), s = clamp(s0 + (jitter ? rnd(-.05, .05) : 0), 0, 1), l = clamp(l0 + (jitter ? rnd(-.05, .05) : 0), .08, .85);
-  return { hi: hsl(h, s, clamp(l + .09, 0, .92)), mid: hsl(h, s, l), lo: hsl(h, s, l - .07 * (l > .2 ? 1 : .5)), deep: hsl(h, s, Math.max(.06, l - .15)) };
-}
-const cream = ([h, s, l]: [number, number, number]) => hsl(h, s * .6, clamp(l + .22, 0, .9));
-const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-// 毛色の型: [色相, 彩度, 明るさ]。夜の部屋に合うよう、やや暗めに寄せる
-const BASES: [number, number, number][] = [
-  [30, .04, .14],  // 黒
-  [35, .05, .30],  // 灰
-  [210, .10, .36], // ブルーグレー
-  [28, .55, .48],  // 茶トラ
-  [32, .30, .30],  // こげ茶
-  [40, .30, .70],  // クリーム
-  [40, .08, .80],  // 白
-  [25, .20, .22],  // 焦げ茶の黒
-];
-const EYES = ["#e9c46a", "#d8a03a", "#9cc46a", "#7fb0c8", "#c7d36a"];
-const WHITE: [number, number, number] = [40, .08, .82], BLUE_EYE = "#7fb6e6", GREEN_EYE = "#8fcf6a";
-
-// ---------- 品種 ----------
-// 形の違い: 耳の大きさ・折れ耳・耳先の飾り毛、しっぽ（ふさふさ・短い丸）、長毛（輪郭がふくらむ・襟巻き）、
-// 顔（丸顔・鼻の低い顔・くさび形）、毛のない肌のしわ。色と柄は coat() で決める
-interface Breed {
-  name: string; weight: number; size: [number, number];
-  ear?: number; fold?: boolean; tuft?: boolean; tail?: "bushy" | "bob"; long?: boolean; ruff?: boolean;
-  face?: "round" | "flat" | "wedge"; bare?: boolean;
-  coat(): Omit<Coat, "p" | "breed">;
-}
-const solid = (base: [number, number, number], ink: string, white = false): Omit<Coat, "p" | "breed"> =>
-  ({ ...shades(base), cream: white ? hsl(40, .15, .82) : cream(base), ink });
-export const BREEDS: Record<string, Breed> = {
-  mix: { name: "雑種", weight: 5, size: [.86, 1.1], coat: () => {
-    const base = pick(BASES), c = solid(base, pick(EYES), Math.random() < .4);
-    // 茶トラ・灰・こげ茶は縞が入りやすい
-    return (base[1] > .25 || base[2] > .25 && base[2] < .4) && Math.random() < .5 ? { ...c, pat: "tabby", mark: shades(base).deep } : c;
-  } },
-  siamese: { name: "シャム", weight: 1, size: [.86, .98], ear: 1.18, face: "wedge", coat: () => {
-    const body: [number, number, number] = [38, .22, rnd(.72, .8)];
-    return { ...shades(body), cream: cream(body), ink: BLUE_EYE, pat: "point", pt: shades(pick<[number, number, number]>([[25, .25, .2], [215, .1, .38], [20, .3, .3]])) };
-  } },
-  fold: { name: "スコティッシュフォールド", weight: 1, size: [.9, 1.04], fold: true, face: "round", coat: () => {
-    const base = pick<[number, number, number]>([[210, .1, .42], [40, .3, .7], [35, .05, .55], [28, .5, .5]]);
-    const c = solid(base, pick(["#e9c46a", "#d8a03a", BLUE_EYE]), Math.random() < .35);
-    return Math.random() < .5 ? { ...c, pat: "tabby", mark: shades(base).deep } : c;
-  } },
-  mainecoon: { name: "メインクーン", weight: 1, size: [1.12, 1.26], ear: 1.1, tuft: true, tail: "bushy", long: true, ruff: true, coat: () => {
-    const base = pick<[number, number, number]>([[30, .35, .36], [28, .5, .45], [30, .04, .16], [35, .05, .45]]);
-    return { ...solid(base, pick(["#d8a03a", "#c7d36a", "#e9c46a"]), Math.random() < .5), pat: "tabby", mark: hsl(base[0], base[1], Math.max(.08, base[2] - .2)) };
-  } },
-  mike: { name: "三毛（日本猫）", weight: 1, size: [.86, .98], tail: "bob", coat: () => ({
-    ...shades(WHITE), cream: hsl(40, .1, .88), ink: pick(["#e9c46a", "#d8a03a"]), pat: "calico",
-    pt: shades([28, .6, .5]), pt2: shades([30, .05, .14]),
-  }) },
-  amshort: { name: "アメリカンショートヘア", weight: 1, size: [.96, 1.08], face: "round", coat: () => {
-    const base: [number, number, number] = [210, .04, rnd(.58, .66)];
-    return { ...shades(base), cream: hsl(210, .04, .78), ink: pick(["#9cc46a", "#d8a03a"]), pat: "tabby", mark: hsl(220, .08, .2) };
-  } },
-  russian: { name: "ロシアンブルー", weight: 1, size: [.9, 1.02], ear: 1.08, face: "wedge", coat: () => {
-    const base: [number, number, number] = [212, .12, .44];
-    return { ...shades(base), cream: hsl(212, .12, .52), ink: GREEN_EYE };
-  } },
-  bengal: { name: "ベンガル", weight: 1, size: [1, 1.12], coat: () => {
-    const base: [number, number, number] = [32, .55, .52];
-    return { ...shades(base), cream: hsl(38, .4, .78), ink: pick([GREEN_EYE, "#d8a03a"]), pat: "spots", mark: hsl(25, .45, .14) };
-  } },
-  sphynx: { name: "スフィンクス", weight: 1, size: [.88, .98], ear: 1.38, face: "wedge", bare: true, coat: () => {
-    const base: [number, number, number] = [15, .3, rnd(.62, .7)];
-    return { ...shades(base, false), cream: hsl(15, .3, .76), ink: pick([GREEN_EYE, BLUE_EYE, "#d8a03a"]) };
-  } },
-  persian: { name: "ペルシャ", weight: 1, size: [.96, 1.06], ear: .8, face: "flat", tail: "bushy", long: true, ruff: true, coat: () => {
-    const base = pick<[number, number, number]>([WHITE, [40, .3, .72], [35, .04, .62], [30, .04, .18]]);
-    return solid(base, pick(["#d8a03a", BLUE_EYE, "#e9c46a"]));
-  } },
-};
-const breedOf = (C: Coat) => BREEDS[C.breed ?? "mix"] ?? BREEDS.mix;
-
-/** 新しい猫の毛並み。品種は重みつきでランダムに決まり（雑種がいちばん多い）、性格と大きさもその子のものになる */
-export function randomCoat(): Coat {
-  const keys = Object.keys(BREEDS);
-  let r = Math.random() * keys.reduce((n, k) => n + BREEDS[k].weight, 0), breed = keys[0];
-  for (const k of keys) if ((r -= BREEDS[k].weight) <= 0) { breed = k; break; }
-  return breedCoat(breed);
-}
-/** その品種の猫の毛並みを作る */
-export function breedCoat(breed: string): Coat {
-  const B = BREEDS[breed] ?? BREEDS.mix, p = randomPersona();
-  p.size = rnd(...B.size);
-  return { ...B.coat(), breed, p, name: pick(NAMES) };
-}
-const NAMES = ["むぎ", "こむぎ", "もち", "きなこ", "あずき", "ごま", "そら", "くう", "レオ", "ルナ", "ミケ", "タマ", "クロ", "シロ", "ちゃちゃ", "はな",
-  "ゆず", "こてつ", "ポテト", "ぽんず", "さくら", "ひなた", "ノア", "ココ", "ミルク", "チョコ", "ねね", "とら", "ふく", "おはぎ", "だいず", "みかん"];
-/** 名前。付いていない以前の猫は、毛並みから決まった名前にする */
-const nameOf = (C: Coat) => C.name ?? NAMES[Math.floor(seeded(C.hi + C.mid + C.ink)() * NAMES.length)];
 let FUR = 0; // 長毛の猫を描くあいだ、輪郭をふくらませる量
 const poly = (c: string, pts: string, cls = "", w = .5 + FUR) =>
   `<polygon${cls ? ` class="${cls}"` : ""} fill="${c}" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" points="${pts}"/>`;
@@ -764,7 +638,7 @@ function next(c: Cat): void {
   // 起きたばかりで立ち上がるときは、まず伸びをする
   if (c.state === "stand" && c.woke) { c.woke = false; if (Math.random() < .8) return go(c, "stretch"); }
   // 窓辺では外の鳥を見つけて、歯をカカカと鳴らす
-  if ((c.state === "sit" || c.state === "stand") && p.kind === "sill" && Math.random() < .3) { if (Math.random() < .3) catVoice("chirp", c.s); return go(c, "chatter"); }
+  if ((c.state === "sit" || c.state === "stand") && p.kind === "sill" && Math.random() < .3) return go(c, "chatter");
   const up: State = c.woke && Math.random() < .8 ? "stretch" : "stand"; // 寝起きに立ち上がるなら伸びから
   switch (c.state) {
     case "stand":
@@ -851,7 +725,7 @@ function tick(c: Cat, now: number) {
     const a = tilt * Math.PI / 180, X = 8, Y = -18 + 12; // 支えている胸（体の座標、回転の中心からの位置）
     c.x = h.sx - c.dir * (X * Math.cos(a) - Y * Math.sin(a)) * c.s;
     c.y = h.sy - ((X * Math.sin(a) + Y * Math.cos(a)) - 12) * c.s;
-    if (squirm >= 1 && c.st - h.ok > 1.6) { catVoice("meow", c.s); letGo(c); }
+    if (squirm >= 1 && c.st - h.ok > 1.6) letGo(c);
   } else if (s === "walk") {
     // 歩き出しと止まりぎわはゆっくり。位相は進んだ距離から決めるので、肉球は地面で滑らない
     // 追いかける側は、同じ足場にいる相手のすぐ後ろを目指し続ける
@@ -1015,7 +889,7 @@ function tick(c: Cat, now: number) {
     c.twT = c.t; c.twNext = c.t + rnd(6, 22);
     if (Math.random() < .6) { c.earT = c.t; c.earWhich = Math.random() < .5 ? 0 : 1; }
     // 寝言: ときどき口をもごもごさせて小さく鳴き、前脚で宙をかく（走る夢）
-    if (Math.random() < .3 && !c.reduced) { c.talkT = c.t; say(c, SLEEPTALK[Math.floor(Math.random() * SLEEPTALK.length)]); catVoice("chirp", c.s * 1.4); }
+    if (Math.random() < .3 && !c.reduced) { c.talkT = c.t; say(c, SLEEPTALK[Math.floor(Math.random() * SLEEPTALK.length)]); }
   }
   const talk = c.state === "sleep" && c.t - c.talkT < 1.4 ? (c.t - c.talkT) / 1.4 : -1;
   if (talk >= 0) legA.lf = -16 * Math.max(0, Math.sin(talk * Math.PI * 5)) * (1 - talk);
@@ -1221,7 +1095,7 @@ function addCat(grid: HTMLElement, coat: Coat, stage?: Cat["stage"], size = 1): 
   const scale = S * persona.size * size;
   const layer = document.createElement("div");
   layer.className = "cat-layer";
-  layer.innerHTML = `<div class="cat" data-pose="sit" style="--s:${scale}"><svg viewBox="-30 -40 60 44" aria-label="${escHtml(nameOf(coat))}"><g class="cat-flip"><g class="cat-body">${art(coat)}</g></g></svg><span class="cat-z">z</span><span class="cat-z">z</span><i class="cat-carry" hidden></i><span class="cat-say"></span><button class="cat-tag" tabindex="-1">${escHtml(nameOf(coat))}</button></div>`;
+  layer.innerHTML = `<div class="cat" data-pose="sit" style="--s:${scale}"><svg viewBox="-30 -40 60 44" aria-label="${esc(nameOf(coat))}"><g class="cat-flip"><g class="cat-body">${art(coat)}</g></g></svg><span class="cat-z">z</span><span class="cat-z">z</span><i class="cat-carry" hidden></i><span class="cat-say"></span><button class="cat-tag" tabindex="-1">${esc(nameOf(coat))}</button></div>`;
   const el = layer.firstElementChild as HTMLElement;
   el.style.setProperty("--gloss", String(coat.gloss ?? 0));
   const c: Cat = {
@@ -1256,8 +1130,7 @@ function addCat(grid: HTMLElement, coat: Coat, stage?: Cat["stage"], size = 1): 
     if (!c.cur || c.state === "jump" || c.state === "fall" || c.state === "walk" || c.state === "annoyed") return;
     c.pets = c.pets.filter(t => c.t - t < 30);
     c.pets.push(c.t);
-    if (c.pets.length > c.patience && !c.with && !c.chase && !c.fetch) { c.pets = []; catVoice("grumble", c.s); return go(c, "annoyed"); }
-    catVoice(c.pets.length === 1 && Math.random() < .6 ? "mew" : "purr", c.s);
+    if (c.pets.length > c.patience && !c.with && !c.chase && !c.fetch) { c.pets = []; return go(c, "annoyed"); }
     shine(c, .006);
     go(c, "purr");
   };
@@ -1457,7 +1330,6 @@ function moodOf(c: Cat): string {
   if (day > .75 - c.p.playful * .15) return "ごきげん";
   return day > .45 ? "まあまあ" : "おだやか";
 }
-const escHtml = (t: string) => t.replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]!);
 let card: HTMLElement | undefined;
 function closeCard() { card?.remove(); card = undefined; }
 function openCard(c: Cat) {
@@ -1468,13 +1340,13 @@ function openCard(c: Cat) {
   const el = document.createElement("div");
   el.className = "cat-card"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", `${nameOf(C)}のこと`);
   el.innerHTML = `
-    <input class="cat-name" value="${escHtml(nameOf(C))}" maxlength="12" aria-label="名前" spellcheck="false">
-    <p class="cat-breed">${escHtml(breedOf(C).name)}・${escHtml(DOING[c.state] ?? "")}</p>
+    <input class="cat-name" value="${esc(nameOf(C))}" maxlength="12" aria-label="名前" spellcheck="false">
+    <p class="cat-breed">${esc(breedOf(C).name)}・${esc(DOING[c.state] ?? "")}</p>
     <dl>${TRAITS.map(([k, label]) => `<dt>${label}</dt><dd>${dots(c.p[k])}</dd>`).join("")}<dt>毛づや</dt><dd>${dots(.1 + .9 * (C.gloss ?? 0))}</dd></dl>
-    <p><span>今日の機嫌</span>${escHtml(moodOf(c))}</p>
-    ${title ? `<p><span>好きなアルバム</span>${escHtml(title)}</p>` : ""}
-    ${(() => { const t = tastes(c); return (t.love ? `<p><span>好きな音楽</span>${escHtml(t.love)}</p>` : "") + (t.hate ? `<p><span>苦手な音楽</span>${escHtml(t.hate)}</p>` : ""); })()}
-    ${best && best[1] > .45 ? `<p><span>仲良し</span>${escHtml(nameOf(best[0].coat))}</p>` : ""}`;
+    <p><span>今日の機嫌</span>${esc(moodOf(c))}</p>
+    ${title ? `<p><span>好きなアルバム</span>${esc(title)}</p>` : ""}
+    ${(() => { const t = tastes(c); return (t.love ? `<p><span>好きな音楽</span>${esc(t.love)}</p>` : "") + (t.hate ? `<p><span>苦手な音楽</span>${esc(t.hate)}</p>` : ""); })()}
+    ${best && best[1] > .45 ? `<p><span>仲良し</span>${esc(nameOf(best[0].coat))}</p>` : ""}`;
   // 猫の頭の上あたりに出す（画面からはみ出さないように）
   const g = c.grid.getBoundingClientRect();
   c.layer.append(el);
@@ -1838,8 +1710,8 @@ function strokeCat(c: Cat, pts: [number, number][]) {
     : mid[1] > (pose === "stand" ? -13 : -5) && mid[0] > -14 && mid[0] < 12 ? "belly" : "back";
   c.pets = c.pets.filter(t => c.t - t < 30);
   const fed = (n: number) => { for (let i = 0; i < n; i++) c.pets.push(c.t); return c.pets.length > c.patience; };
-  const purr = () => { if (sleeping) c.woke = true; catVoice("purr", c.s); shine(c, zone === "back" ? .012 : .008); go(c, "purr"); }; // 毛並みに沿って撫でるほど、つやが出る
-  const angry = () => { catVoice("grumble", c.s); go(c, "annoyed"); };
+  const purr = () => { if (sleeping) c.woke = true; shine(c, zone === "back" ? .012 : .008); go(c, "purr"); }; // 毛並みに沿って撫でるほど、つやが出る
+  const angry = () => go(c, "annoyed");
   const flinch = () => fed(2) ? angry() : go(c, "flinch");
   if (zone === "head") { c.pets = c.pets.slice(1); return purr(); } // いくら撫でても嫌がらない。むしろ機嫌が直る
   if (zone === "back") return along <= 2 ? (fed(1) ? angry() : purr()) : flinch();
@@ -1981,7 +1853,7 @@ export function catVisit(): boolean {
       if (Math.random() > .5 + c.p.curious * .45) continue;
       const sill = c.plats.find(p => p.kind === "sill");
       const vx = win.getBoundingClientRect().left - c.grid.getBoundingClientRect().left + px0 + x + 30 * sc; // 来客の居る所（grid の座標）
-      const look = () => { c.dir = c.x < vx ? 1 : -1; go(c, "watch", Math.max(3, stay - 2)); if (c.p.social < .35 && Math.random() < .5) catVoice("grumble", c.s); };
+      const look = () => { c.dir = c.x < vx ? 1 : -1; go(c, "watch", Math.max(3, stay - 2)); };
       if (sill && !samePlat(c.cur, sill)) travel(c, sill, clamp(win.getBoundingClientRect().left - c.grid.getBoundingClientRect().left + px0 + pw / 2 + rnd(-70, 70), lo(sill), hi(sill)), look, look, 8, true); // 小走りで見にいく
       else look();
     }
@@ -2094,7 +1966,6 @@ function pickUp(c: Cat, at: [number, number]): boolean {
   c.cur = undefined;
   go(c, "held");
   c.el.classList.add("held");
-  catVoice(c.p.social > .6 ? "mew" : "grumble", c.s);
   return true;
 }
 /** 撫でてもらった回数が多いほど、抱っこにも慣れる（0〜1） */
@@ -2220,7 +2091,7 @@ function goBird(c: Cat) {
   const sill = c.plats.find(p => p.kind === "sill");
   if (!sill || !bird) return;
   const bx = birdX(c), side = c.x < bx ? -1 : 1, x = clamp(bx + side * rnd(40, 70), lo(sill), hi(sill));
-  const watch = () => { faceBird(c); if (Math.random() < .5) catVoice("chirp", c.s); go(c, "chatter", rnd(4, 8)); };
+  const watch = () => { faceBird(c); go(c, "chatter", rnd(4, 8)); };
   if (samePlat(c.cur, sill)) return walkTo(c, x, watch);
   travel(c, sill, x, watch, () => go(c, "sit"), 8, true);
 }

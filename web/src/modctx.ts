@@ -1,4 +1,5 @@
 // 棚・再生中以外のモジュールが、本体（main.ts）から借りるもの
+export { esc, fmt } from "./dom";
 
 import type { Album } from "./library";
 import type { Player } from "./player";
@@ -16,8 +17,6 @@ let current: ModuleContext | undefined;
 export const setModuleContext = (c: ModuleContext) => { current = c; };
 export const ctx = () => current!;
 
-export const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
-export const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 export const css = (name: string, fallback: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 
 /** canvas を表示サイズ × 画素密度に合わせる。大きさが変わったら true */

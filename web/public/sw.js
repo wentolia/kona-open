@@ -5,7 +5,8 @@ const CACHE = "kona-v1";
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", e => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);
+    // 古い版の画面のキャッシュだけを消す（Drive から端末に残した曲の "kona-drive" は消さない）
+    for (const k of await caches.keys()) if (k.startsWith("kona-v") && k !== CACHE) await caches.delete(k);
     await self.clients.claim();
   })());
 });

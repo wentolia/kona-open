@@ -15,7 +15,9 @@ import { ACTIONS, keyFor, keyLabel, setKey, resetKeys, comboOf, setRecording } f
 import { SORTS } from "./shelves";
 import { t } from "./i18n";
 import type { Player, Normalize } from "./player";
+import { spotifySettingsHTML, wireSpotifySettings } from "./spotify-ui";
 import pkg from "../package.json";
+import { esc } from "./dom";
 
 export interface KeptAlbum { key: string; title: string; bytes: number; forget(): Promise<void> }
 export interface SettingsHooks {
@@ -25,7 +27,7 @@ export interface SettingsHooks {
   removeCat(i: number): void;
   changeCat(i: number, change: { name?: string; breed?: string }): void;
   /** いま開いているもの */
-  source(): { name: string; kind: "local" | "drive" | "files" | "none"; canRescan: boolean };
+  source(): { name: string; kind: "local" | "drive" | "spotify" | "files" | "none"; canRescan: boolean };
   rescan(): void;
   openSource(anchor: HTMLElement): void;
   /** 覚えているフォルダ・Drive のフォルダを忘れる */
@@ -40,7 +42,6 @@ export interface SettingsHooks {
   redraw(): void;
 }
 
-const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const opt = (v: string, label: string, sel: boolean) => `<option value="${esc(v)}"${sel ? " selected" : ""}>${esc(label)}</option>`;
 const seg = (name: string, items: { v: string; label: string }[], cur: string) =>
   `<div class="set-seg" role="radiogroup" data-seg="${name}">${items.map(i => `<button type="button" role="radio" data-v="${esc(i.v)}" aria-checked="${i.v === cur}">${esc(i.label)}</button>`).join("")}</div>`;
@@ -75,7 +76,7 @@ function dayBar(p: ThemePrefs) {
 // ---------- 各区分 ----------
 const SECTIONS = [
   { id: "look", label: "見た目" }, { id: "room", label: "部屋" }, { id: "sound", label: "音" }, { id: "cats", label: "猫" },
-  { id: "library", label: "ライブラリ" }, { id: "data", label: "データ" }, { id: "keys", label: "キーボード" }, { id: "about", label: "Kona について" },
+  { id: "library", label: "ライブラリ" }, { id: "data", label: "データ" }, { id: "keys", label: "キーボード" }, { id: "advanced", label: "詳細" }, { id: "about", label: "Kona について" },
 ];
 
 function lookSection() {
@@ -158,17 +159,14 @@ function catsSection(h: SettingsHooks) {
       </li>`).join("")}
     </ul>
     <div class="set-row"><button type="button" class="set-btn" id="set-cat-add">${t("猫を呼ぶ")}</button><span class="set-num">${cats.length} ${t("匹")}</span></div>
-    <h3>${t("鳴き声")}</h3>
-    ${check("set-voice", q.catVoice, t("撫でたときなどに鳴く"))}
     ${check("set-zoomies", q.catZoomies, t("夜中にときどき駆け回る（夜の運動会）"))}
-    ${row(t("音量"), `<input type="range" id="set-voice-vol" min="0" max="1" step=".05" value="${q.catVolume}"${q.catVoice ? "" : " disabled"}><button type="button" class="set-btn" id="set-voice-test"${q.catVoice ? "" : " disabled"}>${t("聞いてみる")}</button>`)}
     <h3>${t("いたずら")}</h3>
     ${row(t("よく聴くアルバムをくわえてきたら"), seg("mischief", [{ v: "off", label: t("させない") }, { v: "queue", label: t("次に再生に入れる") }, { v: "play", label: t("そのまま再生する") }], q.catMischief), "set-wide")}`;
 }
 
 function librarySection(h: SettingsHooks) {
   const s = h.source(), q = prefs(), d = h.drive(), kept = h.keptAlbums();
-  const kind = { local: t("この端末のフォルダ"), drive: "Google Drive", files: t("この端末のフォルダ（選んだファイル）"), none: t("開いていません") }[s.kind];
+  const kind = { local: t("この端末のフォルダ"), drive: "Google Drive", spotify: "Spotify", files: t("この端末のフォルダ（選んだファイル）"), none: t("開いていません") }[s.kind];
   const total = kept.reduce((n, a) => n + a.bytes, 0);
   return `
     <h3>${t("読み込んだフォルダ")}</h3>
@@ -224,7 +222,7 @@ function aboutSection() {
     </dl>
     <ul class="set-privacy">
       <li>${t("サーバーはなく、アクセス解析もしません。設定・記録・取り込んだ曲は、このブラウザの中にだけ置きます。")}</li>
-      <li>${t("通信するのは Google Drive を使うときの Google の API と、地図を置いたときの地図の画像だけです。")}</li>
+      <li>${t("通信するのは Google Drive を使うときの Google の API、Spotify を使うときの Spotify、地図を置いたときの地図の画像だけです。")}</li>
       <li>${t("Google Drive は読み取りだけで、サインインはこのタブの中だけ（約 1 時間）有効です。")}</li>
       <li>${t("聴いた場所は約 100 m の粗さに丸めて、この端末にだけ残します。")}</li>
     </ul>`;
@@ -244,7 +242,7 @@ export function renderSettings() {
   const scroll = root.scrollTop;
   const body: Record<string, string> = {
     look: lookSection(), room: roomSection(), sound: soundSection(hooks), cats: catsSection(hooks),
-    library: librarySection(hooks), data: dataSection(), keys: keysSection(), about: aboutSection(),
+    library: librarySection(hooks), data: dataSection(), keys: keysSection(), advanced: spotifySettingsHTML(t), about: aboutSection(),
   };
   root.innerHTML = `
   <div class="set">
@@ -303,6 +301,7 @@ function wire(el: HTMLElement) {
   const h = hooks;
   const again = () => renderSettings();
   const setP = (p: Partial<Prefs>) => { setPrefs(p); again(); };
+  wireSpotifySettings(el, again);
   const on = <T extends HTMLElement>(sel: string, ev: string, fn: (e: T) => void) => el.querySelectorAll<T>(sel).forEach(x => x.addEventListener(ev, () => fn(x)));
 
   on("[data-jump]", "click", a => document.getElementById(`set-${a.dataset.jump}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -385,10 +384,7 @@ function wire(el: HTMLElement) {
   on("[data-cat] .set-cat-bye", "click", b => { h.removeCat(Number(b.closest<HTMLElement>("[data-cat]")!.dataset.cat)); again(); });
   on<HTMLInputElement>(".set-cat-name", "change", i => h.changeCat(Number(i.closest<HTMLElement>("[data-cat]")!.dataset.cat), { name: i.value.trim() }));
   on<HTMLSelectElement>(".set-cat-breed", "change", s => h.changeCat(Number(s.closest<HTMLElement>("[data-cat]")!.dataset.cat), { breed: s.value }));
-  on<HTMLInputElement>("#set-voice", "change", c => setP({ catVoice: c.checked }));
   on<HTMLInputElement>("#set-zoomies", "change", c => setP({ catZoomies: c.checked }));
-  on<HTMLInputElement>("#set-voice-vol", "change", r => setPrefs({ catVolume: Number(r.value) }));
-  on("#set-voice-test", "click", () => import("./cat-voice").then(m => m.catVoice("meow")));
 
   // ライブラリ
   on("#set-rescan", "click", () => h.rescan());

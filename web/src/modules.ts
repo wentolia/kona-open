@@ -48,6 +48,7 @@ const fmtDb = (db: number) => (db > 0 ? "+" : db < 0 ? "−" : "±") + Math.abs(
 export function mountEq(body: HTMLElement, eq: Eq) {
   body.innerHTML = `
     <div class="eq">
+      <p class="dsp-off">Spotify の曲では使えません</p>
       <div class="eq-bar">
         <button class="eq-power" aria-pressed="${eq.on}"><i></i>EQ</button>
         <span class="eq-pre"></span>
@@ -206,6 +207,7 @@ export function mountWave(body: HTMLElement, player: Player) {
     <div class="wave">
       <canvas class="wave-canvas" aria-label="波形（クリックでその位置へ）"></canvas>
       <span class="wave-time"></span>
+      <p class="dsp-off">Spotify の曲では波形を出せません</p>
     </div>`;
   const root = body.querySelector<HTMLElement>(".wave")!;
   const canvas = root.querySelector<HTMLCanvasElement>("canvas")!;
