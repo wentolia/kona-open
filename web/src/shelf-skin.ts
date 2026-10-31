@@ -7,16 +7,16 @@ const KEY = "kona.shelfSkin";
 
 export const SHELF_SKINS = [
   { key: "walnut", label: "ウォールナット" },
-  { key: "oak", label: "白木（北欧）" },
-  { key: "steel", label: "黒スチール" },
+  { key: "oak", label: "オーク" },
+  { key: "steel", label: "スチール" },
   { key: "acrylic", label: "アクリル" },
-  { key: "tansu", label: "和箪笥（欅）" },
-  { key: "lowpoly", label: "ローポリ・木（猫とおそろい）" },
-  { key: "lowpoly-birch", label: "ローポリ・白樺" },
-  { key: "lowpoly-ebony", label: "ローポリ・黒檀と真鍮" },
-  { key: "lowpoly-stone", label: "ローポリ・石板" },
-  { key: "lowpoly-moss", label: "ローポリ・苔むした木" },
-  { key: "lowpoly-snow", label: "ローポリ・雪" },
+  { key: "tansu", label: "欅" },
+  { key: "lowpoly", label: "パイン" },
+  { key: "lowpoly-birch", label: "白樺" },
+  { key: "lowpoly-ebony", label: "黒檀" },
+  { key: "lowpoly-stone", label: "石" },
+  { key: "lowpoly-moss", label: "苔" },
+  { key: "lowpoly-snow", label: "雪" },
 ] as const;
 export type ShelfSkin = typeof SHELF_SKINS[number]["key"];
 

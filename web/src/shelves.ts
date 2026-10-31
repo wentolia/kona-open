@@ -1,7 +1,7 @@
 // ホームに置くモジュールの定義（種類・名前・棚の中身の設定）。どこに置くか（段・列・高さ）は layout.ts
 
 export type ModuleType = "shelf" | "player" | "waveform" | "eq" | "clock" | "info" | "log" | "output" | "map" | "turntable" | "window" | "objects" | "distance" | "cattower" | "scratcher" | "catfood" | "spectrum" | "catbox";
-export type ShelfKind = "often" | "recent" | "queue" | "folder" | "artist" | "manual" | "search" | "mood";
+export type ShelfKind = "often" | "recent" | "queue" | "folder" | "artist" | "manual" | "search" | "mood" | "goods";
 export type SortKey = "title" | "artist" | "year" | "yearAsc" | "plays" | "last";
 
 export interface ModuleDef {
@@ -37,7 +37,6 @@ export const MODULES: ModuleInfo[] = [
   { type: "output", label: "出力", minHeight: 120, height: 170, ready: true, single: true },
   { type: "turntable", label: "レコードプレーヤー", minHeight: 120, height: 220, ready: true, single: true },
   { type: "window", label: "窓辺", minHeight: 90, height: 200, ready: true, single: true },
-  { type: "objects", label: "棚の上の小物", minHeight: 110, height: 210, ready: true, single: true },
   { type: "distance", label: "聴いた距離", minHeight: 90, height: 140, ready: true, single: true },
   { type: "cattower", label: "キャットタワー", minHeight: 240, height: 380, ready: true, single: true },
   { type: "scratcher", label: "爪とぎ", minHeight: 70, height: 110, ready: true, single: true },
@@ -55,6 +54,7 @@ export const KINDS: { kind: ShelfKind; label: string }[] = [
   { kind: "mood", label: "気分" },
   { kind: "manual", label: "手動で集める" },
   { kind: "search", label: "検索して並べる" },
+  { kind: "goods", label: "雑貨" },
 ];
 export const kindLabel = (k: ShelfKind) => KINDS.find(x => x.kind === k)!.label;
 
@@ -100,9 +100,11 @@ function defaults(): ModuleDef[] {
 // 以前の形式から移す: 12分割の span / 20px 刻みの h → 比率と px。「再生中の上 / 下」の棚は上 → 再生中 → 下の順に
 // face は以前の「左 / 右」や「何冊目の後ろ」の指定。比率に置き換える
 type Legacy = ModuleDef & { span?: number; h?: number; zone?: "above" | "below"; face?: number | "left" | "right"; bookends?: boolean };
+// 以前の「棚の上の小物」モジュールは、中身が「雑貨」の棚に置き換える
 const fromLegacy = ({ span, h, zone: _, face, bookends, ...m }: Legacy): ModuleDef => ({
   ...(bookends ? { folderGaps: true } : {}),
-  ...m, type: m.type ?? "shelf", w: m.w ?? (span ?? 12) / 12, height: m.height ?? (h ?? 9) * 20,
+  ...m, ...(m.type === "objects" ? { kind: "goods" as const, title: m.title === "棚の上の小物" ? "雑貨" : m.title } : {}),
+  type: m.type === "objects" ? "shelf" : m.type ?? "shelf", w: m.w ?? (span ?? 12) / 12, height: m.height ?? (h ?? 9) * 20,
   facePos: m.facePos ?? (face === undefined || face === "left" || face === 0 ? 0 : face === "right" || face >= 1e5 ? 1 : 0.35),
 });
 function migrate(old: Legacy[]): ModuleDef[] {

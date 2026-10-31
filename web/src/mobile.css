@@ -3,11 +3,9 @@
 body.mobile > .top, body.mobile > main, body.mobile > #np { display: none !important; }
 body.mobile[data-state="ready"] .m { display: flex; }
 body.mobile #pop, body.mobile .cat-layer { display: none !important; }
-/* 設定ページはスマホ版でも PC と同じものを出す（上の「戻る」で棚へ） */
+/* 設定はスマホ版でも PC と同じ板を、全画面で出す（右上の × で棚へ） */
 body.mobile[data-view="settings"] > main { display: flex !important; }
-body.mobile[data-view="settings"] .m, body.mobile[data-view="settings"] .m-mini { display: none !important; }
-.set-back { display: none; }
-body.mobile .set-back { display: inline-block; }
+body.mobile[data-view="settings"] .m, body.mobile[data-view="settings"] .m-mini, body.mobile[data-view="settings"] #view-home { display: none !important; }
 
 .m {
   flex: 1; min-height: 0; flex-direction: column;

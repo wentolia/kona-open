@@ -8,7 +8,6 @@
 //  - 金魚鉢: 金魚が音の大きさに合わせて泳ぐ。静かなときは底でじっとしている。押すとえさをあげられる。水草は聴いた日の数だけ育つ
 //  - 読みかけの本: 音楽を聴いている間に少しずつ読み進む（2 分で 1 ページ）。読み終えると下に積んで次の本へ
 //  - 編みもの: 聴いている間に 1 段ずつ編み進む（3 分で 1 段）。編み上がるとかごにしまって次の毛糸へ
-//  - ポスト: 月が替わると「先月よく聴いたアルバム」の手紙が届く。押すと読める
 //  - 賞状: 聴いた距離が目じるしに届くと額に入った賞状が立つ。押すと証書（画像にして保存・共有できる）
 //  - サボテン: 聴いた日の数だけ背が伸びて腕が増える。7 日続けて聴くと花が咲く
 //  - ポトス: 吊り鉢から蔓が垂れる。聴いた時間で葉が増え、蔓が伸びる（20 分で 1 枚）
@@ -29,16 +28,16 @@ let uid = 0;
 export const OBJECTS = [
   { key: "lamp", label: "灯り", w: 72 }, { key: "plant", label: "鉢植え", w: 62 }, { key: "candle", label: "ろうそく（おやすみタイマー）", w: 44 },
   { key: "hourglass", label: "砂時計", w: 44 }, { key: "records", label: "きょうのレコード", w: 76 }, { key: "bowl", label: "金魚鉢", w: 70 },
-  { key: "book", label: "読みかけの本", w: 64 }, { key: "knit", label: "編みもの", w: 66 }, { key: "post", label: "ポスト（月に一度の手紙）", w: 46 },
+  { key: "book", label: "読みかけの本", w: 64 }, { key: "knit", label: "編みもの", w: 66 },
   { key: "award", label: "賞状（聴いた距離の証書）", w: 52 },
   { key: "cactus", label: "サボテン", w: 40 }, { key: "pothos", label: "ポトス（吊り鉢）", w: 56 }, { key: "vase", label: "季節の切り花", w: 46 },
 ] as const;
 const CANDLE_MIN = 30;
-type Saved = { lamp: boolean; hide: string[]; candle?: number; letter?: string; water?: number };
+type Saved = { lamp: boolean; hide: string[]; candle?: number; water?: number };
 const load = (): Saved => {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || "{}");
-    return { lamp: !!v.lamp, hide: Array.isArray(v.hide) ? v.hide : [], ...(typeof v.candle === "number" ? { candle: v.candle } : {}), ...(typeof v.letter === "string" ? { letter: v.letter } : {}), ...(typeof v.water === "number" ? { water: v.water } : {}) };
+    return { lamp: !!v.lamp, hide: Array.isArray(v.hide) ? v.hide : [], ...(typeof v.candle === "number" ? { candle: v.candle } : {}), ...(typeof v.water === "number" ? { water: v.water } : {}) };
   } catch { return { lamp: false, hide: [] }; }
 };
 const save = (s: Saved) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* 保存できなくても動く */ } };
@@ -191,7 +190,7 @@ const bowlArt = (id: string) => `
   ${poly("rgba(236,228,216,.32)", "19.6,46.4 50.4,46.4 49.6,48.4 20.4,48.4")}`;
 
 
-// ---------- 読みかけの本・編みもの・ポスト ----------
+// ---------- 読みかけの本・編みもの ----------
 const BOOK_PAGES = 240, PAGE_SEC = 120;          // 2 分で 1 ページ、1 冊 8 時間
 const KNIT_ROWS = 26, ROW_SEC = 180;             // 3 分で 1 段、1 枚 78 分
 const BOOK_COLORS = ["#7a3b34", "#2f4f6b", "#4a6b3a", "#6b4f2a", "#583a63", "#2e5e5a"];
@@ -280,20 +279,6 @@ function knitArt(rows: number, done: number, hue: number) {
   return out;
 }
 
-/** ポスト: 柱の上の箱。手紙が届くと口から封筒がのぞき、旗が上がる */
-const MAIL = { hi: "#6a9483", mid: "#4f7766", lo: "#395a4c", deep: "#253d33" };
-const postArt = () => `
-  ${poly(WOOD.mid, "20,62 26,62 26,96 20,96")}${poly(WOOD.lo, "26,62 27.6,61 27.6,95 26,96")}
-  ${poly(IRON.mid, "13,96 33,96 34,100 12,100")}${poly(IRON.hi, "15,94.6 31,94.6 33,96 13,96")}
-  ${poly(MAIL.mid, "5,40 37,40 37,64 5,64")}
-  ${poly(MAIL.lo, "37,40 42,36 42,60 37,64")}
-  ${poly(MAIL.hi, "5,40 7,34.4 11,31 31,31 35,34.4 37,40")}
-  ${poly(MAIL.mid, "37,40 35,34.4 31,31 36,27.6 40,30.8 42,36")}
-  ${poly(MAIL.deep, "10,46 32,46 32,48.4 10,48.4")}
-  <g class="letter">${poly("#f1e9d8", "13,47.6 29,46.4 29.6,40.6 13.6,41.8")}${poly("#d9cfba", "13.6,41.8 21.4,45.4 29.6,40.6")}${poly("#b8403a", "25.4,42.4 27.4,42.2 27.6,44 25.6,44.2")}</g>
-  ${poly(MAIL.lo, "8,52 34,52 34,53 8,53")}
-  <g class="flag">${poly(IRON.lo, "41,58 42.6,58 42.6,40 41,40")}${poly("#c8553d", "42.6,40 49,40.6 49,45.4 42.6,45")}${poly("#9e3e2c", "42.6,45 49,45.4 48,46.6 42.6,46.2")}</g>`;
-
 /** 賞状: 額縁に入った小さな証書。金の縁、題字の線、朱の印 */
 const GILT = { hi: "#e0c27a", mid: "#b48c45", lo: "#86652b", deep: "#5e461c" };
 const awardArt = () => `
@@ -306,17 +291,6 @@ const awardArt = () => `
   ${poly("#8a7652", "11,90.6 22,90.6 22,91.3 11,91.3")}
   ${poly("#b23024", "34.4,86.4 40.4,86.4 40.4,92.4 34.4,92.4")}${poly("#d8b8a2", "35.6,87.6 39.2,87.6 39.2,91.2 35.6,91.2")}${poly("#b23024", "36.4,88.4 38.4,88.4 38.4,90.4 36.4,90.4")}
   <g class="glint">${poly("rgba(255,255,255,.55)", "10,65 15,65 9,96 4,96")}</g>`;
-
-/** 先月の手紙の中身（届いていなければ undefined） */
-function letterOf(now = new Date()) {
-  const from = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime(), to = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const count = new Map<string, number>(), days = new Set<string>();
-  for (const e of playLog()) if (e.t >= from && e.t < to) { count.set(e.k, (count.get(e.k) ?? 0) + 1); days.add(new Date(e.t).toDateString()); }
-  if (!count.size) return undefined;
-  const top = [...count].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const m = new Date(from);
-  return { key: `${m.getFullYear()}-${m.getMonth() + 1}`, month: m.getMonth() + 1, days: days.size, plays: [...count.values()].reduce((a, b) => a + b, 0), top };
-}
 
 // ---------- 植物: サボテン・ポトス・季節の切り花 ----------
 /** きょう（まだ聴いていなければ昨日）からさかのぼって、続けて聴いた日の数 */
@@ -475,13 +449,12 @@ export function mountObjects(body: HTMLElement) {
   <svg class="bowl" viewBox="0 0 70 100" role="button" tabindex="0" aria-label="金魚鉢（押すとえさをあげる）"><title>金魚鉢（押すとえさをあげる）</title>${bowlArt(id)}</svg>
   <svg class="book" viewBox="0 0 64 100"><title></title><g class="bk"></g><polygon class="turn"/></svg>
   <svg class="knit" viewBox="0 0 66 100"><title></title><g class="kn"></g></svg>
-  <svg class="post" viewBox="0 0 46 100" role="button" tabindex="0" aria-label="ポスト"><title></title>${postArt()}</svg>
   <svg class="award" viewBox="0 0 52 100" role="button" tabindex="0" aria-label="賞状（押すと証書を見る）"><title></title>${awardArt()}</svg>
   <svg class="cactus" viewBox="0 0 40 100"><title></title><g class="cc"></g></svg>
   <svg class="pothos" viewBox="0 0 56 100"><title></title><g class="pt"></g></svg>
   <svg class="vase" viewBox="0 0 46 100" role="button" tabindex="0" aria-label="季節の切り花（押すと水を替える）"><title></title><g class="vs"></g></svg>
 </div>
-<dialog class="objs-letter"></dialog><div class="objs-board"></div></div>`;
+<div class="objs-board"></div></div>`;
 
   const root = body.querySelector<HTMLElement>(".objs")!;
   const $ = <T extends Element>(s: string) => root.querySelector<T>(s)!;
@@ -630,32 +603,6 @@ export function mountObjects(body: HTMLElement) {
     piece = knitG.querySelector<SVGGElement>(".piece")!;
     ktitle.textContent = `編みかけ（${row} / ${KNIT_ROWS} 段）${idx ? `・編み上がったもの ${idx} 枚` : ""}。音楽を聴いている間に 1 段ずつ編み進む`;
   };
-
-  // ---------- ポスト: 月に一度の手紙 ----------
-  const post = $<SVGSVGElement>(".post"), dlg = $<HTMLDialogElement>(".objs-letter"), ptitle = $<SVGTitleElement>(".post title");
-  let letter = letterOf(), lastMail = 0;
-  const unread = () => !!letter && state.letter !== letter.key;
-  const paintPost = () => {
-    post.classList.toggle("mail", unread());
-    ptitle.textContent = unread() ? `${letter!.month}月の手紙が届いています（押すと読む）` : letter ? `${letter.month}月の手紙（押すと読み返す）` : "ポスト（月が替わると、先月よく聴いたアルバムの手紙が届く）";
-  };
-  press(post, () => {
-    const L = letter;
-    const today = new Date();
-    dlg.innerHTML = L ? `<form method="dialog">
-      <p class="lt-date">${today.getFullYear()}年${L.month === 12 ? 1 : L.month + 1}月</p>
-      <h3>${L.month}月によく聴いたアルバム</h3>
-      <p>${L.month}月は ${L.days} 日、${L.plays} 回アルバムをかけました。${(() => { const a = ctx().byKey(L.top[0][0]); return a ? `いちばんよく聴いたのは「${esc(a.title)}」でした。` : ""; })()}</p>
-      <ol>${L.top.map(([k, n]) => { const a = ctx().byKey(k); return `<li><button type="button" data-k="${esc(k)}"${a ? "" : " disabled"}><i style="background:${a ? ctx().colorOf(a) : "#555"}"></i><span>${a ? esc(a.title) : "（見つからないアルバム）"}${a?.artist ? `<small>${esc(a.artist)}</small>` : ""}</span><em>${n} 回</em></button></li>`; }).join("")}</ol>
-      <p class="lt-sign">押すとそのアルバムをかけます</p>
-      <button value="close" class="lt-close">閉じる</button></form>`
-      : `<form method="dialog"><h3>まだ手紙は届いていません</h3><p>月が替わると、その月によく聴いたアルバムの手紙が届きます。</p><button value="close" class="lt-close">閉じる</button></form>`;
-    dlg.querySelectorAll<HTMLButtonElement>("button[data-k]").forEach(b => b.onclick = () => { const a = ctx().byKey(b.dataset.k!); if (a) ctx().play(a); dlg.close(); });
-    dlg.showModal();
-    if (L) { state.letter = L.key; patch({ letter: L.key }); paintPost(); }
-  });
-  dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); }); // 外側を押すと閉じる
-  paintPost();
 
   // ---------- 賞状: 聴いた距離の証書。届いたばかりのときはガラスがきらりと光る ----------
   const award = $<SVGSVGElement>(".award"), atitle = $<SVGTitleElement>(".award title");
@@ -872,8 +819,6 @@ export function mountObjects(body: HTMLElement) {
     });
     (cuts[0]?.parentElement as SVGGElement | null)?.style.setProperty("filter", droop ? `saturate(${(1 - droop * .45).toFixed(2)}) brightness(${(1 - droop * .15).toFixed(2)})` : "");
 
-    // ポスト: 手紙は 1 分ごとに確かめる。届いていれば封筒が上下にふわりと
-    if (now - lastMail > 60_000) { lastMail = now; letter = letterOf(); paintPost(); }
 
     // 夏の夜、灯りを点けていると虫が寄る
     mothOn += ((state.lamp && mothNight() ? 1 : 0) - mothOn) * (1 - Math.exp(-dt / 1.5));

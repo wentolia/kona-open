@@ -34,10 +34,11 @@ const EN: Record<string, string> = {
   "三毛（日本猫）": "Calico (Japanese)", "アメリカンショートヘア": "American Shorthair", "ロシアンブルー": "Russian Blue",
   "ベンガル": "Bengal", "スフィンクス": "Sphynx", "ペルシャ": "Persian",
   // 棚の素材
-  "壁": "Wall", "床": "Floor", "ラグ": "Rug", "無地": "Plain", "漆喰（大きな面）": "Plaster (large facets)", "板壁": "Wood panels", "レンガ": "Brick", "明るい木の床": "Light wood floor", "濃い木の床": "Dark wood floor", "石のタイル": "Stone tiles", "丸いラグ": "Round rug", "キリム": "Kilim", "ムートン": "Sheepskin",
-  "ウォールナット": "Walnut", "白木（北欧）": "Light oak", "黒スチール": "Black steel", "アクリル": "Acrylic", "和箪笥（欅）": "Tansu (zelkova)",
+  "壁": "Wall", "床": "Floor", "ラグ": "Rug", "無地": "Plain", "漆喰": "Plaster", "板壁": "Wood panels", "レンガ": "Brick", "丸": "Round", "キリム": "Kilim", "ムートン": "Sheepskin",
+  "ウォールナット": "Walnut", "オーク": "Oak", "スチール": "Steel", "アクリル": "Acrylic", "欅": "Zelkova", "パイン": "Pine", "白樺": "Birch", "黒檀": "Ebony", "石": "Stone", "苔": "Moss", "雪": "Snow",
   // 設定ページ
-  "見た目": "Look", "部屋": "Room", "音": "Sound", "猫": "Cats", "データ": "Data", "キーボード": "Keyboard", "Kona について": "About Kona",
+  "色": "Color", "その他": "Other", "もっと見る": "More", "文字と言語": "Text and language", "ライブラリの細かな設定": "More library settings",
+  "音の色（イコライザー）": "Tone (equalizer)", "棚板に暮らした跡を残す": "Let the shelves wear", "見た目": "Look", "部屋": "Room", "音": "Sound", "猫": "Cats", "データ": "Data", "キーボード": "Keyboard", "Kona について": "About Kona",
   "テーマカラー": "Theme color", "いつも同じ": "Always the same", "時刻で移ろう": "Shift with the time of day",
   "朝": "Morning", "昼": "Day", "夕": "Evening", "夜": "Night", "移り変わり": "Transition", "すぐ": "Instant",
   "15 分": "15 min", "1 時間": "1 hour", "2 時間": "2 hours", "自分で選ぶ": "Custom", "自分で選ぶ色": "Custom colors", "地": "Base",

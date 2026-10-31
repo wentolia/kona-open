@@ -6,35 +6,16 @@
 
 /* ---------- キャットタワー ---------- */
 .ctower { width: min(100%, 360px); margin: 0 auto; }
-.ct-post {
-  position: absolute; width: 16px; margin-left: -8px;
-  /* 麻縄を巻いた柱: 斜めの縞 */
-  background: repeating-linear-gradient(-28deg, var(--rope) 0 3px, var(--rope-lo) 3px 4.5px);
-  box-shadow: inset -4px 0 6px rgba(0, 0, 0, .35);
-}
-.ct-deck, .ct-base {
-  position: absolute; height: var(--deck); border-radius: 3px;
-  background: linear-gradient(to bottom, var(--carpet-hi), var(--carpet) 40%, #46423d);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, .35);
-}
-.ct-base { left: 0; right: 0; bottom: 0; height: calc(var(--deck) + 2px); border-radius: 2px; }
-.ct-bed { position: absolute; height: 16px; }
-/* 丸いベッド: ふちの盛り上がったクッション */
-.ct-bed::before {
-  content: ""; position: absolute; inset: 0; border-radius: 50% 50% 40% 40% / 70% 70% 30% 30%;
-  background: linear-gradient(to bottom, #8a6f63, #6b5249); box-shadow: 0 2px 4px rgba(0, 0, 0, .4);
-}
-.ct-cushion {
-  position: absolute; left: 12%; right: 12%; top: 4px; height: 7px; border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 30%, #c9b7a6, #9f8b7b);
-}
+/* 形は mod-cat.ts の lowpoly() が SVG で描く（猫と同じ平らな多角形と濃淡 4 段）。ここでは置き場所と影だけ */
+.lp { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.ct-post { position: absolute; width: 16px; margin-left: -8px; }
+.ct-deck, .ct-base { position: absolute; height: var(--deck); filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .35)); }
+.ct-base { left: 0; right: 0; bottom: 0; height: calc(var(--deck) + 2px); }
+.ct-bed { position: absolute; height: 16px; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .4)); }
 .ct-toy { position: absolute; width: 0; transform-origin: 0 0; animation: ct-sway 6s ease-in-out infinite; }
 .ct-string { position: absolute; left: -.5px; top: 0; width: 1px; height: 46px; background: var(--muted); opacity: .7; }
-.ct-pom {
-  position: absolute; left: -7px; top: 44px; width: 14px; height: 14px; border-radius: 50%; cursor: pointer;
-  background: radial-gradient(circle at 35% 35%, #f3b8a0, #d77b62 70%);
-  box-shadow: 0 0 0 1.5px rgba(215, 123, 98, .35);
-}
+.ct-pom { position: absolute; left: -7px; top: 44px; width: 14px; height: 14px; cursor: pointer; }
+.ct-pom .lp { pointer-events: auto; }
 .ct-toy.hit { animation: ct-hit 1.6s cubic-bezier(.2, .7, .3, 1); }
 @keyframes ct-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
 @keyframes ct-hit {
@@ -100,30 +81,7 @@
 }
 /* data-cat-plat の上の辺が箱の縁。猫はそこから 26px 沈んで、縁より下は隠れる */
 .cb-in { position: absolute; left: 50%; bottom: var(--board); width: 92px; height: 54px; transform: translateX(-50%); }
-.cb-back, .cb-front, .cb-flap { position: absolute; display: block; }
-/* 奥の壁: 少し上からのぞくので、前の壁の縁の上に内側の暗い面が細く見える */
-.cb-back { left: 3px; right: 3px; top: -5px; height: 12px; background: linear-gradient(to bottom, #8a6a42, #5a4329); border-radius: 1px; }
-.cb-front {
-  inset: 0; border-radius: 1px;
-  background:
-    linear-gradient(90deg, transparent 44%, rgba(214, 190, 140, .55) 44% 56%, transparent 56%) top / 100% 22px no-repeat, /* ガムテープ */
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, .05) 0 1px, transparent 1px 7px),
-    linear-gradient(to bottom, #c49a62, #a87f4b 70%, #93703f);
-  box-shadow: inset 0 2px 0 rgba(255, 236, 200, .25), inset -6px 0 10px rgba(0, 0, 0, .18), 0 2px 5px rgba(0, 0, 0, .4);
-}
-/* 開いたふた: 縁から外へ倒れている */
-.cb-flap { top: -10px; width: 40px; height: 10px; background: linear-gradient(to bottom, #b68b55, #9a7444); border-radius: 1px; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); }
-.cb-flap.l { left: -38px; transform-origin: 100% 100%; transform: rotate(16deg); }
-.cb-flap.r { right: -38px; transform-origin: 0 100%; transform: rotate(-16deg); }
+.cb-in .lp { filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .4)); }
 
 /* 紙袋: 細長く、口をぎざぎざに折り返したクラフト紙 */
 .cbox.bag .cb-in { width: 74px; height: 70px; }
-.cbox.bag .cb-flap { display: none; }
-.cbox.bag .cb-back { background: linear-gradient(to bottom, #9a7a52, #6b5236); clip-path: polygon(0 40%, 8% 0, 16% 40%, 24% 0, 32% 40%, 40% 0, 48% 40%, 56% 0, 64% 40%, 72% 0, 80% 40%, 88% 0, 96% 40%, 100% 20%, 100% 100%, 0 100%); }
-.cbox.bag .cb-front {
-  background:
-    linear-gradient(to bottom, rgba(255, 240, 210, .18) 0 9px, rgba(0, 0, 0, .12) 9px 10px, transparent 10px), /* 折り返し */
-    linear-gradient(90deg, rgba(0, 0, 0, .1), transparent 18% 82%, rgba(0, 0, 0, .14)),
-    linear-gradient(to bottom, #c8a476, #b08b5c);
-  border-radius: 1px 1px 2px 2px;
-}

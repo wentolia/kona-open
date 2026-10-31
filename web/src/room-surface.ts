@@ -8,19 +8,19 @@ const KEY = "kona.room";
 
 export const WALLS = [
   { key: "plain", label: "無地" },
-  { key: "plaster", label: "漆喰（大きな面）" },
+  { key: "plaster", label: "漆喰" },
   { key: "planks", label: "板壁" },
   { key: "brick", label: "レンガ" },
 ] as const;
 export const FLOORS = [
   { key: "none", label: "なし" },
-  { key: "oak", label: "明るい木の床" },
-  { key: "walnut", label: "濃い木の床" },
-  { key: "stone", label: "石のタイル" },
+  { key: "oak", label: "オーク" },
+  { key: "walnut", label: "ウォールナット" },
+  { key: "stone", label: "石" },
 ] as const;
 export const RUGS = [
   { key: "none", label: "なし" },
-  { key: "round", label: "丸いラグ" },
+  { key: "round", label: "丸" },
   { key: "kilim", label: "キリム" },
   { key: "fur", label: "ムートン" },
 ] as const;

@@ -74,7 +74,7 @@ export async function drawReceipt(a: Album, index: number, pos: number, hideArt:
   const total = a.tracks.reduce((s, t) => s + (t.duration ?? 0), 0);
   const staff = catNames()[0];
   // 使う文字の書体を読み込んでから描く（キャンバスは読み込み済みの書体しか使えない）
-  const text = [a.title, a.artist, tr?.title ?? "", ...a.tracks.map(t => t.title), "担当曲数収録時間再生回目形式聴いた距離合計お支払い拍手おつり余韻またのご来店をお待ちしております夜の部屋のレコード棚ジャケットは伏せていますほか", staff ?? ""].join("");
+  const text = [a.title, a.artist, tr?.title ?? "", ...a.tracks.map(t => t.title), "担当曲数収録時間再生回目形式聴いた距離またのご来店をお待ちしておりますほか", staff ?? ""].join("");
   await Promise.all([
     document.fonts.load(`500 14px "IBM Plex Mono"`, "KONA 0123456789:/-.·×¥#"),
     document.fonts.load(`400 14px "Zen Kaku Gothic New"`, text),
@@ -103,14 +103,14 @@ export async function drawReceipt(a: Album, index: number, pos: number, hideArt:
   // ---- 店の名前と日時 ----
   gap(26);
   center("KONA", 30, 500, MONO, 1.2);
-  center("夜の部屋のレコード棚", 11, 400, SANS, 1.8);
   gap(6);
   center(`${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())} (${WEEK[now.getDay()]}) ${p2(now.getHours())}:${p2(now.getMinutes())}`, 11.5, 400, MONO);
   pair(`No.${String(plays).padStart(4, "0")}`, staff ? `担当: ${staff}` : "", 11);
   rule();
 
   // ---- ジャケット（感熱紙の点） ----
-  const dots = !hideArt && a.cover ? await ditherArt(a.cover, 150) : undefined;
+  // Spotify のジャケットは加工しない決まりなので刷らない
+  const dots = !hideArt && a.cover && !a.remote ? await ditherArt(a.cover, 150) : undefined;
   if (dots) {
     const dw = 220, dh = dw * dots.height / dots.width;
     rows.push({ h: dh + 18, draw: (g, y) => { g.imageSmoothingEnabled = false; g.drawImage(dots, (PW - dw) / 2, y + 9, dw, dh); g.imageSmoothingEnabled = true; } });
@@ -167,17 +167,13 @@ export async function drawReceipt(a: Album, index: number, pos: number, hideArt:
   if (rest > 0) center(`… ほか ${rest} 曲`, 10.5, 400, SANS, 1.6);
   rule();
 
-  // ---- 小計 ----
+  // ---- 曲数・時間・回数 ----
   pair("曲数", `${a.tracks.length} 曲`);
   if (total) pair("収録時間", fmt(total));
   pair("再生", plays ? `${plays} 回目` : "はじめて");
   if (tr?.format) pair("形式", tr.format);
   pair("聴いた距離", meters < 1000 ? `${Math.floor(meters)} m` : `${(meters / 1000).toFixed(2)} km`);
   rule("double");
-  pair("合計", "¥0", 15, 700);
-  pair("お支払い", "拍手");
-  pair("おつり", "余韻");
-  rule();
 
   // ---- バーコード（アルバムごとに決まった縞） ----
   rows.push({ h: 58, draw: (g, y) => {
@@ -239,5 +235,6 @@ export function openReceipt(get: () => { album?: Album; index: number; position:
   const s = get();
   if (!s.album) return;
   const a = s.album, i = s.index, pos = s.position;
-  showPicture({ label: "レシート", prefix: "kona-receipt", hideToggle: !!a.cover, draw: ({ hideArt }) => drawReceipt(a, i, pos, hideArt) });
+  // ジャケットは既定で点の濃淡で刷る（写真とは別に覚える）。Spotify のアルバムは刷らない
+  showPicture({ label: "レシート", prefix: "kona-receipt", hideToggle: !!a.cover, hideKey: "kona.receiptHideArt", hideDefault: false, locked: !!a.remote, draw: ({ hideArt }) => drawReceipt(a, i, pos, hideArt) });
 }

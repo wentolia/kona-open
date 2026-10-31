@@ -14,8 +14,8 @@ type Frame = { kind: "room" } | { kind: "cat"; i: number };
 let toast: (text: string) => void = () => {};
 let open: { el: HTMLElement; close: () => void } | undefined;
 
-const hideArtPref = () => { try { return localStorage.getItem(HIDE_KEY) !== "0"; } catch { return true; } };
-const setHideArtPref = (on: boolean) => { try { localStorage.setItem(HIDE_KEY, on ? "1" : "0"); } catch { /* 覚えられなくても撮れる */ } };
+const hideArtPref = (key = HIDE_KEY, def = true) => { try { const v = localStorage.getItem(key); return v === null ? def : v !== "0"; } catch { return def; } };
+const setHideArtPref = (on: boolean, key = HIDE_KEY) => { try { localStorage.setItem(key, on ? "1" : "0"); } catch { /* 覚えられなくても撮れる */ } };
 const nextFrame = () => new Promise<void>(r => requestAnimationFrame(() => r()));
 
 // ---------- 画像の読み込みと平均色 ----------
@@ -197,7 +197,7 @@ export function initPhoto(opts: { toast: (text: string) => void }) {
   addEventListener("keydown", e => { if (e.key === "Escape" && open) { e.preventDefault(); open.close(); } });
 }
 export const photoToast = (text: string) => toast(text);
-export const photoHideArt = hideArtPref;
+export const photoHideArt = () => hideArtPref();
 
 /** 保存・コピー・共有。どれも端末の中だけで済ませる（共有は端末の共有シートに渡すだけ） */
 async function act(kind: string, blob: Blob, url: string, prefix: string, png: () => Promise<Blob>) {
@@ -215,15 +215,16 @@ async function act(kind: string, blob: Blob, url: string, prefix: string, png: (
 }
 
 /** 写真と同じ画面で、描いた画像（レシート・証書など）を見せて保存・コピー・共有する。
- *  hideToggle: 「ジャケットを隠す」を出す（写真と同じ設定を使う）。choices: 何枚かから選ぶとき */
+ *  hideToggle: 「ジャケットを隠す」を出す。hideKey / hideDefault で写真とは別に覚える（省くと写真と同じ設定）。
+ *  locked: ジャケットを必ず隠す（省くと、Spotify のアルバムを並べているときは隠す）。choices: 何枚かから選ぶとき */
 export function showPicture(o: {
-  label: string; prefix: string; hideToggle?: boolean; choices?: string[]; choice?: number;
+  label: string; prefix: string; hideToggle?: boolean; hideKey?: string; hideDefault?: boolean; locked?: boolean; choices?: string[]; choice?: number;
   draw: (q: { hideArt: boolean; choice: number }) => Promise<HTMLCanvasElement>;
 }) {
   if (open) return;
   // Spotify のアルバムを並べているときは、ジャケットをいつも隠す（Spotify の画像を外へ持ち出さない・加工しない）
-  const artLocked = document.documentElement.hasAttribute("data-art-locked");
-  let hideArt = artLocked || hideArtPref(), choice = o.choice ?? 0;
+  const artLocked = o.locked ?? document.documentElement.hasAttribute("data-art-locked");
+  let hideArt = artLocked || hideArtPref(o.hideKey, o.hideDefault), choice = o.choice ?? 0;
   const el = document.createElement("div");
   el.className = "photo photo-pict"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", o.label);
   const canShareFiles = typeof navigator.canShare === "function";
@@ -276,7 +277,7 @@ export function showPicture(o: {
     if (kind && blob) { const b = blob, c = canvas!; void act(kind, b, url, o.prefix, async () => b.type === "image/png" ? b : toBlob(c, "image/png")); }
   });
   el.querySelector<HTMLInputElement>(".photo-hide input")?.addEventListener("change", e => {
-    hideArt = (e.target as HTMLInputElement).checked; setHideArtPref(hideArt); void render();
+    hideArt = (e.target as HTMLInputElement).checked; setHideArtPref(hideArt, o.hideKey); void render();
   });
   el.querySelector<HTMLSelectElement>(".photo-choice")?.addEventListener("change", e => { choice = Number((e.target as HTMLSelectElement).value); void render(); });
   void render();

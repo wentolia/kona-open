@@ -353,7 +353,7 @@ body:not([data-state="ready"]) .top .brand { visibility: hidden; }
   flex: none; margin-left: max(16px, env(safe-area-inset-left, 0px)); margin-right: max(16px, env(safe-area-inset-right, 0px));
   padding: 14px 18px; border: 2px solid var(--line); border-bottom-width: 6px;
 }
-body[data-view="home"] .np-footer { display: none; }
+body:is([data-view="home"], [data-view="settings"]) .np-footer { display: none; }
 .np-footer.np { grid-template-columns: auto minmax(220px, 340px) minmax(0, 1fr); }
 .np-art { height: 112px; aspect-ratio: 1; display: flex; align-items: flex-end; justify-content: center; align-self: center; }
 .np-art > .art, .np-art > .art-blank { width: 100%; aspect-ratio: var(--ar, 1); height: auto; object-fit: contain; box-shadow: 0 8px 20px rgba(0, 0, 0, .5); }
@@ -926,3 +926,10 @@ a.opened-link { text-decoration: none; }
 :root[data-drm] .eq-stage, :root[data-drm] .eq-bar { opacity: .35; pointer-events: none; }
 :root[data-drm] .b-speed { visibility: hidden; }
 :root[data-drm] .eq { position: relative; }
+
+/* 再生中が狭いとき: 中身を枠に収める（はみ出すと右端の総時間が隣と重なって読めなくなる）。
+   音量のつまみは縮み、それでも入らなければ音量の列を次の行へ回す */
+.np-main { grid-template-columns: minmax(0, 1fr); }
+.np-bar .np-track { min-width: 24px; }
+.np-row { flex-wrap: wrap; row-gap: 4px; }
+.np-vol-range { flex: 0 1 auto; min-width: 48px; }

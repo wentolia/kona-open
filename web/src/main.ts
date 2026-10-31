@@ -34,7 +34,7 @@ import { initShelfMarks } from "./shelf-marks";
 import "./photo.css";
 import "./room-light.css";
 import "./header.css";
-import { OBJECTS, objectShown, setObjectShown } from "./mod-objects";
+import { OBJECTS, objectShown, setObjectShown, mountObjects } from "./mod-objects";
 import { SHELF_SKINS, shelfSkin, setShelfSkin } from "./shelf-skin";
 import { spectrumPrefs, setSpectrumPrefs, type SpectrumPrefs } from "./mod-spectrum";
 import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeDrive } from "./drive-ui";
@@ -804,6 +804,8 @@ function contentsOf(d: ShelfDef): Contents {
       const list = sortAlbums(albums.filter(a => matches(a, d.query ?? "")), d.sort ?? prefs().libSort);
       return { list: list.slice(0, 400), faces: recentFace(list) };
     }
+    case "goods":
+      return { list: [], faces: new Map() };
   }
 }
 
@@ -908,6 +910,11 @@ function moduleEl(d: ModuleDef) {
 }
 
 function shelfBody(body: HTMLElement, d: ShelfDef) {
+  // 雑貨の棚: アルバムの代わりに小物を並べる。小物は動き続けるので、描き直しても作り直さない
+  if (d.kind === "goods") {
+    if (!body.querySelector(".objs")) { body.innerHTML = ""; mountObjects(body); }
+    return;
+  }
   const c = withFolderGaps(d, contentsOf(d));
   body.innerHTML = `
     ${d.kind === "search" ? `<input class="mod-search${d.searchAlign ? ` search-${esc(d.searchAlign)}` : ""}" id="q-${esc(d.id)}" type="search" placeholder="検索" autocomplete="off" value="${esc(d.query ?? "")}" aria-label="${esc(d.title)}の中を検索">` : ""}
@@ -996,7 +1003,8 @@ function renderModuleMenu() {
     const targets: readonly string[] = d.kind === "folder" ? folders : d.kind === "artist" ? artists : d.kind === "mood" ? MOODS : [];
     return `
     <label>中身<select id="sm-kind">${KINDS.map(k => opt(k.kind, k.label, k.kind === d.kind)).join("")}</select></label>
-    ${d.kind !== "queue" ? `<label class="sm-check"><input id="sm-folder-gaps" type="checkbox"${d.folderGaps ? " checked" : ""}>${libGroup() === "artist" ? "アーティスト" : "フォルダ"}ごとに隙間をあけて仕切る</label>` : ""}
+    ${d.kind === "goods" ? `<fieldset class="sm-objects"><legend>置く小物</legend>${OBJECTS.map(o => `<label class="sm-check"><input type="checkbox" data-obj="${o.key}"${objectShown(o.key) ? " checked" : ""}>${o.label}</label>`).join("")}</fieldset>` : ""}
+    ${d.kind !== "queue" && d.kind !== "goods" ? `<label class="sm-check"><input id="sm-folder-gaps" type="checkbox"${d.folderGaps ? " checked" : ""}>${libGroup() === "artist" ? "アーティスト" : "フォルダ"}ごとに隙間をあけて仕切る</label>` : ""}
     ${d.kind === "mood" ? `<label>気分<select id="sm-arg">${MOODS.map(t => opt(t, t, t === (d.arg ?? MOODS[0]))).join("")}</select></label>` : ""}
     ${d.kind === "folder" || d.kind === "artist" ? `<label>${d.kind === "folder" ? "フォルダ" : "アーティスト"}<select id="sm-arg"><option value="">—</option>${targets.map(t => opt(t, t, t === d.arg)).join("")}</select></label>` : ""}
     ${d.kind === "search" ? `
@@ -1016,7 +1024,6 @@ function renderModuleMenu() {
       <label>形<select id="sm-spec-style">${opt("bars", "バー", sp.style === "bars")}${opt("wave", "波", sp.style === "wave")}</select></label>
       <label>向き<select id="sm-spec-dir">${(sp.shape === "circle" ? [["out", "外側"], ["in", "内側"], ["both", "両側"]] : [["out", "上"], ["in", "下"], ["both", "上下"]]).map(([v, l]) => opt(v, l, sp.dir === v)).join("")}</select></label>
       ${sp.shape === "circle" ? `<label>円の大きさ<input id="sm-spec-size" type="range" min="30" max="100" step="1" value="${Math.round(sp.size * 100)}"></label>` : ""}`)(spectrumPrefs()) : ""}
-    ${d.type === "objects" ? `<fieldset class="sm-objects"><legend>置く小物</legend>${OBJECTS.map(o => `<label class="sm-check"><input type="checkbox" data-obj="${o.key}"${objectShown(o.key) ? " checked" : ""}>${o.label}</label>`).join("")}</fieldset>` : ""}
     <div class="sm-actions"><button class="sm-delete">ホームから外す</button><button class="sm-done">閉じる</button></div>`;
   const save = () => { saveMods(); renderShelves(); renderModuleMenu(); };
   const fallback = () => isShelf(d) ? kindLabel(d.kind) : moduleInfo(d.type).label;
@@ -1784,13 +1791,22 @@ function route() {
   if (focusLocked() && (location.hash === "#library" || location.hash === "#settings")) { location.hash = "#home"; return; }
   const view = location.hash === "#library" ? "library" : location.hash === "#settings" ? "settings" : "home";
   document.body.dataset.view = view;
+  const wasSettings = !$("#view-settings").hidden;
   for (const v of ["home", "library", "settings"]) {
-    $(`#view-${v}`).hidden = v !== view;
+    // 設定は部屋の右に開く: 部屋は見えたままにして、変えたものをその場で確かめられるようにする
+    $(`#view-${v}`).hidden = v !== view && !(v === "home" && view === "settings");
     $(`#tab-${v}`).toggleAttribute("aria-current", false);
   }
   $(`#tab-${view}`).setAttribute("aria-current", "page");
   if (view === "settings") renderSettings();
+  // 部屋の幅が変わるので、猫などの配置を測り直させる
+  if (wasSettings !== (view === "settings")) dispatchEvent(new Event("resize"));
 }
+// Esc で設定を閉じる（ダイアログやキーの記録中は、そちらが先に受け取る）
+addEventListener("keydown", e => {
+  if (e.key !== "Escape" || e.defaultPrevented || document.body.dataset.view !== "settings" || document.querySelector(".dlg-back")) return;
+  location.hash = "#home";
+});
 addEventListener("hashchange", route);
 
 // ---------- 起動 ----------
