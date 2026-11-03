@@ -1,4 +1,4 @@
-// ヘッドホン（試作）。★
+// ヘッドホン。★
 import { poly, puff, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -9,4 +9,4 @@ function art() {
   return `${band}${puff(P, [[2, 30], [8, 26], [14, 30], [14, 54], [8, 58], [2, 54]], [7, 40])}${puff(P, [[44, 30], [50, 26], [56, 30], [56, 54], [50, 58], [44, 54]], [49, 40])}`;
 }
 
-export default { key: "headphones", label: "ヘッドホン", at: "shelf", w: 58, h: 58, cat: "音楽", order: 203, draft: true, note: "★", art } satisfies ItemDef;
+export default { key: "headphones", label: "ヘッドホン", at: "shelf", w: 58, h: 58, cat: "音楽", order: 203, note: "★", art } satisfies ItemDef;

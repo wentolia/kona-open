@@ -1,4 +1,4 @@
-// 大きな観葉植物（試作）。季節で葉の色が少し変わる予定
+// 大きな観葉植物。季節で葉の色が少し変わる予定
 import { cylinder, leaf, poly, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -13,4 +13,4 @@ function art() {
     ${poly(pot.deep, [[38, 202], [92, 202], [90, 206], [40, 206]])}`;
 }
 
-export default { key: "bigplant", label: "大きな観葉植物", at: "floor", w: 130, h: 206, cat: "植物", order: 37, draft: true, note: "季節で葉の色が少し変わる予定", art } satisfies ItemDef;
+export default { key: "bigplant", label: "大きな観葉植物", at: "floor", w: 130, h: 206, cat: "植物", order: 37, note: "季節で葉の色が少し変わる予定", art } satisfies ItemDef;

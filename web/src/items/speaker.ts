@@ -1,4 +1,4 @@
-// スピーカー（試作）。★ ふたつ並べて置く。再生中、音に合わせてコーンがわずかに揺れる予定
+// スピーカー。★ ふたつ並べて置く。再生中、音に合わせてコーンがわずかに揺れる予定
 import { box, poly, tone, ngon } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -15,4 +15,4 @@ function art() {
     ${poly(T.deep, [[8, 118], [14, 118], [14, 124], [8, 124]])}${poly(T.deep, [[46, 118], [52, 118], [52, 124], [46, 124]])}`;
 }
 
-export default { key: "speaker", label: "スピーカー", at: "floor", w: 64, h: 124, cat: "音楽", order: 35, draft: true, note: "★ ふたつ並べて置く。再生中、音に合わせてコーンがわずかに揺れる予定", art } satisfies ItemDef;
+export default { key: "speaker", label: "スピーカー", at: "floor", w: 64, h: 124, cat: "音楽", order: 35, note: "★ ふたつ並べて置く。再生中、音に合わせてコーンがわずかに揺れる予定", art } satisfies ItemDef;

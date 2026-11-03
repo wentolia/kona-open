@@ -1,4 +1,4 @@
-// 新年の飾り（試作）。新年
+// 新年の飾り。新年
 import { poly, tone, ngon } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -9,4 +9,4 @@ function art() {
     ${disc(40, 18, 9)}${disc(27, 13, 7)}${poly("#e7932e", [[19, 16], [25, 12], [31, 16], [29, 22], [21, 22]])}${poly("#4f7a3e", [[24, 12], [27, 6], [29, 8], [26, 13]])}`;
 }
 
-export default { key: "newyear", label: "新年の飾り", at: "shelf", w: 50, h: 58, cat: "季節", order: 304, draft: true, note: "新年", art } satisfies ItemDef;
+export default { key: "newyear", label: "新年の飾り", at: "shelf", w: 50, h: 58, cat: "季節", order: 304, note: "新年", art } satisfies ItemDef;

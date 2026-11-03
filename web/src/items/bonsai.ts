@@ -1,4 +1,4 @@
-// ミニ盆栽（試作）。日数で育つ予定
+// ミニ盆栽。日数で育つ予定
 import { poly, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -11,4 +11,4 @@ function art() {
     ${poly(pot.hi, [[8, 42], [50, 42], [48, 46], [10, 46]])}${poly(pot.mid, [[10, 46], [48, 46], [44, 54], [14, 54]])}${poly(pot.lo, [[30, 46], [48, 46], [44, 54], [30, 54]])}`;
 }
 
-export default { key: "bonsai", label: "ミニ盆栽", at: "shelf", w: 58, h: 54, cat: "植物", order: 208, draft: true, note: "日数で育つ予定", art } satisfies ItemDef;
+export default { key: "bonsai", label: "ミニ盆栽", at: "shelf", w: 58, h: 54, cat: "植物", order: 208, note: "日数で育つ予定", art } satisfies ItemDef;

@@ -1,4 +1,4 @@
-// 風鈴（試作）。夏。風で揺れて小さく鳴る予定
+// 風鈴。夏。風で揺れて小さく鳴る予定
 import { poly, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -11,4 +11,4 @@ function art() {
     ${poly("#efe6d2", [[9, 48], [21, 48], [21, 82], [9, 82]])}${poly("#d8ccb4", [[15, 48], [21, 48], [21, 82], [15, 82]])}`;
 }
 
-export default { key: "chime", label: "風鈴", at: "wall", w: 30, h: 84, cat: "季節", order: 114, draft: true, note: "夏。風で揺れて小さく鳴る予定", art } satisfies ItemDef;
+export default { key: "chime", label: "風鈴", at: "wall", w: 30, h: 84, cat: "季節", order: 114, note: "夏。風で揺れて小さく鳴る予定", art } satisfies ItemDef;

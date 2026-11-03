@@ -1,4 +1,4 @@
-// 長方形のラグ（試作）。ボーダー柄。猫が寝そべる
+// 長方形のラグ。ボーダー柄。猫が寝そべる
 import { poly, type Pt } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -11,4 +11,4 @@ function art() {
   return s;
 }
 
-export default { key: "stripes", label: "長方形のラグ", at: "floor", w: 300, h: 0, flat: true, vh: 40, cat: "敷きもの", order: 42, draft: true, note: "ボーダー柄。猫が寝そべる", art } satisfies ItemDef;
+export default { key: "stripes", label: "長方形のラグ", at: "floor", w: 300, h: 0, flat: true, vh: 40, cat: "敷きもの", order: 42, note: "ボーダー柄。猫が寝そべる", art } satisfies ItemDef;

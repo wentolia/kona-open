@@ -1,4 +1,4 @@
-// 地球儀（試作）。
+// 地球儀。
 import { poly, tone, ngon, BRASS } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -12,4 +12,4 @@ function art() {
     ${poly(BRASS.lo, [[22, 44], [24, 44], [24, 58], [22, 58]])}${poly(BRASS.hi, [[12, 62], [34, 62], [30, 58], [16, 58]])}${poly(BRASS.deep, [[10, 62], [36, 62], [36, 68], [10, 68]])}`;
 }
 
-export default { key: "globe", label: "地球儀", at: "shelf", w: 46, h: 68, cat: "小物", order: 206, draft: true, note: "", art } satisfies ItemDef;
+export default { key: "globe", label: "地球儀", at: "shelf", w: 46, h: 68, cat: "小物", order: 206, note: "", art } satisfies ItemDef;

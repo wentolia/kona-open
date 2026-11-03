@@ -1,4 +1,4 @@
-// 籐のかご（試作）。毛布入り。猫が中で丸くなる
+// 籐のかご。毛布入り。猫が中で丸くなる
 import { poly, puff, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -12,4 +12,4 @@ function art() {
     <i data-cat-plat="bed" data-sink="8" style="left:14%;width:72%;top:30%"></i>`;
 }
 
-export default { key: "basket", label: "籐のかご", at: "floor", w: 124, h: 66, cat: "猫", order: 38, draft: true, note: "毛布入り。猫が中で丸くなる", art } satisfies ItemDef;
+export default { key: "basket", label: "籐のかご", at: "floor", w: 124, h: 66, cat: "猫", order: 38, note: "毛布入り。猫が中で丸くなる", art } satisfies ItemDef;

@@ -1,4 +1,4 @@
-// 薪ストーブ（試作）。炎が揺れる予定。猫が前で暖まる。焚き火の環境音と連動
+// 薪ストーブ。炎が揺れる予定。猫が前で暖まる。焚き火の環境音と連動
 import { box, poly, tone, INK } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -13,4 +13,4 @@ function art() {
     ${poly(T.deep, [[16, 156], [24, 156], [22, 176], [18, 176]])}${poly(T.deep, [[84, 156], [92, 156], [90, 176], [86, 176]])}`;
 }
 
-export default { key: "stove", label: "薪ストーブ", at: "floor", w: 112, h: 176, cat: "灯り", order: 40, draft: true, note: "炎が揺れる予定。猫が前で暖まる。焚き火の環境音と連動", art } satisfies ItemDef;
+export default { key: "stove", label: "薪ストーブ", at: "floor", w: 112, h: 176, cat: "灯り", order: 40, note: "炎が揺れる予定。猫が前で暖まる。焚き火の環境音と連動", art } satisfies ItemDef;

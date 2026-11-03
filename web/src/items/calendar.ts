@@ -1,4 +1,4 @@
-// 日めくり（試作）。今日の日付を出す予定
+// 日めくり。今日の日付を出す予定
 import { poly, slab, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -9,4 +9,4 @@ function art() {
     ${poly(T.lo, [[4, 70], [46, 70], [44, 72], [6, 72]])}`;
 }
 
-export default { key: "calendar", label: "日めくり", at: "wall", w: 50, h: 72, cat: "小物", order: 112, draft: true, note: "今日の日付を出す予定", art } satisfies ItemDef;
+export default { key: "calendar", label: "日めくり", at: "wall", w: 50, h: 72, cat: "小物", order: 112, note: "今日の日付を出す予定", art } satisfies ItemDef;

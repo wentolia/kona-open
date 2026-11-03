@@ -1,4 +1,4 @@
-// 香炉（試作）。煙が揺れる予定
+// 香炉。煙が揺れる予定
 import { cylinder, poly, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -9,4 +9,4 @@ function art() {
     ${cylinder(T, 18, 42, 54, 15, 6)}`;
 }
 
-export default { key: "incense", label: "香炉", at: "shelf", w: 36, h: 54, cat: "小物", order: 209, draft: true, note: "煙が揺れる予定", art } satisfies ItemDef;
+export default { key: "incense", label: "香炉", at: "shelf", w: 36, h: 54, cat: "小物", order: 209, note: "煙が揺れる予定", art } satisfies ItemDef;

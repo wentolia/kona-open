@@ -1,4 +1,4 @@
-// 小さなラジオ（試作）。★ 再生中に目盛りの灯が動く予定
+// 小さなラジオ。★ 再生中に目盛りの灯が動く予定
 import { box, poly, tone, ngon } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -11,4 +11,4 @@ function art() {
     ${poly("#3a2a20", ngon(48, 37, 3.4, 8))}${poly("#3a2a20", ngon(57, 37, 3.4, 8))}`;
 }
 
-export default { key: "radio", label: "小さなラジオ", at: "shelf", w: 74, h: 48, cat: "音楽", order: 204, draft: true, note: "★ 再生中に目盛りの灯が動く予定", art } satisfies ItemDef;
+export default { key: "radio", label: "小さなラジオ", at: "shelf", w: 74, h: 48, cat: "音楽", order: 204, note: "★ 再生中に目盛りの灯が動く予定", art } satisfies ItemDef;

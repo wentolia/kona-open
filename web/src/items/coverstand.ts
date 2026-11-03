@@ -1,4 +1,4 @@
-// ジャケット立て（試作）。★ 最近聴いたアルバムを 1 枚飾る予定。今は仮の絵
+// ジャケット立て。★ 最近聴いたアルバムを 1 枚飾る予定。今は仮の絵
 import { poly, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -8,4 +8,4 @@ function art() {
     ${poly(W.mid, [[2, 58], [58, 58], [58, 66], [2, 66]])}${poly(W.hi, [[2, 56], [58, 56], [58, 58], [2, 58]])}`;
 }
 
-export default { key: "coverstand", label: "ジャケット立て", at: "shelf", w: 60, h: 66, cat: "音楽", order: 205, draft: true, note: "★ 最近聴いたアルバムを 1 枚飾る予定。今は仮の絵", art } satisfies ItemDef;
+export default { key: "coverstand", label: "ジャケット立て", at: "shelf", w: 60, h: 66, cat: "音楽", order: 205, note: "★ 最近聴いたアルバムを 1 枚飾る予定。今は仮の絵", art } satisfies ItemDef;

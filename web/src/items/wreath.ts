@@ -1,4 +1,4 @@
-// キャンドルの輪（試作）。冬。灯が揺れる予定
+// キャンドルの輪。冬。灯が揺れる予定
 import { poly, tone, leaf, cylinder } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -11,4 +11,4 @@ function art() {
   return s;
 }
 
-export default { key: "wreath", label: "キャンドルの輪", at: "shelf", w: 76, h: 46, cat: "季節", order: 303, draft: true, note: "冬。灯が揺れる予定", art } satisfies ItemDef;
+export default { key: "wreath", label: "キャンドルの輪", at: "shelf", w: 76, h: 46, cat: "季節", order: 303, note: "冬。灯が揺れる予定", art } satisfies ItemDef;

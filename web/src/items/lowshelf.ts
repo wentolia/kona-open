@@ -1,4 +1,4 @@
-// 低い本棚（試作）。上に小物、猫が上で寝る
+// 低い本棚。上に小物、猫が上で寝る
 import { poly, slab, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -21,4 +21,4 @@ function art() {
     <i data-cat-plat="bed" data-sink="1" style="left:4%;width:92%;top:2%"></i>`;
 }
 
-export default { key: "lowshelf", label: "低い本棚", at: "floor", w: 180, h: 92, cat: "家具", order: 33, draft: true, note: "上に小物、猫が上で寝る", art } satisfies ItemDef;
+export default { key: "lowshelf", label: "低い本棚", at: "floor", w: 180, h: 92, cat: "家具", order: 33, note: "上に小物、猫が上で寝る", art } satisfies ItemDef;

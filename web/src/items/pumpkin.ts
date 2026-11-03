@@ -1,4 +1,4 @@
-// かぼちゃ（試作）。秋。落ち葉と
+// かぼちゃ。秋。落ち葉と
 import { poly, tone, leaf } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -10,4 +10,4 @@ function art() {
   return s + `${poly("#5a4a2a", [[28, 6], [33, 4], [34, 14], [29, 15]])}${leaf("#b0582e", "#8a4426", 40, 44, 16, 5, 70)}${leaf("#c9902e", "#a0702a", 12, 45, 14, 4, -80)}`;
 }
 
-export default { key: "pumpkin", label: "かぼちゃ", at: "shelf", w: 60, h: 46, cat: "季節", order: 301, draft: true, note: "秋。落ち葉と", art } satisfies ItemDef;
+export default { key: "pumpkin", label: "かぼちゃ", at: "shelf", w: 60, h: 46, cat: "季節", order: 301, note: "秋。落ち葉と", art } satisfies ItemDef;

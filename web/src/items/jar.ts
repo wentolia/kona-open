@@ -1,4 +1,4 @@
-// ガラス瓶（試作）。ビー玉入り
+// ガラス瓶。ビー玉入り
 import { poly, ngon } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -10,4 +10,4 @@ function art() {
     ${poly("#a07a50", [[6, 4], [28, 4], [28, 12], [6, 12]])}${poly("#c09a68", [[6, 4], [28, 4], [27, 7], [7, 7]])}`;
 }
 
-export default { key: "jar", label: "ガラス瓶", at: "shelf", w: 34, h: 50, cat: "小物", order: 207, draft: true, note: "ビー玉入り", art } satisfies ItemDef;
+export default { key: "jar", label: "ガラス瓶", at: "shelf", w: 34, h: 50, cat: "小物", order: 207, note: "ビー玉入り", art } satisfies ItemDef;
