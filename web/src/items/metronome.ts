@@ -21,4 +21,4 @@ const live: Live = svg => {
   };
 };
 
-export default { key: "metronome", label: "メトロノーム", at: "shelf", w: 34, h: 62, cat: "音楽", order: 212, draft: true, note: "再生中は振り子が刻む", art, live } satisfies ItemDef;
+export default { key: "metronome", label: "メトロノーム", at: "shelf", w: 34, h: 62, cat: "音楽", order: 212, note: "再生中は振り子が刻む", art, live } satisfies ItemDef;

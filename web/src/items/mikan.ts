@@ -8,4 +8,4 @@ function art() {
   return `${m(16, 30, 11)}${m(38, 30, 11)}${m(27, 13, 10)}`;
 }
 
-export default { key: "mikan", label: "みかん", at: "shelf", w: 52, h: 40, cat: "食べ物", order: 404, draft: true, note: "冬。3 つ積んで", art } satisfies ItemDef;
+export default { key: "mikan", label: "みかん", at: "shelf", w: 52, h: 40, cat: "食べ物", order: 404, note: "冬。3 つ積んで", art } satisfies ItemDef;

@@ -26,4 +26,4 @@ const live: Live = svg => {
   };
 };
 
-export default { key: "turntable", label: "レコードプレーヤー", at: "shelf", w: 92, h: 38, cat: "音楽", order: 211, draft: true, note: "★ 再生中は盤が回り、針が降りる。ラベルはいまのアルバムの色", art, live } satisfies ItemDef;
+export default { key: "turntable", label: "レコードプレーヤー", at: "shelf", w: 92, h: 38, cat: "音楽", order: 211, note: "★ 再生中は盤が回り、針が降りる。ラベルはいまのアルバムの色", art, live } satisfies ItemDef;

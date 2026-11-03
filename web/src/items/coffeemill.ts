@@ -24,4 +24,4 @@ const live: Live = svg => {
   };
 };
 
-export default { key: "coffeemill", label: "コーヒーミル", at: "shelf", w: 40, h: 58, cat: "食べ物", order: 405, draft: true, note: "押すとハンドルが回る", art, live } satisfies ItemDef;
+export default { key: "coffeemill", label: "コーヒーミル", at: "shelf", w: 40, h: 58, cat: "食べ物", order: 405, note: "押すとハンドルが回る", art, live } satisfies ItemDef;

@@ -10,4 +10,4 @@ function art() {
     ${ck(16, 13, K.hi)}${ck(28, 12, "#7a4a2a")}${ck(22, 15, K.mid)}${ck(33, 15, K.hi)}`;
 }
 
-export default { key: "cookies", label: "クッキーの缶", at: "shelf", w: 58, h: 34, cat: "食べ物", order: 406, draft: true, note: "ふたを開けて", art } satisfies ItemDef;
+export default { key: "cookies", label: "クッキーの缶", at: "shelf", w: 58, h: 34, cat: "食べ物", order: 406, note: "ふたを開けて", art } satisfies ItemDef;
