@@ -10,7 +10,6 @@
 //  - 編みもの: 聴いている間に 1 段ずつ編み進む（3 分で 1 段）。編み上がるとかごにしまって次の毛糸へ
 //  - 賞状: 聴いた距離が目じるしに届くと額に入った賞状が立つ。押すと証書（画像にして保存・共有できる）
 //  - サボテン: 聴いた日の数だけ背が伸びて腕が増える。7 日続けて聴くと花が咲く
-//  - ポトス: 吊り鉢から蔓が垂れる。聴いた時間で葉が増え、蔓が伸びる（20 分で 1 枚）
 //  - 季節の切り花: 月ごとに花が替わる（水仙・梅・菜の花・桜・カーネーション・紫陽花・ひまわり・桔梗・ススキ・コスモス・菊・椿）。
 //    押すと水を替える。替えずに日が経つと少しずつうなだれる
 //  夏の夜に灯りを点けていると、小さな虫が寄ってくる
@@ -31,8 +30,8 @@ export const OBJECTS = [
   { key: "hourglass", label: "砂時計", w: 44 }, { key: "records", label: "きょうのレコード", w: 76 }, { key: "bowl", label: "金魚鉢", w: 70 },
   { key: "book", label: "読みかけの本", w: 64 }, { key: "knit", label: "編みもの", w: 66 },
   { key: "award", label: "賞状（聴いた距離の証書）", w: 52 },
-  { key: "cactus", label: "サボテン", w: 40 }, { key: "pothos", label: "ポトス（吊り鉢）", w: 56 }, { key: "vase", label: "季節の切り花", w: 46 },
-  { key: "aclock", label: "アナログ時計", w: 60 }, { key: "dclock", label: "デジタル時計", w: 76 },
+  { key: "cactus", label: "サボテン", w: 40 }, { key: "vase", label: "季節の切り花", w: 46 },
+  { key: "aclock", label: "アナログ時計", w: 60 },
 ] as const;
 const CANDLE_MIN = 30;
 // placed: 置き場所を棚ごとに持つようになってから true（以前の hide は、そのときに一度だけ棚へ移す）
@@ -126,10 +125,6 @@ const aclockArt = () => {
   <g class="ac-ticks">${ticks}</g>
   <g class="ac-hands"><line class="ac-h" x1="30" y1="66" x2="30" y2="52"/><line class="ac-m" x1="30" y1="67" x2="30" y2="45"/><line class="ac-s" x1="30" y1="69" x2="30" y2="44"/><circle cx="30" cy="64" r="1.6"/></g>`;
 };
-// デジタル時計: 低い黒い箱に、灯りの色の数字
-const dclockArt = () => `${poly(IRON.lo, "3,100 73,100 71,68 5,68")}${poly(IRON.hi, "5,68 71,68 67,62 9,62")}${poly(IRON.deep, "71,68 73,100 75,98 72.6,66.6")}
-  ${poly("#101418", "10,95 66,95 65,73 11,73")}
-  <text class="dc-t" x="38" y="90" text-anchor="middle">0:00</text>`;
 
 const lampArt = (id: string) => `
   <defs><linearGradient id="${id}-cone" x1="0" y1="0" x2="0" y2="1">
@@ -315,7 +310,7 @@ const awardArt = () => `
   ${poly("#b23024", "34.4,86.4 40.4,86.4 40.4,92.4 34.4,92.4")}${poly("#d8b8a2", "35.6,87.6 39.2,87.6 39.2,91.2 35.6,91.2")}${poly("#b23024", "36.4,88.4 38.4,88.4 38.4,90.4 36.4,90.4")}
   <g class="glint">${poly("rgba(255,255,255,.55)", "10,65 15,65 9,96 4,96")}</g>`;
 
-// ---------- 植物: サボテン・ポトス・季節の切り花 ----------
+// ---------- 植物: サボテン・季節の切り花 ----------
 /** きょう（まだ聴いていなければ昨日）からさかのぼって、続けて聴いた日の数 */
 function streak(now = new Date()) {
   const days = new Set(playLog().map(e => new Date(e.t).toDateString()));
@@ -356,37 +351,6 @@ function cactusArt(days: number, run: number) {
   o += poly(CLAY.hi, "9,84 16,84 17,100 12,100") + poly(CLAY.mid, "16,84 25,84 25,100 17,100") + poly(CLAY.lo, "25,84 31,84 28,100 25,100");
   o += poly(CLAY.hi, "8,80.6 16,80.6 16,84.4 8.6,84.4") + poly(CLAY.mid, "16,80.6 25,80.6 25,84.4 16,84.4") + poly(CLAY.lo, "25,80.6 32,80.6 31.4,84.4 25,84.4");
   o += poly("#3a2e24", "8.6,80.6 31.4,80.6 30,79.6 10,79.6");
-  return o;
-}
-
-/** ポトス: 斑入りのハート形の葉を 2 枚の三角で */
-const POTHOS = [["#5f9a4c", "#477a38"], ["#8dbb5e", "#6a9a45"], ["#c9d77a", "#9fb35a"]];
-const pothosLeaf = (x: number, y: number, side: number, sz: number, k: number) => {
-  const [a, b] = POTHOS[k % 3 === 2 ? 2 : k % 2], w = 2.6 * sz, L = 4.4 * sz;
-  return `<g transform="translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${side * 55})">${poly(a, P([[0, 0], [-w, L * .45], [0, L]]))}${poly(b, P([[0, 0], [0, L], [w, L * .45]]))}</g>`;
-};
-const POTHOS_SEC = 1200; // 20 分で 1 枚
-function pothosArt(leaves: number) {
-  let o = `<polyline class="rope" points="18,27 28,-400 38,27"/><polyline class="rope" points="28,28 28,-400"/>`;
-  // 吊り鉢（白い陶器）
-  o += poly("#e6ddcc", "16,27 28,27 27,38 20,37") + poly("#cfc5b2", "28,27 40,27 36,37 27,38") + poly("#b9ae99", "20,37 27,38 36,37 30,41 25,41");
-  o += poly("#f1e9da", "15,25 41,25 40,27.4 16,27.4");
-  // 鉢の上の葉
-  o += pothosLeaf(22, 25.6, -1.4, 1.1, 1) + pothosLeaf(28, 25, 0, 1.2, 0) + pothosLeaf(34, 25.6, 1.4, 1.1, 2) + pothosLeaf(25, 25.4, -.6, 1, 0) + pothosLeaf(31, 25.4, .7, 1, 1);
-  // 垂れる蔓: 3 本に葉を順に配る
-  const per = [0, 0, 0];
-  for (let i = 0; i < leaves; i++) per[i % 3]++;
-  [[18, 27], [27.6, 29], [37.4, 27]].forEach(([x0, y0], v) => {
-    const n = Math.min(13, per[v]);
-    if (!n) return;
-    let pts = `${x0},${y0}`, lv = "";
-    for (let j = 1; j <= n; j++) {
-      const x = x0 + Math.sin(j * .7 + v * 2) * 2.2, y = y0 + j * 5;
-      pts += ` ${x.toFixed(1)},${y}`;
-      lv += pothosLeaf(x, y - 1, j % 2 ? 1 : -1, .85 + (j < 3 ? .1 : 0), j + v);
-    }
-    o += `<g class="vine" data-x="${x0}" data-y="${y0}"><polyline class="stem" points="${pts}"/>${lv}</g>`;
-  });
   return o;
 }
 
@@ -483,10 +447,8 @@ function mountObjects() {
   <svg class="knit" viewBox="0 0 66 100"><title></title><g class="kn"></g></svg>
   <svg class="award" viewBox="0 0 52 100" role="button" tabindex="0" aria-label="賞状（押すと証書を見る）"><title></title>${awardArt()}</svg>
   <svg class="cactus" viewBox="0 0 40 100"><title></title><g class="cc"></g></svg>
-  <svg class="pothos" viewBox="0 0 56 100"><title></title><g class="pt"></g></svg>
   <svg class="vase" viewBox="0 0 46 100" role="button" tabindex="0" aria-label="季節の切り花（押すと水を替える）"><title></title><g class="vs"></g></svg>
   <svg class="aclock" viewBox="0 0 60 100" role="img"><title></title>${aclockArt()}</svg>
-  <svg class="dclock" viewBox="0 0 76 100" role="img"><title></title>${dclockArt()}</svg>
 </div>`;
 
   const root = stash;
@@ -648,22 +610,16 @@ function mountObjects() {
   onDocument(root, "kona:award", () => { award.classList.add("new"); paintAward(); document.dispatchEvent(new CustomEvent("kona:objects")); }); // 賞状を置ける棚を描き直す
   paintAward();
 
-  // ---------- サボテン・ポトス・季節の切り花 ----------
+  // ---------- サボテン・季節の切り花 ----------
   const cactusG = $<SVGGElement>(".cc"), cacTitle = $<SVGTitleElement>(".cactus title");
-  const pothosG = $<SVGGElement>(".pt"), potTitle = $<SVGTitleElement>(".pothos title");
   const vaseG = $<SVGGElement>(".vs"), vase = $<SVGSVGElement>(".vase"), vaseTitle = $<SVGTitleElement>(".vase title");
-  let cacSig = "", potLeaves = -1, vaseMonth = -1, vines: SVGGElement[] = [], cuts: SVGGElement[] = [], splash = 1;
+  let cacSig = "", vaseMonth = -1, cuts: SVGGElement[] = [], splash = 1;
   if (state.water === undefined) { state.water = Date.now(); patch({ water: state.water }); }
   const plants = () => {
     const days = daysListened(), run = streak(), sig = `${days}|${run}`;
     if (sig !== cacSig) {
       cacSig = sig; cactusG.innerHTML = cactusArt(days, run);
       cacTitle.textContent = run >= 7 ? `サボテン（${run} 日続けて聴いているので、花が咲いた）` : `サボテン（${run} 日続けて聴いている。7 日続くと花が咲く）`;
-    }
-    const lv = Math.min(39, Math.floor(listenedSeconds() / POTHOS_SEC));
-    if (lv !== potLeaves) {
-      potLeaves = lv; pothosG.innerHTML = pothosArt(lv); vines = [...pothosG.querySelectorAll<SVGGElement>(".vine")];
-      potTitle.textContent = `ポトス（垂れた葉 ${lv} 枚。聴いた時間で少しずつ伸びる）`;
     }
     const mo = new Date().getMonth();
     if (mo !== vaseMonth) { vaseMonth = mo; vaseG.innerHTML = vaseArt(mo); cuts = [...vaseG.querySelectorAll<SVGGElement>(".cut")]; }
@@ -685,9 +641,9 @@ function mountObjects() {
   const calm = { get matches() { return reduceMotion(); } };
   let loud = 0, slow = 0, play = 0, last = performance.now(), lastMinute = -1;
 
-  // ---------- 置き時計（アナログ・デジタル）。正時の鐘は設定で ----------
-  const acH = $<SVGLineElement>(".ac-h"), acM = $<SVGLineElement>(".ac-m"), acS = $<SVGLineElement>(".ac-s"), dcT = $<SVGTextElement>(".dc-t");
-  const acTitle = $<SVGTitleElement>(".aclock title"), dcTitle = $<SVGTitleElement>(".dclock title");
+  // ---------- 置き時計。正時の鐘は設定で ----------
+  const acH = $<SVGLineElement>(".ac-h"), acM = $<SVGLineElement>(".ac-m"), acS = $<SVGLineElement>(".ac-s");
+  const acTitle = $<SVGTitleElement>(".aclock title");
   let lastSec = -1, lastHour = new Date().getHours();
   const tickClock = () => {
     const now = new Date(), sec = now.getSeconds();
@@ -697,12 +653,10 @@ function mountObjects() {
     acH.setAttribute("transform", `rotate(${(h * 30).toFixed(2)} 30 64)`);
     acM.setAttribute("transform", `rotate(${(m * 6).toFixed(2)} 30 64)`);
     acS.setAttribute("transform", `rotate(${sec * 6} 30 64)`);
-    const label = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
-    dcT.textContent = sec % 2 ? label.replace(":", " ") : label; // 区切りがゆっくり点滅する
-    acTitle.textContent = dcTitle.textContent = `${now.getHours()}時${now.getMinutes()}分`;
+    acTitle.textContent = `${now.getHours()}時${now.getMinutes()}分`;
     if (now.getHours() !== lastHour) { lastHour = now.getHours(); if (chimeOn() && now.getMinutes() === 0 && placedClock()) chimeHour(lastHour); }
   };
-  const placedClock = () => ["aclock", "dclock"].some(k => els.get(k)?.closest("#view-home")) || !!document.querySelector("#view-home .clock");
+  const placedClock = () => !!els.get("aclock")?.closest("#view-home") || !!document.querySelector("#view-home .clock");
   tickClock();
 
   everyFrame(root, () => {
@@ -848,10 +802,6 @@ function mountObjects() {
 
     // 植物: 1 分ごとに育ち具合を見直す
     if (now - lastCheck < 50) { plants(); paintVase(); }
-    vines.forEach((v, i) => {
-      const a = Math.sin(t * (.55 + i * .12) + i * 2) * (.8 + 3 * slow) * m;
-      v.setAttribute("transform", `rotate(${a.toFixed(2)} ${v.dataset.x} ${v.dataset.y})`);
-    });
     // 切り花: 水を替えずに日が経つとうなだれる（5 日目から、10 日でいちばん深く）。替えた直後は少し弾む
     splash = Math.min(1, splash + dt / 1.2);
     const droop = Math.max(0, Math.min(1, (staleDays() - 4) / 6)), bounce = splash < 1 ? Math.sin(splash * Math.PI * 3) * (1 - splash) * 6 : 0;

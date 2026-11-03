@@ -40,6 +40,6 @@ export default defineConfig(({ mode, command }) => {
     resolve: single ? { alias: [{ find: /^\.\/fonts$/, replacement: fileURLToPath(new URL("./src/fonts-cdn.ts", import.meta.url)) }] } : undefined,
     build: mode === "mock"
       ? { outDir: "dist-mock", rollupOptions: { input: "mock-mobile.html" } }
-      : { outDir: single ? "dist-single" : "dist" },
+      : single ? { outDir: "dist-single" } : { outDir: "dist", rollupOptions: { input: { main: "index.html", items: "items.html" } } }, // items.html: 部屋に置くものの見本帳
   };
 });
