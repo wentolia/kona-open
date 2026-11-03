@@ -2,7 +2,8 @@
 import { setTag, cleanTag } from "./tags";
 
 export type ModuleType = "shelf" | "player" | "waveform" | "eq" | "clock" | "info" | "log" | "output" | "turntable" | "window" | "objects" | "distance" | "cattower" | "scratcher" | "catfood" | "spectrum" | "catbox";
-// 棚の中身は 3 種類だけ: 検索（検索語と並び順。よく聴く・最近聴いた・フォルダ・アーティスト・気分・タグもこれで表す）・次に再生・雑貨
+// 棚の中身は 3 種類だけ: 検索（検索語と並び順。よく聴く・最近聴いた・フォルダ・アーティスト・気分・タグもこれで表す）・次に再生・小物だけ
+// 小物（灯り・植物など）はどの棚にも置ける（goods）。「小物だけ」はアルバムを並べず小物だけを置く棚
 export type ShelfKind = "search" | "queue" | "goods";
 export type SortKey = "title" | "artist" | "year" | "yearAsc" | "plays" | "last" | "hue";
 
@@ -14,6 +15,7 @@ export interface ModuleDef {
   height: number;      // 新しい段に置くときの高さ（px）
   // 以下は棚のときだけ使う
   kind?: ShelfKind;
+  goods?: string[];    // この棚に置く小物（mod-objects の OBJECTS の key、並べる順）。ひとつの小物はひとつの棚にだけ
   facePos?: number;    // ジャケットの表示欄の位置（棚の幅に対する比率 0 左端〜1 右端）
   query?: string;      // 検索の棚: 検索語
   sort?: SortKey;      // 検索の棚: 並び順
@@ -46,7 +48,7 @@ export const moduleInfo = (t: ModuleType) => MODULES.find(m => m.type === t)!;
 export const KINDS: { kind: ShelfKind; label: string }[] = [
   { kind: "search", label: "アルバム（検索と並び順）" },
   { kind: "queue", label: "次に再生" },
-  { kind: "goods", label: "雑貨" },
+  { kind: "goods", label: "小物だけ" },
 ];
 export const kindLabel = (k: ShelfKind) => KINDS.find(x => x.kind === k)!.label;
 
