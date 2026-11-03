@@ -3,9 +3,9 @@
 // 円を左右の鏡写しにすると、左右がほぼ同じ音のステレオでは形がいつも対称になって単調なので、一周に帯域を並べる。
 // 一周の継ぎ目（真上）は、高音の端を低音の端へなだらかにつないで段差を見せない。
 // 形は「バー」（波形と同じ細い柱）と「波」（イコライザーと同じ灯る線）。向きは外側・内側・両側（直線では上・下・上下）。
-// 聴いた分は波形と同じく灯り、まだの分は薄い。クリックした位置（円は角度）へ移る
+// 音を見せるだけのモジュールなので、再生位置の表示やシークは持たない（それは再生中・波形の役目）
 
-import { ctx, css, fit, fmt, everyFrame } from "./modctx";
+import { ctx, css, fit, everyFrame } from "./modctx";
 
 export interface SpectrumPrefs {
   style: "bars" | "wave";
@@ -42,23 +42,13 @@ export function mountSpectrum(body: HTMLElement) {
   const player = ctx().player;
   body.innerHTML = `
     <div class="spec">
-      <canvas class="spec-canvas" aria-label="スペクトラム（クリックでその位置へ）"></canvas>
-      <span class="spec-time"></span>
+      <canvas class="spec-canvas" aria-label="スペクトラム"></canvas>
     </div>`;
   const root = body.querySelector<HTMLElement>(".spec")!;
   const canvas = root.querySelector<HTMLCanvasElement>("canvas")!;
-  const time = root.querySelector<HTMLElement>(".spec-time")!;
   // 表示中の強さ。急に跳ねず、ゆっくり沈む
   let vals = new Float32Array(0), raw = new Float32Array(0);
-  let lit = 0, lastPos = -1, last = performance.now(), hoverA: number | undefined, quiet = false, shown = -1;
-
-  // 指した位置を、曲の中の位置（0〜1）にする。円は真上から時計回りの角度、直線は左からの距離
-  const posAt = (e: PointerEvent | MouseEvent) => {
-    const b = canvas.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
-    if (prefs.shape === "line") return Math.max(0, Math.min(1, x / b.width));
-    const a = Math.atan2(x - b.width / 2, -(y - b.height / 2));
-    return (a < 0 ? a + Math.PI * 2 : a) / (Math.PI * 2);
-  };
+  let last = performance.now(), quiet = false, shown = -1;
 
   // n 本に分け、それぞれの周波数帯の強さ（0〜1）を求める
   const measure = (n: number) => {
@@ -95,7 +85,6 @@ export function mountSpectrum(body: HTMLElement) {
     const now = performance.now(), dt = Math.min(.1, (now - last) / 1000); last = now;
     const w = canvas.width, h = canvas.height, d = devicePixelRatio || 1;
     const { style, shape, dir, size } = prefs;
-    const ratio = player.duration ? player.position / player.duration : 0;
 
     // 隠れている間（ホームとライブラリの切り替えの途中など）は大きさが 0 になるので、描かずに待つ
     if (w < 24 * d || h < 24 * d) { quiet = false; return; }
@@ -127,13 +116,9 @@ export function mountSpectrum(body: HTMLElement) {
       const diff = raw[k] - vals[k];
       if (Math.abs(diff) > .002) { vals[k] += diff * (diff > 0 ? up : down); moving = true; } else vals[k] = raw[k];
     }
-    // 聴いた分の灯りは、曲が替わったときに端から端へ跳ばずに薄れて戻る
-    const jump = Math.abs(ratio - lit) > .05;
-    lit = jump ? lit + (ratio - lit) * (1 - Math.exp(-dt / .18)) : ratio;
-    if (jump) moving = true;
     const changed = shown !== version; shown = version;
-    if (!moving && !resized && !changed && quiet && hoverA === undefined && Math.abs(ratio - lastPos) < 1e-4) return;
-    quiet = !moving; lastPos = ratio;
+    if (!moving && !resized && !changed && quiet) return;
+    quiet = !moving;
 
     // 並べる点（位置 a と強さ v）。円は一周の終わり（高音の端）を始まり（低音の端）へ寄せて、真上の継ぎ目をなめらかにする
     const pts: [number, number][] = [];
@@ -155,28 +140,17 @@ export function mountSpectrum(body: HTMLElement) {
       else { g.moveTo(from * w, baseY); g.lineTo(to * w, baseY); }
       g.stroke();
     };
-    // 聴いた分だけを切り抜く
-    const clipLit = () => {
-      g.beginPath();
-      if (shape === "circle") { g.moveTo(cx, cy); g.arc(cx, cy, Math.hypot(w, h), -Math.PI / 2, lit * Math.PI * 2 - Math.PI / 2); g.closePath(); }
-      else g.rect(0, 0, lit * w, h);
-      g.clip();
-    };
-
-    // 土台: まだの分は薄く、聴いた分は灯る（直線で上下に出すときは、真ん中の線は引かない）
-    if (shape === "circle" || dir !== "both") {
-      g.lineWidth = d; g.strokeStyle = dim; g.globalAlpha = .45; base(0, 1);
-      if (player.duration) { g.strokeStyle = accent; g.globalAlpha = 1; base(0, lit); }
-    }
+    // 土台は薄く（直線で上下に出すときは、真ん中の線は引かない）
+    if (shape === "circle" || dir !== "both") { g.lineWidth = d; g.strokeStyle = dim; g.globalAlpha = .45; base(0, 1); }
 
     if (style === "bars") {
       g.lineWidth = 2 * d; g.lineCap = "butt";
       for (const [a, v] of pts) {
         if (v <= .001) continue;
-        const l = Math.max(d, v * len), on = a < lit;
+        const l = Math.max(d, v * len);
         const [o0, o1] = dir === "both" ? [-l, l] : [sign * gap, sign * (gap + l)];
         const p = at(a, o0), q = at(a, o1);
-        g.strokeStyle = on ? accent : dim; g.globalAlpha = on ? 1 : .45;
+        g.strokeStyle = accent; g.globalAlpha = 1;
         g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke();
       }
     } else {
@@ -212,49 +186,17 @@ export function mountSpectrum(body: HTMLElement) {
         grad = g.createLinearGradient(0, baseY - len, 0, baseY + len);
         grad.addColorStop(0, "transparent"); grad.addColorStop(.5, accent); grad.addColorStop(1, "transparent");
       }
-      // まだの分
-      g.globalAlpha = .45; g.strokeStyle = dim; g.lineWidth = 1.5 * d;
+      g.save();
+      g.globalAlpha = .14; g.fillStyle = grad;
+      for (const c of curves) g.fill(c.fill, "evenodd");
+      g.globalAlpha = 1; g.strokeStyle = accent; g.lineWidth = 1.5 * d; g.shadowColor = accent; g.shadowBlur = 10 * d;
       for (const c of curves) g.stroke(c.path);
-      // 聴いた分だけを灯す
-      if (player.duration && lit > 0) {
-        g.save(); clipLit(); g.clearRect(0, 0, w, h);
-        if (shape === "circle" || dir !== "both") { g.globalAlpha = 1; g.strokeStyle = accent; g.lineWidth = d; base(0, lit); }
-        g.globalAlpha = .14; g.fillStyle = grad;
-        for (const c of curves) g.fill(c.fill, "evenodd");
-        g.globalAlpha = 1; g.strokeStyle = accent; g.lineWidth = 1.5 * d; g.shadowColor = accent; g.shadowBlur = 10 * d;
-        for (const c of curves) g.stroke(c.path);
-        g.restore();
-      }
+      g.restore();
     }
     g.globalAlpha = 1;
-
-    // 再生位置とカーソルの位置（土台をまたぐ短い線。直線では上から下まで）
-    const tick = (a: number, color: string, alpha: number, glow: boolean) => {
-      const [p, q] = shape === "circle" ? [at(a, -5 * d), at(a, 5 * d)] : [[a * w, 0], [a * w, h]];
-      g.strokeStyle = color; g.globalAlpha = alpha; g.lineWidth = d;
-      if (glow) { g.shadowColor = color; g.shadowBlur = 8 * d; }
-      g.beginPath(); g.moveTo(Math.round(p[0]), p[1]); g.lineTo(Math.round(q[0]), q[1]); g.stroke();
-      g.shadowBlur = 0; g.globalAlpha = 1;
-    };
-    if (player.duration) tick(lit, accent, 1, true);
-    if (hoverA !== undefined && player.duration) tick(hoverA, dim, .8, false);
   };
 
-  const showTime = () => {
-    root.classList.toggle("spec-line", prefs.shape === "line");
-    if (hoverA === undefined || !player.duration) { time.textContent = ""; return; }
-    time.textContent = fmt(hoverA * player.duration);
-    if (prefs.shape === "line") {
-      const wd = canvas.getBoundingClientRect().width, x = hoverA * wd;
-      time.style.left = `${Math.max(0, Math.min(wd - 40, x + 6))}px`;
-    } else time.style.left = "";
-  };
-
-  canvas.addEventListener("pointermove", e => { hoverA = posAt(e); showTime(); });
-  canvas.addEventListener("pointerleave", () => { hoverA = undefined; quiet = false; showTime(); });
-  canvas.addEventListener("click", e => { if (player.duration) player.seek(posAt(e)); });
   player.on(() => { quiet = false; });
-  showTime();
   // 表示されている間だけ描き続ける（止まっていて動きがなければ何もしない）
-  everyFrame(root, () => { const before = shown; draw(); if (before !== shown) showTime(); });
+  everyFrame(root, draw);
 }
