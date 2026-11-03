@@ -2,6 +2,8 @@
 // 時計は 2 通り: 棚に立てる置き時計（mod-objects.ts のアナログ時計）と、空中に掛ける時計のモジュール。
 // モジュールにはメニューを付けない。文字盤を押すと、デジタルとアナログが入れ替わる
 
+import { t, tp } from "./i18n";
+import { locale } from "./i18n";
 import { ctx, everyFrame } from "./modctx";
 
 // 正時の鐘: 設定（部屋 → 置くもの、時計の並びの下）で切り替える。kona.clock に置く（以前の時計の種類 kind も残っていれば読む）
@@ -43,7 +45,7 @@ const ANALOG = `<svg class="ck-analog" viewBox="0 0 100 100" role="img"><circle 
 /** 時計のモジュール: 棚に乗せず、空中（好きな列）に掛ける時計 */
 export function mountClock(body: HTMLElement) {
   body.innerHTML = `
-    <div class="clock" role="button" tabindex="0" title="押すとデジタル / アナログを切り替える">
+    <div class="clock" role="button" tabindex="0" title="${t("押すとデジタル / アナログを切り替える")}">
       <div class="clock-face">
         <div class="clock-dial"></div>
         <time class="clock-time"></time>
@@ -73,8 +75,8 @@ export function mountClock(body: HTMLElement) {
       lastMin = now.getMinutes();
       time.textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
       time.dateTime = now.toISOString();
-      date.textContent = now.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" });
-      dial.firstElementChild?.setAttribute("aria-label", `${now.getHours()}時${now.getMinutes()}分`);
+      date.textContent = now.toLocaleDateString(locale(), { month: "long", day: "numeric", weekday: "short" });
+      dial.firstElementChild?.setAttribute("aria-label", tp("{0}時{1}分", now.getHours(), now.getMinutes()));
     }
     if (hands) {
       const s = now.getSeconds(), m = now.getMinutes() + s / 60, h = (now.getHours() % 12) + m / 60;

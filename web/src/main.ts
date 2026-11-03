@@ -5,7 +5,7 @@ import { initSettings, renderSettings, openModuleSettings } from "./settings";
 import { prefs, setPrefs, reduceMotion, type Prefs } from "./prefs";
 import { libGroup, setLibGroup, groupKey, groupAlbums, type LibGroup } from "./libgroup";
 import { initShortcuts } from "./shortcuts";
-import { t, t as tr, translateStatic } from "./i18n";
+import { t, t as tr, tp, translateStatic, t as tx } from "./i18n";
 import { signOut, saveDriveConfig } from "./drive";
 import { type Album, type Entry, scan, walkHandle, walkFiles, walkDropped, enrichHead, enrichTracks, eachLimited, cachedAlbums } from "./library";
 import { Player } from "./player";
@@ -135,7 +135,7 @@ setLiveSource(() => ({ playing: player.playing, levels: () => player.levels(), a
 // ---------- フォルダを開く・足す・外す ----------
 const canPickDir = "showDirectoryPicker" in window;
 async function* walkRoots(roots: Root[]): AsyncGenerator<Entry> { for (const r of roots) yield* walkHandle(r.h, r.prefix); }
-const rootsName = (roots: Root[]) => roots.length > 1 ? `${roots[0].h.name} ほか ${roots.length - 1}` : roots[0]?.h.name ?? "";
+const rootsName = (roots: Root[]) => roots.length > 1 ? tp("{0} ほか {1}", roots[0].h.name, roots.length - 1) : roots[0]?.h.name ?? "";
 const saveRoots = () => kvSet("roots", savedRoots.map(r => ({ h: r.h, prefix: r.prefix })));
 async function loadRoots() {
   const list = await kvGet<Root[]>("roots").catch(() => undefined);
@@ -169,7 +169,7 @@ async function addFolder() {
   // @ts-expect-error showDirectoryPicker は一部ブラウザの DOM 型定義に未収録
   try { h = await window.showDirectoryPicker({ id: "kona", mode: "read" }); } catch { return; }
   for (const r of savedRoots) {
-    if (await r.h.isSameEntry(h).catch(() => false)) { toast(`「${h.name}」はもう入っています`); return; }
+    if (await r.h.isSameEntry(h).catch(() => false)) { toast(tp("「{0}」はもう入っています", h.name)); return; }
   }
   const taken = new Set([...savedRoots.map(r => r.prefix), ...allAlbums.map(a => a.key.split("/")[0])]);
   let prefix = savedRoots.length ? h.name : "";
@@ -204,7 +204,7 @@ async function removeFolder(i: number) {
     if (await rootsPermitted(savedRoots, true)) await rescan(false);
     else { allAlbums = allAlbums.filter(a => !(r.prefix ? a.key === r.prefix || a.key.startsWith(r.prefix + "/") : !savedRoots.some(o => a.key === o.prefix || a.key.startsWith(o.prefix + "/")))); albums = allAlbums.filter(shown); showCount(); renderShelves(); }
   }
-  toast(`「${r.h.name}」を外しました`);
+  toast(tp("「{0}」を外しました", r.h.name));
 }
 
 async function openFolder() {
@@ -224,7 +224,7 @@ async function openFolder() {
 $<HTMLInputElement>("#picker").addEventListener("change", e => {
   const files = (e.target as HTMLInputElement).files;
   if (!files?.length) return;
-  const name = files[0].webkitRelativePath.split("/")[0] || "音楽";
+  const name = files[0].webkitRelativePath.split("/")[0] || t("音楽");
   liveRoots = liveDrive = undefined;
   load(name, walkFiles(files));
 });
@@ -237,7 +237,7 @@ function openSourceMenu(anchor: HTMLElement) {
   const saved = driveSaved();
   const local = !!liveRoots || locked, x = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.2 3 8 6.8 11.8 3 13 4.2 9.2 8 13 11.8 11.8 13 8 9.2 4.2 13 3 11.8 6.8 8 3 4.2z"/></svg>`;
   el.innerHTML = `
-    ${local ? savedRoots.map((r, i) => `<div class="src-folder"><span title="${esc(r.h.name)}">${esc(r.h.name)}</span><button data-rm="${i}" aria-label="${esc(r.h.name)}を外す" title="外す">${x}</button></div>`).join("")
+    ${local ? savedRoots.map((r, i) => `<div class="src-folder"><span title="${esc(r.h.name)}">${esc(r.h.name)}</span><button data-rm="${i}" aria-label="${esc(tp("{0}を外す", r.h.name))}" title="${t("外す")}">${x}</button></div>`).join("")
       : rootName ? `<div class="src-folder"><span>${esc(rootName)}</span></div>` : ""}
     ${rootName ? "<hr>" : ""}
     <button role="menuitem" data-s="add"><b>${canPickDir && local ? t("フォルダを追加") : t("フォルダを開く")}</b></button>
@@ -270,9 +270,9 @@ async function loadSettingsFile() {
   if (!file) return;
   try {
     const n = await importSettings(file);
-    toast(`${n} 項目を読み込みました。画面を開き直します`);
+    toast(tp("{0} 項目を読み込みました。画面を開き直します", n));
     setTimeout(() => location.reload(), 1200);
-  } catch (e) { toast(`読み込めませんでした: ${(e as Error).message}`); }
+  } catch (e) { toast(tp("読み込めませんでした: {0}", (e as Error).message)); }
 }
 const closeSourceMenu = () => document.getElementById("source-menu")?.remove();
 addEventListener("pointerdown", e => { if (!(e.target as HTMLElement).closest("#source-menu, #open, .dlg-back")) closeSourceMenu(); });
@@ -358,19 +358,19 @@ async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry
   // 読み込みが終わるまでは開始画面に進み具合だけを出し、棚は見せない
   // 1. フォルダの中を探す（全体の数がまだ分からないので、見つかった曲数だけ出す）
   setState("loading");
-  progress("フォルダの中を探しています", `${name}`);
+  progress(t("フォルダの中を探しています"), `${name}`);
   await loadTagCache();
   let found: Album[];
   try {
     found = typeof entries === "function"
-      ? await entries((n, total) => progress(`${name} から読んでいます`, `${n} / ${total} 枚`, total ? n / total : undefined))
-      : await scan(entries, n => progress("フォルダの中を探しています", `${n} 曲`));
+      ? await entries((n, total) => progress(tp("{0} から読んでいます", name), tp("{0} / {1} 枚", n, total), total ? n / total : undefined))
+      : await scan(entries, n => progress(t("フォルダの中を探しています"), tp("{0} 曲", n)));
   }
   catch (e) {
     const err = (e as Error).name;
-    const msg = err === "DriveAuthError" ? "Google Drive のサインインが切れました。もう一度開いてください。"
-      : err === "SpotifyAuthError" ? "Spotify のサインインが切れました。もう一度開いてください。"
-      : `「${name}」を読めませんでした。通信の具合を確かめて、もう一度どうぞ。`;
+    const msg = err === "DriveAuthError" ? t("Google Drive のサインインが切れました。もう一度開いてください。")
+      : err === "SpotifyAuthError" ? t("Spotify のサインインが切れました。もう一度開いてください。")
+      : tp("「{0}」を読めませんでした。通信の具合を確かめて、もう一度どうぞ。", name);
     if (allAlbums.length) { rootName = prevRoot; setState("ready"); showCount(); toast(msg); return; } // 読み込み済みの棚はそのまま
     setStatus("");
     setState("start", msg);
@@ -378,14 +378,14 @@ async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry
   }
   const remote = found.some(a => a.remote);
   if (!remote) forgetSpotifyOpen();
-  if (!found.length) { setStatus(""); setState("start", typeof entries === "function" ? `${name} に保存したアルバムがありません。` : `「${name}」の中に音楽ファイルが見つかりませんでした。別のフォルダを選んでください。`); return; }
+  if (!found.length) { setStatus(""); setState("start", typeof entries === "function" ? tp("{0} に保存したアルバムがありません。", name) : tp("「{0}」の中に音楽ファイルが見つかりませんでした。別のフォルダを選んでください。", name)); return; }
   // 2. アルバムごとにジャケットとタグを読む（ここからは全体に対する割合を出す）
   let done = 0;
-  progress("ジャケットとタグを読んでいます", `0 / ${found.length} 枚`, 0);
+  progress(t("ジャケットとタグを読んでいます"), tp("{0} / {1} 枚", 0, found.length), 0);
   await eachLimited(found, 4, async a => {
     await enrichHead(a).catch(() => {});
     done++;
-    progress("ジャケットとタグを読んでいます", `${done} / ${found.length} 枚`, done / found.length);
+    progress(t("ジャケットとタグを読んでいます"), tp("{0} / {1} 枚", done, found.length), done / found.length);
   });
   allAlbums = found;
   albums = found.filter(shown);
@@ -467,8 +467,8 @@ async function rescan(quiet = false, replace = false) {
     for (let i = queue.length - 1; i >= 0; i--) if (!byKey(queue[i])) queue.splice(i, 1);
     pruneTagCache(new Set(next.map(a => a.key)));
     showCount(); renderShelves();
-    const parts = [added && `${added} 枚増えました`, removed && `${removed} 枚減りました`, changed && `${changed} 枚の中身が替わりました`].filter(Boolean);
-    if (parts.length || !quiet) toast(parts.length ? parts.join("、") : "変わりはありませんでした");
+    const parts = [added && tp("{0} 枚増えました", added), removed && tp("{0} 枚減りました", removed), changed && tp("{0} 枚の中身が替わりました", changed)].filter(Boolean);
+    if (parts.length || !quiet) toast(parts.length ? parts.join(t("、")) : t("変わりはありませんでした"));
   } finally {
     rescanning = false; showRescan();
   }
@@ -519,7 +519,7 @@ function showCount() {
   const total = albums.reduce((n, a) => n + a.tracks.length, 0);
   const set = currentSet();
   // 覚えている棚では、聴いたことのないアルバムの曲数が分からないので枚数だけ
-  setStatus(`${rootName}${set ? ` · ${setLabel(set)}` : ""} · ${albums.length} 枚${locked ? "" : ` · ${total} 曲`}`);
+  setStatus(`${rootName}${set ? ` · ${setLabel(set)}` : ""} · ${tp("{0} 枚", albums.length)}${locked ? "" : ` · ${tp("{0} 曲", total)}`}`);
 }
 
 /** アルバムをライブラリから外す（戻す）。棚・次に再生からも消える。外した直後は「元に戻す」を出す */
@@ -529,7 +529,7 @@ function setHidden(keys: string[], hide: boolean, undo = true) {
   albums = allAlbums.filter(shown);
   if (hide) for (let i = queue.length - 1; i >= 0; i--) if (hidden.has(queue[i])) queue.splice(i, 1);
   showCount(); closePop(); renderShelves();
-  if (hide && undo) toast(`${keys.length} 枚を外しました`, "元に戻す", () => setHidden(keys, false, false));
+  if (hide && undo) toast(tp("{0} 枚を外しました", keys.length), t("元に戻す"), () => setHidden(keys, false, false));
 }
 
 // タグやセットが変わったら: 出すアルバムを選び直して描き直す（次に再生はそのまま。セットの外のものは飛ばす）
@@ -569,13 +569,13 @@ const driveFiles = (a: Album) => [...a.tracks.map(t => t.entry), ...(a.coverEntr
 const keeping = new Set<string>();
 async function toggleKeep(a: Album) {
   const files = driveFiles(a);
-  if (isKept(a.key)) { await forgetAlbum(a.key, files); toast(`「${a.title}」を端末から消しました`); renderPop(); renderMobile(); return; }
+  if (isKept(a.key)) { await forgetAlbum(a.key, files); toast(tp("「{0}」を端末から消しました", a.title)); renderPop(); renderMobile(); return; }
   if (keeping.has(a.key)) return;
   keeping.add(a.key); renderPop(); renderMobile();
   try {
-    await keepAlbum(a.key, files, (d, n) => document.querySelectorAll("#pop .opened-keep, #m-sheet .m-keep").forEach(b => { b.textContent = `残しています ${d}/${n}`; }));
-    toast(`「${a.title}」を端末に残しました`);
-  } catch { toast(`「${a.title}」を残せませんでした`); }
+    await keepAlbum(a.key, files, (d, n) => document.querySelectorAll("#pop .opened-keep, #m-sheet .m-keep").forEach(b => { b.textContent = tp("残しています {0}/{1}", d, n); }));
+    toast(tp("「{0}」を端末に残しました", a.title));
+  } catch { toast(tp("「{0}」を残せませんでした", a.title)); }
   finally { keeping.delete(a.key); renderPop(); renderMobile(); }
 }
 
@@ -606,16 +606,16 @@ function setState(state: AppState, note = "") {
   $("#start").innerHTML = `<div class="start-inner">
     <div class="start-brand" role="img" aria-label="Kona">${headerIcon("logo")}</div>
     ${state === "loading"
-      ? `<p class="start-lead" id="start-step">読み込んでいます</p>
-        <div class="start-bar indeterminate" id="start-bar" role="progressbar" aria-label="読み込みの進み具合" aria-valuemin="0" aria-valuemax="100"><i></i></div>
+      ? `<p class="start-lead" id="start-step">${t("読み込んでいます")}</p>
+        <div class="start-bar indeterminate" id="start-bar" role="progressbar" aria-label="${t("読み込みの進み具合")}" aria-valuemin="0" aria-valuemax="100"><i></i></div>
         <p class="start-progress" id="start-progress"></p>`
       : `${note ? `<p class="start-note start-warn">${esc(note)}</p>` : ""}
         <div class="start-actions">
-          ${savedRoots.length ? `<button class="btn primary" id="s-reopen">「${esc(rootsName(savedRoots))}」を開く</button>` : ""}
-          ${!savedRoots.length && driveSaved() ? `<button class="btn primary" id="s-drive-reopen">Drive の「${esc(driveSaved()!.name)}」を開く</button>` : ""}
-          <button class="btn ${savedRoots.length || driveSaved() ? "" : "primary"}" id="s-open">${savedRoots.length ? "別のフォルダを選ぶ" : "フォルダを選ぶ"}</button>
-          ${driveConfig() ? `<button class="btn" id="s-drive">Google Drive から</button>` : ""}
-          ${spotifyConfigured() ? `<button class="btn" id="s-spotify">Spotify から</button>` : ""}
+          ${savedRoots.length ? `<button class="btn primary" id="s-reopen">${esc(tp("「{0}」を開く", rootsName(savedRoots)))}</button>` : ""}
+          ${!savedRoots.length && driveSaved() ? `<button class="btn primary" id="s-drive-reopen">${esc(tp("Drive の「{0}」を開く", driveSaved()!.name))}</button>` : ""}
+          <button class="btn ${savedRoots.length || driveSaved() ? "" : "primary"}" id="s-open">${savedRoots.length ? t("別のフォルダを選ぶ") : t("フォルダを選ぶ")}</button>
+          ${driveConfig() ? `<button class="btn" id="s-drive">${t("Google Drive から")}</button>` : ""}
+          ${spotifyConfigured() ? `<button class="btn" id="s-spotify">${t("Spotify から")}</button>` : ""}
         </div>
 `}
   </div>`;
@@ -697,32 +697,32 @@ function paintSelection() {
   if (!selected.size) { bar?.remove(); return; }
   if (!bar) {
     bar = document.createElement("div");
-    bar.id = "sel-bar"; bar.className = "sel-bar"; bar.setAttribute("role", "toolbar"); bar.setAttribute("aria-label", "選んだアルバム");
+    bar.id = "sel-bar"; bar.className = "sel-bar"; bar.setAttribute("role", "toolbar"); bar.setAttribute("aria-label", t("選んだアルバム"));
     bar.onclick = e => {
       const act = (e.target as HTMLElement).closest<HTMLElement>("[data-a]")?.dataset.a;
-      if (act === "tag") openTagEditor(e.target as HTMLElement, [...selected].filter(k => byKey(k)), `${selected.size} 枚`);
+      if (act === "tag") openTagEditor(e.target as HTMLElement, [...selected].filter(k => byKey(k)), tp("{0} 枚", selected.size));
       else if (act) selectionAction(act);
     };
     document.body.append(bar);
   }
   const inQueue = [...selected].filter(k => queue.includes(k)).length;
-  bar.innerHTML = `<span class="sel-n">${selected.size} 枚</span>
-    <button data-a="queue">次に再生に入れる</button>
-    ${inQueue ? `<button data-a="unqueue">次に再生から外す</button>` : ""}
-    <button data-a="tag" data-tag-edit>タグ</button>
-    <button data-a="hide">ライブラリから外す</button>
-    <button data-a="clear" class="sel-x" aria-label="選ぶのをやめる" title="選ぶのをやめる（Esc）">${ICON.close}</button>`;
+  bar.innerHTML = `<span class="sel-n">${tp("{0} 枚", selected.size)}</span>
+    <button data-a="queue">${t("次に再生に入れる")}</button>
+    ${inQueue ? `<button data-a="unqueue">${t("次に再生から外す")}</button>` : ""}
+    <button data-a="tag" data-tag-edit>${t("タグ")}</button>
+    <button data-a="hide">${t("ライブラリから外す")}</button>
+    <button data-a="clear" class="sel-x" aria-label="${t("選ぶのをやめる")}" title="${t("選ぶのをやめる: Esc")}">${ICON.close}</button>`;
 }
 function selectionAction(act: string) {
   const keys = [...selected].filter(k => byKey(k));
   if (act === "queue") {
     const add = keys.filter(k => !queue.includes(k));
     queue.push(...add);
-    toast(add.length ? `${add.length} 枚を次に再生に入れました` : "どれもすでに次に再生にあります");
+    toast(add.length ? tp("{0} 枚を次に再生に入れました", add.length) : t("どれもすでに次に再生にあります"));
   } else if (act === "unqueue") {
     const n = keys.filter(k => queue.includes(k)).length;
     for (let i = queue.length - 1; i >= 0; i--) if (selected.has(queue[i])) queue.splice(i, 1);
-    toast(`${n} 枚を次に再生から外しました`);
+    toast(tp("{0} 枚を次に再生から外しました", n));
   } else if (act === "hide") {
     clearSelection();
     setHidden(keys, true);
@@ -783,18 +783,18 @@ function renderPop() {
   const live = isNow && player.playing;
   const inQueue = queue.includes(a.key), isQueueRow = shelfById(rowId)?.kind === "queue";
   el.innerHTML = `
-    <button class="opened-cover" aria-label="${esc(a.title)} を${live ? "一時停止" : isNow ? "再開" : "再生"}">${art(a)}<span class="opened-play">${live ? ICON.pause : ICON.play}</span></button>
+    <button class="opened-cover" aria-label="${esc(tp(live ? "{0} を一時停止" : isNow ? "{0} を再開" : "{0} を再生", a.title))}">${art(a)}<span class="opened-play">${live ? ICON.pause : ICON.play}</span></button>
     <div class="opened-body">
       <div class="opened-head">
-        <div><b>${esc(a.title)}</b><span>${esc(a.artist || a.dir)} · ${a.tracks.length} 曲${total ? " · " + fmt(total) : ""}</span></div>
+        <div><b>${esc(a.title)}</b><span>${esc(a.artist || a.dir)} · ${tp("{0} 曲", a.tracks.length)}${total ? " · " + fmt(total) : ""}</span></div>
         <span class="opened-actions">
-          ${removable(rowId, a) ? `<button class="opened-remove">この棚から外す</button>` : ""}
+          ${removable(rowId, a) ? `<button class="opened-remove">${t("この棚から外す")}</button>` : ""}
           ${isQueueRow || isNow ? "" : `<button class="opened-remove opened-queue">${inQueue ? t("次に再生から外す") : t("次に再生へ")}</button>`}
-          <button class="opened-remove opened-tag" data-tag-edit>${tagsOf(a).length ? esc(tagsOf(a).join(" · ")) : "タグ"}</button>
-          ${rowId.startsWith("shelf-") ? `<button class="opened-remove opened-hide">ライブラリから外す</button>` : ""}
-          ${a.remote === "spotify" && a.link ? `<a class="opened-remove opened-link" href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">Spotify で開く</a>` : ""}
-          ${driveFiles(a).length ? `<button class="opened-remove opened-keep"${keeping.has(a.key) ? " disabled" : ""}>${keeping.has(a.key) ? "残しています…" : isKept(a.key) ? "端末から消す" : "端末に残す"}</button>` : ""}
-          <button class="opened-close" aria-label="閉じる">${ICON.close}</button>
+          <button class="opened-remove opened-tag" data-tag-edit>${tagsOf(a).length ? esc(tagsOf(a).join(" · ")) : t("タグ")}</button>
+          ${rowId.startsWith("shelf-") ? `<button class="opened-remove opened-hide">${t("ライブラリから外す")}</button>` : ""}
+          ${a.remote === "spotify" && a.link ? `<a class="opened-remove opened-link" href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">${t("Spotify で開く")}</a>` : ""}
+          ${driveFiles(a).length ? `<button class="opened-remove opened-keep"${keeping.has(a.key) ? " disabled" : ""}>${keeping.has(a.key) ? t("残しています…") : isKept(a.key) ? "端末から消す" : t("端末に残す")}</button>` : ""}
+          <button class="opened-close" aria-label="${t("閉じる")}">${ICON.close}</button>
         </span>
       </div>
       <ol class="tracks">${a.tracks.map((t, i) => `
@@ -812,7 +812,7 @@ function renderPop() {
   if (qb) qb.onclick = () => {
     const i = queue.indexOf(a.key);
     if (i >= 0) queue.splice(i, 1); else queue.push(a.key);
-    toast(i >= 0 ? `「${a.title}」を次に再生から外しました` : `「${a.title}」を次に再生に入れました`);
+    toast(tp(i >= 0 ? "「{0}」を次に再生から外しました" : "「{0}」を次に再生に入れました", a.title));
     renderShelves(); renderPop();
   };
   const rm = $(".opened-remove", el);
@@ -949,7 +949,7 @@ const DND_FACE = "application/x-kona-face-"; // + 棚の id。面陳の欄を同
 
 const recentFace = (list: Album[]) => {
   const r = [...list].sort(byLast)[0];
-  return r && stat(r.key).last ? new Map([[r, "最近聴いた"]]) : new Map<Album, string>();
+  return r && stat(r.key).last ? new Map([[r, t("最近聴いた")]]) : new Map<Album, string>();
 };
 
 interface Contents { list: Album[]; faces: Map<Album, string>; folderGaps?: boolean; pins?: { key: string; x: number }[] }
@@ -973,14 +973,14 @@ function contentsOf(d: ShelfDef): Contents {
       // 切り替わる先が変わったら、ホバーで選んでいた面陳を戻して次の1枚を見せる
       if (next?.key !== lastUpNext.get(d.id)) { lastUpNext.set(d.id, next?.key); featured.delete(d.id); }
       return {
-        list, faces: next ? new Map([[next, "次に再生"]]) : new Map(),
+        list, faces: next ? new Map([[next, t("次に再生")]]) : new Map(),
       };
     }
     case "search": {
       const sort = d.sort ?? prefs().libSort;
       const list = sortAlbums(albums.filter(a => matches(a, d.query ?? "")), sort);
       // 欄に出す 1 枚: 再生回数の順なら上位 2 枚に回数、それ以外は最近聴いた 1 枚
-      const faces = sort === "plays" ? new Map(list.filter(a => stat(a.key).plays > 0).slice(0, 2).map(a => [a, `${stat(a.key).plays} 回`] as const)) : recentFace(list.filter(a => a !== player.album));
+      const faces = sort === "plays" ? new Map(list.filter(a => stat(a.key).plays > 0).slice(0, 2).map(a => [a, tp("{0} 回", stat(a.key).plays)] as const)) : recentFace(list.filter(a => a !== player.album));
       return { list: list.slice(0, 400), faces };
     }
     case "goods":
@@ -1102,7 +1102,7 @@ function shelfBody(body: HTMLElement, d: ShelfDef) {
   body.querySelectorAll<HTMLElement>(".goods").forEach(b => placeObjects(b, []));
   const c = withGoods(d, withFolderGaps(d, contentsOf(d)));
   body.innerHTML = `
-    ${inlineSearch(d) ? `<input class="mod-search" id="q-${esc(d.id)}" type="search" placeholder="検索" autocomplete="off" value="${esc(d.query ?? "")}" aria-label="${esc(d.title)}の中を検索">` : ""}
+    ${inlineSearch(d) ? `<input class="mod-search" id="q-${esc(d.id)}" type="search" placeholder="${t("検索")}" autocomplete="off" value="${esc(d.query ?? "")}" aria-label="${esc(tp("{0}の中を検索", d.title))}">` : ""}
     <div class="shelf-line"><div class="row"></div><div class="goods"></div><div class="goods goods-float"></div></div>`;
   const line = $(".shelf-line", body), float = $(".goods-float", body);
   const floating = (c.pins ?? []).map(p => p.key);
@@ -1181,7 +1181,7 @@ $("#view-home").addEventListener("click", e => {
 function addModuleOf(type: ModuleType): string {
   const info = moduleInfo(type);
   const d: ModuleDef = type === "shelf"
-    ? { id: newId(), type, kind: "search", query: "", title: "新しい棚", w: 1 / 2, height: info.height }
+    ? { id: newId(), type, kind: "search", query: "", title: t("新しい棚"), w: 1 / 2, height: info.height }
     : { id: newId(), type, title: tr(info.label), w: 1, height: info.height };
   modules.push(d); addModule(home, d.id, info.height); saveMods(); saveHome(home); renderShelves();
   return d.id;
@@ -1192,28 +1192,28 @@ function moduleFormHTML(d: ModuleDef) {
   const shelfFields = () => {
     if (!isShelf(d)) return "";
     return `
-    <label>中身<select id="sm-kind">${KINDS.map(k => opt(k.kind, k.label, k.kind === d.kind)).join("")}</select></label>
-    ${d.kind !== "queue" && d.kind !== "goods" ? `<label class="sm-check"><input id="sm-folder-gaps" type="checkbox"${d.folderGaps ? " checked" : ""}>${libGroup() === "artist" ? "アーティスト" : "フォルダ"}ごとに隙間をあけて仕切る</label>` : ""}
+    <label>${t("中身")}<select id="sm-kind">${KINDS.map(k => opt(k.kind, t(k.label), k.kind === d.kind)).join("")}</select></label>
+    ${d.kind !== "queue" && d.kind !== "goods" ? `<label class="sm-check"><input id="sm-folder-gaps" type="checkbox"${d.folderGaps ? " checked" : ""}>${t(libGroup() === "artist" ? "アーティストごとに隙間をあけて仕切る" : "フォルダごとに隙間をあけて仕切る")}</label>` : ""}
     ${d.kind === "search" ? `
-      <label>検索語<input id="sm-query" type="search" autocomplete="off" placeholder="folder:… artist:… tag:… mood:夜" value="${esc(d.query ?? "")}"></label>
-      <p class="sm-note">tag:名前 だけの棚には、アルバムを落としてタグをつけられます</p>
-      <label>並び順<select id="sm-sort">${SORTS.map(o => opt(o.key, o.label, o.key === (d.sort ?? prefs().libSort))).join("")}</select></label>` : ""}`;
+      <label>${t("検索語")}<input id="sm-query" type="search" autocomplete="off" placeholder="${t("folder:… artist:… tag:… mood:夜")}" value="${esc(d.query ?? "")}"></label>
+      <p class="sm-note">${t("tag:名前 だけの棚には、アルバムを落としてタグをつけられます")}</p>
+      <label>${t("並び順")}<select id="sm-sort">${SORTS.map(o => opt(o.key, t(o.label), o.key === (d.sort ?? prefs().libSort))).join("")}</select></label>` : ""}`;
   };
   return `
-    <label>名前<input id="sm-title" value="${esc(d.title)}"></label>
+    <label>${t("名前")}<input id="sm-title" value="${esc(d.title)}"></label>
     ${shelfFields()}
-    ${d.type === "window" ? `<label>景色<select id="sm-scene">${WINDOW_SCENES.map(s => opt(s.key, s.label, s.key === windowScene())).join("")}</select></label>` : ""}
+    ${d.type === "window" ? `<label>${t("景色")}<select id="sm-scene">${WINDOW_SCENES.map(s => opt(s.key, t(s.label), s.key === windowScene())).join("")}</select></label>` : ""}
     ${d.type === "spectrum" ? (sp => `
-      <label>並べ方<select id="sm-spec-shape">${opt("circle", "円", sp.shape === "circle")}${opt("line", "直線", sp.shape === "line")}</select></label>
-      <label>形<select id="sm-spec-style">${opt("bars", "バー", sp.style === "bars")}${opt("wave", "波", sp.style === "wave")}</select></label>
-      <label>向き<select id="sm-spec-dir">${(sp.shape === "circle" ? [["out", "外側"], ["in", "内側"], ["both", "両側"]] : [["out", "上"], ["in", "下"], ["both", "上下"]]).map(([v, l]) => opt(v, l, sp.dir === v)).join("")}</select></label>
-      ${sp.shape === "circle" ? `<label>円の大きさ<input id="sm-spec-size" type="range" min="30" max="100" step="1" value="${Math.round(sp.size * 100)}"></label>` : ""}`)(spectrumPrefs()) : ""}
-    <div class="sm-actions"><button type="button" class="sm-delete">ホームから外す</button></div>`;
+      <label>${t("並べ方")}<select id="sm-spec-shape">${opt("circle", t("円"), sp.shape === "circle")}${opt("line", t("直線"), sp.shape === "line")}</select></label>
+      <label>${t("形")}<select id="sm-spec-style">${opt("bars", t("バー"), sp.style === "bars")}${opt("wave", t("波"), sp.style === "wave")}</select></label>
+      <label>${t("向き")}<select id="sm-spec-dir">${(sp.shape === "circle" ? [["out", t("外側")], ["in", t("内側")], ["both", t("両側")]] : [["out", t("上")], ["in", t("下")], ["both", t("上下")]]).map(([v, l]) => opt(v, l, sp.dir === v)).join("")}</select></label>
+      ${sp.shape === "circle" ? `<label>${t("円の大きさ")}<input id="sm-spec-size" type="range" min="30" max="100" step="1" value="${Math.round(sp.size * 100)}"></label>` : ""}`)(spectrumPrefs()) : ""}
+    <div class="sm-actions"><button type="button" class="sm-delete">${t("ホームから外す")}</button></div>`;
 }
 
 function wireModuleForm(el: HTMLElement, d: ModuleDef, again: () => void) {
   const save = () => { saveMods(); renderShelves(); again(); };
-  const fallback = () => isShelf(d) ? kindLabel(d.kind) : moduleInfo(d.type).label;
+  const fallback = () => t(isShelf(d) ? kindLabel(d.kind) : moduleInfo(d.type).label);
   const title = $<HTMLInputElement>("#sm-title", el);
   title.oninput = () => {
     d.title = title.value;
@@ -1225,7 +1225,7 @@ function wireModuleForm(el: HTMLElement, d: ModuleDef, again: () => void) {
     $<HTMLSelectElement>("#sm-kind", el).onchange = e => {
       d.kind = (e.target as HTMLSelectElement).value as ShelfKind;
       if (d.kind === "search") d.query ??= "";
-      if (KINDS.some(k => k.label === d.title) || d.title === "新しい棚") d.title = kindLabel(d.kind);
+      if (KINDS.some(k => k.label === d.title || t(k.label) === d.title) || d.title === "新しい棚" || d.title === t("新しい棚")) d.title = t(kindLabel(d.kind));
       save();
     };
     const mq = el.querySelector<HTMLInputElement>("#sm-query");
@@ -1272,7 +1272,7 @@ function wireSplits(grid: HTMLElement) {
         const minH = Math.max(...row.cols.map(c => c.stack.reduce((n, k) => n + moduleInfo(modules.find(m => m.id === k.id)!.type).minHeight, 0)));
         row.height = Math.round(Math.max(minH, Math.min(1400, ev.clientY - rowEl.getBoundingClientRect().top)));
         rowEl.style.height = `${row.height}px`;
-        show(`高さ ${row.height}px`, ev);
+        show(tp("高さ {0}px", row.height), ev);
       } else if (sp.classList.contains("split-v")) {
         // 段の幅に対する境目の位置で、よく使う比率（1/4・1/3・1/2…）に軽く吸い付く
         const a = row.cols[ci - 1], b = row.cols[ci], rr = rowEl.getBoundingClientRect();
@@ -1489,18 +1489,18 @@ let hiddenOpen = false;
 function hiddenList() {
   const list = allAlbums.filter(a => hidden.has(a.key)).sort((x, y) => collator.compare(x.shelf + x.title, y.shelf + y.title));
   if (!list.length) return "";
-  return `<details class="lib-hidden"${hiddenOpen ? " open" : ""}><summary>外したアルバム <span class="count">${list.length}</span></summary>
-    <ul>${list.map(a => `<li><span class="t">${esc(a.title)}</span><span class="d">${esc(a.shelf)}</span><button data-k="${esc(a.key)}">戻す</button></li>`).join("")}</ul>
-    ${list.length > 1 ? `<button class="lib-hidden-all">すべて戻す</button>` : ""}</details>`;
+  return `<details class="lib-hidden"${hiddenOpen ? " open" : ""}><summary>${t("外したアルバム")} <span class="count">${list.length}</span></summary>
+    <ul>${list.map(a => `<li><span class="t">${esc(a.title)}</span><span class="d">${esc(a.shelf)}</span><button data-k="${esc(a.key)}">${t("戻す")}</button></li>`).join("")}</ul>
+    ${list.length > 1 ? `<button class="lib-hidden-all">${t("すべて戻す")}</button>` : ""}</details>`;
 }
 function renderLibrary() {
   const v = $("#view-library");
   if (!albums.length) { v.innerHTML = ""; return; }
-  const byArtist = libGroup() === "artist", what = byArtist ? "アーティスト" : "フォルダ";
+  const byArtist = libGroup() === "artist", what = t(byArtist ? "アーティスト" : "フォルダ");
   v.innerHTML = `<div class="lib"><nav class="side" aria-label="${what}"><h2>${what}</h2></nav><div class="lib-shelves">
     <div class="lib-bar"><nav class="sets lib-sets" aria-label="${t("アルバムのセット")}"></nav><div class="lib-group" role="group" aria-label="${t("括り方")}">
       <button data-g="folder" aria-pressed="${!byArtist}">${t("フォルダ")}</button><button data-g="artist" aria-pressed="${byArtist}">${t("アーティスト")}</button></div>
-      <select class="lib-sort" aria-label="${t("並び順")}" title="${t("並び順")}">${SORTS.map(o => `<option value="${o.key}"${o.key === prefs().libSort ? " selected" : ""}>${esc(t(o.label))}</option>`).join("")}</select><input class="mod-search lib-search" id="lib-q" type="search" placeholder="検索" autocomplete="off" aria-label="ライブラリを検索" value="${esc(libQuery)}"></div>
+      <select class="lib-sort" aria-label="${t("並び順")}" title="${t("並び順")}">${SORTS.map(o => `<option value="${o.key}"${o.key === prefs().libSort ? " selected" : ""}>${esc(t(o.label))}</option>`).join("")}</select><input class="mod-search lib-search" id="lib-q" type="search" placeholder="${t("検索")}" autocomplete="off" aria-label="${t("ライブラリを検索")}" value="${esc(libQuery)}"></div>
     <div class="case"></div>${hiddenList()}</div></div>`;
   const side = $(".side", v), kase = $(".case", v);
   $(".lib-sets", v).addEventListener("click", onSetTabClick);
@@ -1533,7 +1533,7 @@ function renderLibrary() {
   const label = (name: string, n: number) => `<b>${esc(name)}</b><span class="count">${n}</span>`;
   const faceOf = (list: Album[]) => {
     const r = [...list].sort((x, y) => stat(y.key).last - stat(x.key).last)[0];
-    return stat(r.key).last ? new Map([[r, "最近聴いた"]]) : new Map<Album, string>();
+    return stat(r.key).last ? new Map([[r, t("最近聴いた")]]) : new Map<Album, string>();
   };
   const id = (name: string) => "shelf-" + (byArtist ? "a" : "") + hashOf(name);
 
@@ -1544,7 +1544,7 @@ function renderLibrary() {
     box.className = "box"; box.id = id(name);
     // タグ: フォルダの括りならフォルダに（中のアルバムすべてに効く）、アーティストの括りなら中のアルバムそれぞれに
     const paths = byArtist ? list.map(a => a.key) : [name], own = byArtist ? [] : ownTags(name);
-    box.innerHTML = `<div class="shelf-label">${label(name, list.length)}<button class="box-tag${own.length ? " on" : ""}" data-tag-edit aria-label="${esc(name)} のタグ" title="${byArtist ? "まとめてタグをつける" : "フォルダにタグをつける"}">${own.length ? esc(own.join(" · ")) : "タグ"}</button><button class="box-hide" aria-label="${esc(name)} をライブラリから外す" title="${byArtist ? "まとめて外す" : "フォルダごと外す"}">${ICON.close}</button></div><div class="row"></div>`;
+    box.innerHTML = `<div class="shelf-label">${label(name, list.length)}<button class="box-tag${own.length ? " on" : ""}" data-tag-edit aria-label="${esc(tp("{0} のタグ", name))}" title="${t(byArtist ? "まとめてタグをつける" : "フォルダにタグをつける")}">${own.length ? esc(own.join(" · ")) : t("タグ")}</button><button class="box-hide" aria-label="${esc(tp("{0} をライブラリから外す", name))}" title="${t(byArtist ? "まとめて外す" : "フォルダごと外す")}">${ICON.close}</button></div><div class="row"></div>`;
     $(".box-tag", box).onclick = e => openTagEditor(e.currentTarget as HTMLElement, paths, name);
     $(".box-hide", box).onclick = () => setHidden(list.map(a => a.key), true);
     fillRow($(".row", box), id(name), { list, faces: faceOf(list) });
@@ -1625,18 +1625,18 @@ function renderNP() {
         <div class="np-bar"><span class="np-pos">0:00</span><div class="np-track"><div class="np-fill"></div></div><span class="np-dur">0:00</span></div>
         <div class="np-row">
           <div class="np-ctrl">
-            <button class="b-prev" aria-label="前の曲">${ICON.prev}</button>
-            <button class="b-play play" aria-label="${player.playing ? "一時停止" : "再生"}">${player.playing ? ICON.pause : ICON.play}</button>
-            <button class="b-next" aria-label="次の曲">${ICON.next}</button>
+            <button class="b-prev" aria-label="${tx("前の曲")}">${ICON.prev}</button>
+            <button class="b-play play" aria-label="${tr(player.playing ? "一時停止" : "再生")}">${player.playing ? ICON.pause : ICON.play}</button>
+            <button class="b-next" aria-label="${tx("次の曲")}">${ICON.next}</button>
             ${modeButton()}
           </div>
           <div class="np-vol">
-            <button class="b-mute" aria-label="${player.isMuted ? "消音を解除" : "消音"}">${player.isMuted ? ICON.mute : ICON.vol}</button>
-            <input class="np-vol-range" type="range" min="0" max="100" step="1" value="${Math.round(player.volume * 100)}" aria-label="音量">
+            <button class="b-mute" aria-label="${tr(player.isMuted ? "消音を解除" : "消音")}">${player.isMuted ? ICON.mute : ICON.vol}</button>
+            <input class="np-vol-range" type="range" min="0" max="100" step="1" value="${Math.round(player.volume * 100)}" aria-label="${tr("音量")}">
           </div>
         </div>
       </div>
-      <ol class="tracks np-tracks" aria-label="曲目">${a.tracks.map((tr, i) => `
+      <ol class="tracks np-tracks" aria-label="${tr("曲目")}">${a.tracks.map((tr, i) => `
         <li class="${i === player.index ? "current" : ""}"><button data-i="${i}">
           <span class="no">${String(tr.no).padStart(2, "0")}</span><span class="t">${esc(tr.title)}</span><span class="dur">${tr.duration ? fmt(tr.duration) : ""}</span>
         </button></li>`).join("")}</ol>`;
@@ -1655,7 +1655,7 @@ function renderNP() {
       if (r !== range || document.activeElement !== r) r.value = String(Math.round(player.volume * 100));
       r.style.setProperty("--fill", `${player.isMuted ? 0 : player.volume * 100}%`);
       m.innerHTML = player.isMuted ? ICON.mute : ICON.vol;
-      m.setAttribute("aria-label", player.isMuted ? "消音を解除" : "消音");
+      m.setAttribute("aria-label", player.isMuted ? tr("消音を解除") : "消音");
     });
     range.oninput = () => { player.setVolume(Number(range.value) / 100); paint(); };
     $(".b-mute", np).onclick = () => { player.toggleMute(); paint(); };
@@ -1741,7 +1741,7 @@ function upNext() {
 // アルバムを最後まで聴いたら、聴き終えた分を「次に再生」から外して次へ切り替える
 // アルバムの境目でも間を空けないよう、切り替わる先の 1 曲目を先に読み込ませる
 player.nextAlbum = () => upNext();
-player.onTrackError = (_a, t) => toast(`「${t.title}」は再生できないので飛ばしました`);
+player.onTrackError = (_a, t) => toast(tp("「{0}」は再生できないので飛ばしました", t.title));
 player.onAlbumEnd = () => {
   const next = upNext();
   const done = player.album ? queue.indexOf(player.album.key) : -1;
@@ -1797,7 +1797,7 @@ document.addEventListener("kona:achieve", e => {
 locate();
 document.addEventListener("kona:regional", e => {
   const k = (e as CustomEvent<{ key: string } | undefined>).detail?.key, d = k ? itemOf(k) : undefined, g = k ? gotOf(k) : undefined;
-  if (d && g) toast(`${t("ご当地の品")}: 「${t(d.label)}」${t("が届きました")}（${g.from ? `${g.from}${t("さんの部屋で")}` : landName(g.at)}）`);
+  if (d && g) toast(`${t("ご当地の品")}: 「${t(d.label)}」${t("が届きました")} · ${g.from ? `${g.from}${t("さんの部屋で")}` : landName(g.at)}`);
 });
 
 // キーボード: 割り当ては設定ページで変えられる（shortcuts.ts）

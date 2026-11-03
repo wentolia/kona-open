@@ -15,7 +15,7 @@
 //  夏の夜に灯りを点けていると、小さな虫が寄ってくる
 
 import { ITEMS, itemOf } from "./items";
-import { t as tr } from "./i18n";
+import { t as tr, t as tx, tp } from "./i18n";
 import { startLive } from "./items/live";
 import "./mod-objects.css";
 import { ctx, everyFrame, esc, fmt, onDocument, stored } from "./modctx";
@@ -31,11 +31,11 @@ let uid = 0;
 
 /** 置ける小物。設定でどれを置くか選ぶ。w は描いた幅（高さ 100 に対して） */
 export const OBJECTS = [
-  { key: "lamp", label: "灯り", w: 72 }, { key: "plant", label: "鉢植え", w: 62 }, { key: "candle", label: "ろうそく（おやすみタイマー）", w: 44 },
+  { key: "lamp", label: "灯り", w: 72 }, { key: "plant", label: "鉢植え", w: 62 }, { key: "candle", label: "ろうそく", w: 44 },
   { key: "hourglass", label: "砂時計", w: 44 }, { key: "records", label: "きょうのレコード", w: 76 }, { key: "bowl", label: "金魚鉢", w: 70 },
-  { key: "book", label: "読みかけの本", w: 64 }, { key: "knit", label: "編みもの", w: 66 },
-  { key: "award", label: "賞状（聴いた距離の目じるし）", w: 52 },
-  { key: "cactus", label: "サボテン", w: 40 }, { key: "vase", label: "季節の切り花", w: 46 },
+  { key: "book", label: tr("読みかけの本"), w: 64 }, { key: "knit", label: tr("編みもの"), w: 66 },
+  { key: "award", label: tr("聴いた距離の賞状"), w: 52 },
+  { key: "cactus", label: "サボテン", w: 40 }, { key: "vase", label: tr("季節の切り花"), w: 46 },
   { key: "aclock", label: "アナログ時計", w: 60 },
   // items/ の棚のもの（1 品 1 ファイル。描いた高さを 100 の箱の下に立てる）
   ...ITEMS.filter(d => d.at === "shelf").map(d => ({ key: d.key, label: d.label, w: d.w })),
@@ -364,38 +364,38 @@ function cactusArt(days: number, run: number) {
 // 季節の切り花: 月ごとの花。kind で形を変える
 type FlowerKind = "daisy" | "star" | "cup" | "branch" | "ball" | "cluster" | "plume";
 const MONTH_FLOWERS: { name: string; kind: FlowerKind; c: string; c2: string; mid: string; n: number }[] = [
-  { name: "水仙", kind: "star", c: "#f3efe2", c2: "#d8d2c0", mid: "#f2c84b", n: 3 },
-  { name: "梅", kind: "branch", c: "#f6c9d2", c2: "#e8a3b2", mid: "#f2d36a", n: 2 },
-  { name: "菜の花", kind: "cluster", c: "#f4d54a", c2: "#d9b432", mid: "#f4d54a", n: 4 },
-  { name: "桜", kind: "branch", c: "#f9dbe2", c2: "#f0b9c6", mid: "#e88aa0", n: 2 },
-  { name: "カーネーション", kind: "cup", c: "#e2586c", c2: "#b9404f", mid: "#e2586c", n: 3 },
-  { name: "紫陽花", kind: "ball", c: "#8d9ee0", c2: "#6c7cc4", mid: "#b3a2e2", n: 2 },
-  { name: "ひまわり", kind: "daisy", c: "#f2c230", c2: "#d99e1c", mid: "#6b4a24", n: 2 },
-  { name: "桔梗", kind: "star", c: "#7d6fd6", c2: "#5f52b4", mid: "#e8e2f6", n: 3 },
-  { name: "ススキ", kind: "plume", c: "#d9c7a0", c2: "#bba57a", mid: "#d9c7a0", n: 4 },
-  { name: "コスモス", kind: "daisy", c: "#f2a4c2", c2: "#e07ea6", mid: "#f2d04a", n: 3 },
-  { name: "菊", kind: "daisy", c: "#f2dc8a", c2: "#d9be5c", mid: "#d99e1c", n: 3 },
-  { name: "椿", kind: "cup", c: "#c8303a", c2: "#9c2430", mid: "#f2d04a", n: 2 },
+  { name: tr("水仙"), kind: "star", c: "#f3efe2", c2: "#d8d2c0", mid: "#f2c84b", n: 3 },
+  { name: tr("梅"), kind: "branch", c: "#f6c9d2", c2: "#e8a3b2", mid: "#f2d36a", n: 2 },
+  { name: tr("菜の花"), kind: "cluster", c: "#f4d54a", c2: "#d9b432", mid: "#f4d54a", n: 4 },
+  { name: tr("桜"), kind: "branch", c: "#f9dbe2", c2: "#f0b9c6", mid: "#e88aa0", n: 2 },
+  { name: tr("カーネーション"), kind: "cup", c: "#e2586c", c2: "#b9404f", mid: "#e2586c", n: 3 },
+  { name: tr("紫陽花"), kind: "ball", c: "#8d9ee0", c2: "#6c7cc4", mid: "#b3a2e2", n: 2 },
+  { name: tr("ひまわり"), kind: "daisy", c: "#f2c230", c2: "#d99e1c", mid: "#6b4a24", n: 2 },
+  { name: tr("桔梗"), kind: "star", c: "#7d6fd6", c2: "#5f52b4", mid: "#e8e2f6", n: 3 },
+  { name: tr("ススキ"), kind: "plume", c: "#d9c7a0", c2: "#bba57a", mid: "#d9c7a0", n: 4 },
+  { name: tr("コスモス"), kind: "daisy", c: "#f2a4c2", c2: "#e07ea6", mid: "#f2d04a", n: 3 },
+  { name: tr("菊"), kind: "daisy", c: "#f2dc8a", c2: "#d9be5c", mid: "#d99e1c", n: 3 },
+  { name: tr("椿"), kind: "cup", c: "#c8303a", c2: "#9c2430", mid: "#f2d04a", n: 2 },
 ];
 const ring = (cx: number, cy: number, r: number, n: number, rot = 0) => Array.from({ length: n }, (_, i) => { const a = rot + i / n * Math.PI * 2; return [cx + Math.cos(a) * r, cy + Math.sin(a) * r]; });
 function flowerHead(f: typeof MONTH_FLOWERS[number], i: number, h: number) {
   const tri = (c: string, pts: number[][]) => poly(c, P(pts));
   switch (f.kind) {
     case "daisy": {
-      const n = f.name === "菊" ? 14 : f.name === "ひまわり" ? 12 : 8, r = f.name === "ひまわり" ? 6.4 : 4.6, rc = f.name === "ひまわり" ? 2.6 : 1.3;
+      const n = f.name === tr("菊") ? 14 : f.name === tr("ひまわり") ? 12 : 8, r = f.name === tr("ひまわり") ? 6.4 : 4.6, rc = f.name === tr("ひまわり") ? 2.6 : 1.3;
       return Array.from({ length: n }, (_, k) => { const b = (k + .5) / n * Math.PI * 2, a0 = (k - .35) / n * Math.PI * 2, a1 = (k + .35) / n * Math.PI * 2;
         const c = b - Math.PI / n, wd = Math.PI / n * .9;
         return tri(k % 2 ? f.c : f.c2, [[Math.cos(a0) * rc, Math.sin(a0) * rc], [Math.cos(c - wd) * r * .62, Math.sin(c - wd) * r * .62], [Math.cos(c) * r, Math.sin(c) * r], [Math.cos(c + wd) * r * .62, Math.sin(c + wd) * r * .62], [Math.cos(a1) * rc, Math.sin(a1) * rc]]); }).join("")
         + poly(f.mid, P(ring(0, 0, rc + .4, 7)));
     }
     case "star": {
-      const n = f.name === "水仙" ? 6 : 5;
+      const n = f.name === tr("水仙") ? 6 : 5;
       return Array.from({ length: n }, (_, k) => { const a = k / n * Math.PI * 2 - Math.PI / 2; return tri(k % 2 ? f.c : f.c2, [[0, 0], [Math.cos(a - .32) * 2.2, Math.sin(a - .32) * 2.2], [Math.cos(a) * 4.6, Math.sin(a) * 4.6], [Math.cos(a + .32) * 2.2, Math.sin(a + .32) * 2.2]]); }).join("")
-        + poly(f.mid, P(ring(0, 0, f.name === "水仙" ? 1.6 : .9, 6)));
+        + poly(f.mid, P(ring(0, 0, f.name === tr("水仙") ? 1.6 : .9, 6)));
     }
     case "cup":
       return tri(f.c2, [[-3.6, -1], [0, 2.6], [3.6, -1], [2.6, -4.6], [0, -2.4], [-2.6, -4.6]]) + tri(f.c, [[-3.6, -1], [-2.6, -4.6], [0, -2.4], [0, 2.6]])
-        + tri(mix(f.c, "#fff", 18), [[-1.4, -3.6], [0, -5.2], [1.4, -3.6], [0, -2]]) + (f.name === "椿" ? poly(f.mid, P(ring(0, -2.2, .9, 5))) : "");
+        + tri(mix(f.c, "#fff", 18), [[-1.4, -3.6], [0, -5.2], [1.4, -3.6], [0, -2]]) + (f.name === tr("椿") ? poly(f.mid, P(ring(0, -2.2, .9, 5))) : "");
     case "ball":
       return Array.from({ length: 9 }, (_, k) => { const a = k * 2.4, rr = k ? 2.6 + (k % 3) : 0, x = Math.cos(a) * rr, y = Math.sin(a) * rr * .85;
         return [0, 1, 2, 3].map(q => tri(q % 2 ? f.c : (k % 2 ? f.c2 : f.mid), [[x, y], [x + Math.cos(q * Math.PI / 2 + .3) * 1.8, y + Math.sin(q * Math.PI / 2 + .3) * 1.8], [x + Math.cos(q * Math.PI / 2 + .9) * 1.8, y + Math.sin(q * Math.PI / 2 + .9) * 1.8]])).join(""); }).join("");
@@ -444,17 +444,17 @@ function mountObjects() {
   stash.className = "goods-stash"; stash.hidden = true;
   document.body.append(stash);
   stash.innerHTML = `<div class="goods">
-  <svg class="lamp" viewBox="0 0 72 100" role="button" tabindex="0" aria-label="灯り"><title>灯り（押すと点く）</title>${lampArt(id)}</svg>
+  <svg class="lamp" viewBox="0 0 72 100" role="button" tabindex="0" aria-label="${tx("灯り")}"><title>${tx("灯り。押すと点く")}</title>${lampArt(id)}</svg>
   <svg class="plant" viewBox="0 0 62 100" aria-hidden="true">${plantArt()}</svg>
-  <svg class="candle" viewBox="0 0 44 100" role="button" tabindex="0" aria-label="ろうそく（おやすみタイマー）"><title></title>${candleArt()}</svg>
+  <svg class="candle" viewBox="0 0 44 100" role="button" tabindex="0" aria-label="${tx("ろうそく")}"><title></title>${candleArt()}</svg>
   <svg class="hourglass" viewBox="0 0 44 100" aria-hidden="true">${hourglassArt(id)}</svg>
   <svg class="records" viewBox="0 0 76 100"><g class="stack"></g><g class="disc"></g></svg>
-  <svg class="bowl" viewBox="0 0 70 100" role="button" tabindex="0" aria-label="金魚鉢（押すとえさをあげる）"><title>金魚鉢（押すとえさをあげる）</title>${bowlArt(id)}</svg>
+  <svg class="bowl" viewBox="0 0 70 100" role="button" tabindex="0" aria-label="${tr("金魚鉢。押すとえさをあげる")}"><title>${tx("金魚鉢。押すとえさをあげる")}</title>${bowlArt(id)}</svg>
   <svg class="book" viewBox="0 0 64 100"><title></title><g class="bk"></g><polygon class="turn"/></svg>
   <svg class="knit" viewBox="0 0 66 100"><title></title><g class="kn"></g></svg>
-  <svg class="award" viewBox="0 0 52 100" role="img" aria-label="賞状"><title></title>${awardArt()}</svg>
+  <svg class="award" viewBox="0 0 52 100" role="img" aria-label="${tr("賞状")}"><title></title>${awardArt()}</svg>
   <svg class="cactus" viewBox="0 0 40 100"><title></title><g class="cc"></g></svg>
-  <svg class="vase" viewBox="0 0 46 100" role="button" tabindex="0" aria-label="季節の切り花（押すと水を替える）"><title></title><g class="vs"></g></svg>
+  <svg class="vase" viewBox="0 0 46 100" role="button" tabindex="0" aria-label="${tr("季節の切り花。押すと水を替える")}"><title></title><g class="vs"></g></svg>
   <svg class="aclock" viewBox="0 0 60 100" role="img"><title></title>${aclockArt()}</svg>
   ${ITEMS.filter(d => d.at === "shelf").map(d => `<svg class="${d.key} item" viewBox="0 ${d.h - 100} ${d.w} 100" aria-hidden="true">${d.art()}</svg>`).join("")}
 </div>`;
@@ -515,7 +515,7 @@ function mountObjects() {
   const paintCandle = () => {
     candle.classList.toggle("on", state.candle !== undefined);
     candle.setAttribute("aria-pressed", String(state.candle !== undefined));
-    ctitle.textContent = state.candle !== undefined ? `おやすみタイマー: あと ${fmt(candleLeft() / 1000)}（押すと吹き消す）` : `ろうそく（灯すと ${CANDLE_MIN} 分で燃え尽き、音を静かに止める）`;
+    ctitle.textContent = state.candle !== undefined ? tp("おやすみタイマー: あと {0}。押すと吹き消す", fmt(candleLeft() / 1000)) : tp("ろうそく。灯すと {0} 分で燃え尽き、音を静かに止める", CANDLE_MIN);
   };
   press(candle, () => {
     if (state.candle !== undefined) { state.candle = undefined; smokeT = 2.5; }
@@ -551,12 +551,12 @@ function mountObjects() {
     const n = Math.max(1, shown.length), offTop = (hsh(n - 1, 11) - .5) * 6;
     discAt = [34 + offTop + D * .5, 100 - n * SH - D * .3 - .9];
     if (!shown.length) {
-      stackG.innerHTML = `<g class="rec empty"><title>きょう聴いたアルバムがここに積まれていく</title>${slab(0, "#4a4640", true)}</g>`;
+      stackG.innerHTML = `<g class="rec empty"><title>${tx("きょう聴いたアルバムがここに積まれていく")}</title>${slab(0, "#4a4640", true)}</g>`;
       return;
     }
     stackG.innerHTML = shown.map((k, i) => {
       const a = C.byKey(k), c = a ? C.colorOf(a) : `hsl(${strHash(k) % 360} 30% 40%)`;
-      const label = a ? `${a.title}${a.artist ? ` — ${a.artist}` : ""}` : "（見つからないアルバム）";
+      const label = a ? `${a.title}${a.artist ? ` — ${a.artist}` : ""}` : tr("見つからないアルバム");
       return `<g class="rec${a ? "" : " gone"}${k === now ? " now" : ""}" data-k="${esc(k)}"${a ? ` role="button" tabindex="0" aria-label="${esc(label)} をもう一度かける"` : ""}><title>${esc(label)}</title>${slab(i, c, i === shown.length - 1)}</g>`;
     }).join("");
   };
@@ -593,7 +593,7 @@ function mountObjects() {
     if (bookPage >= 0 && idx === bookIdx && !calm.matches) turnT = 0; // ページをめくる
     bookPage = page; bookIdx = idx;
     bookG.innerHTML = bookArt(page / BOOK_PAGES, idx, BOOK_COLORS[idx % BOOK_COLORS.length]);
-    btitle.textContent = `${idx + 1} 冊目を読んでいる（${page + 1} / ${BOOK_PAGES} ページ）${idx ? `・読み終えた本 ${idx} 冊` : ""}。音楽を聴いている間に少しずつ読み進む`;
+    btitle.textContent = tp(idx ? "{0} 冊目の {1} / {2} ページを読んでいる。読み終えた本は {3} 冊。音楽を聴いている間に少しずつ読み進む" : "{0} 冊目の {1} / {2} ページを読んでいる。音楽を聴いている間に少しずつ読み進む", idx + 1, page + 1, BOOK_PAGES, idx);
   };
 
   // ---------- 編みもの ----------
@@ -606,14 +606,14 @@ function mountObjects() {
     knitRow = sig;
     knitG.innerHTML = knitArt(row, idx, YARN_HUES[idx % YARN_HUES.length]);
     piece = knitG.querySelector<SVGGElement>(".piece")!;
-    ktitle.textContent = `編みかけ（${row} / ${KNIT_ROWS} 段）${idx ? `・編み上がったもの ${idx} 枚` : ""}。音楽を聴いている間に 1 段ずつ編み進む`;
+    ktitle.textContent = tp(idx ? "{0} / {1} 段まで編んだところ。編み上がったものは {2} 枚。音楽を聴いている間に 1 段ずつ編み進む" : "{0} / {1} 段まで編んだところ。音楽を聴いている間に 1 段ずつ編み進む", row, KNIT_ROWS, idx);
   };
 
   // ---------- 賞状: 聴いた距離の目じるしに届いた数。届いたばかりのときはガラスがきらりと光る ----------
   const award = $<SVGSVGElement>(".award"), atitle = $<SVGTitleElement>(".award title");
   const paintAward = () => {
     const n = awards().length;
-    atitle.textContent = n ? `賞状（${n} 枚）` : "";
+    atitle.textContent = n ? tp("賞状 {0} 枚", n) : "";
   };
   onDocument(root, "kona:award", () => { award.classList.add("new"); paintAward(); document.dispatchEvent(new CustomEvent("kona:objects")); }); // 賞状を置ける棚を描き直す
   paintAward();
@@ -627,7 +627,7 @@ function mountObjects() {
     const days = daysListened(), run = streak(), sig = `${days}|${run}`;
     if (sig !== cacSig) {
       cacSig = sig; cactusG.innerHTML = cactusArt(days, run);
-      cacTitle.textContent = run >= 7 ? `サボテン（${run} 日続けて聴いているので、花が咲いた）` : `サボテン（${run} 日続けて聴いている。7 日続くと花が咲く）`;
+      cacTitle.textContent = run >= 7 ? tp("{0} 日続けて聴いているので、サボテンの花が咲いた", run) : tp("サボテン。{0} 日続けて聴いている。7 日続くと花が咲く", run);
     }
     const mo = new Date().getMonth();
     if (mo !== vaseMonth) { vaseMonth = mo; vaseG.innerHTML = vaseArt(mo); cuts = [...vaseG.querySelectorAll<SVGGElement>(".cut")]; }
@@ -636,7 +636,7 @@ function mountObjects() {
   const staleDays = () => { const d = new Date(), m0 = new Date(d.getFullYear(), d.getMonth(), 1).getTime(); return (Date.now() - Math.max(state.water ?? 0, m0)) / 86_400_000; };
   const paintVase = () => {
     const d = Math.floor(staleDays()), f = MONTH_FLOWERS[new Date().getMonth()];
-    vaseTitle.textContent = `${f.name}（${d ? `${d} 日前に水を替えた` : "きょう水を替えた"}。押すと水を替える）`;
+    vaseTitle.textContent = tp("{0}。{1}。押すと水を替える", f.name, d ? tp("{0} 日前に水を替えた", d) : tr("きょう水を替えた"));
   };
   press(vase, () => { state.water = Date.now(); patch({ water: state.water }); splash = 0; paintVase(); });
   plants(); paintVase();
@@ -661,7 +661,7 @@ function mountObjects() {
     acH.setAttribute("transform", `rotate(${(h * 30).toFixed(2)} 30 64)`);
     acM.setAttribute("transform", `rotate(${(m * 6).toFixed(2)} 30 64)`);
     acS.setAttribute("transform", `rotate(${sec * 6} 30 64)`);
-    acTitle.textContent = `${now.getHours()}時${now.getMinutes()}分`;
+    acTitle.textContent = tp("{0}時{1}分", now.getHours(), now.getMinutes());
     if (now.getHours() !== lastHour) { lastHour = now.getHours(); if (chimeOn() && now.getMinutes() === 0 && placedClock()) chimeHour(lastHour); }
   };
   const placedClock = () => !!els.get("aclock")?.closest("#view-home") || !!document.querySelector("#view-home .clock");

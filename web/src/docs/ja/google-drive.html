@@ -5,25 +5,25 @@
 <table>
   <tbody>
     <tr><th>クライアント ID</th><td>利用者の Google Cloud のもの。Kona には誰の ID も含まれていません。</td></tr>
-    <tr><th>権限</th><td>読み取りのみ（<code>drive.readonly</code>）。Kona は Drive に書き込めません。</td></tr>
-    <tr><th>トークン</th><td>このタブの中（sessionStorage）にだけ保存し、約 1 時間で失効します。リフレッシュトークンは受け取りません。</td></tr>
-    <tr><th>送信先</th><td>Google の API（<code>www.googleapis.com</code>）のみ。開発者を含め、ほかには何も送りません。</td></tr>
+    <tr><th>権限</th><td>読み取りのみの <code>drive.readonly</code>。Kona は Drive に書き込めません。</td></tr>
+    <tr><th>トークン</th><td>このタブの sessionStorage にだけ保存し、約 1 時間で失効します。リフレッシュトークンは受け取りません。</td></tr>
+    <tr><th>送信先</th><td>Google の API、<code>www.googleapis.com</code> のみ。開発者を含め、ほかには何も送りません。</td></tr>
     <tr><th>端末に残るもの</th><td>読み取ったタグとジャケット、「端末に残す」を選んだアルバムの曲。ブラウザのサイトデータを消すと消えます。</td></tr>
     <tr><th>外部スクリプト</th><td>読み込みません。Google のライブラリも使わず、CSP で禁止しています。</td></tr>
   </tbody>
 </table>
-<p>Google のファイル選択画面（Picker）を使えば権限を選んだファイルに限定できますが、Picker は Google のスクリプトの読み込みを必要とし、外部スクリプトを読まない方針と両立しません。そのため読み取り専用の権限を使い、フォルダは Kona の中で選びます。</p>
+<p>Google のファイル選択画面 Picker を使えば権限を選んだファイルに限定できますが、Picker は Google のスクリプトの読み込みを必要とし、外部スクリプトを読まない方針と両立しません。そのため読み取り専用の権限を使い、フォルダは Kona の中で選びます。</p>
 
 <h2>1. プロジェクトを作成し、Drive API を有効にする</h2>
 <ol>
-  <li><a href="https://console.cloud.google.com/">Google Cloud コンソール</a>を開き、プロジェクトの選択から新しいプロジェクトを作成します。名前は任意です（例: <code>kona</code>）。</li>
+  <li><a href="https://console.cloud.google.com/">Google Cloud コンソール</a>を開き、プロジェクトの選択から新しいプロジェクトを作成します。名前は任意で、例えば <code>kona</code> とします。</li>
   <li>「API とサービス」→「ライブラリ」で Google Drive API を検索し、有効にします。</li>
 </ol>
 
 <h2>2. 同意画面を設定する</h2>
 <ol>
-  <li>「API とサービス」→「OAuth 同意画面」（または Google Auth Platform）を開き、「開始」を押します。</li>
-  <li>アプリ名（例: <code>Kona</code>）とサポート用のメールアドレスを入力します。</li>
+  <li>「API とサービス」→「OAuth 同意画面」を開き、「開始」を押します。表示によっては Google Auth Platform という名前です。</li>
+  <li>アプリ名とサポート用のメールアドレスを入力します。アプリ名は例えば <code>Kona</code> とします。</li>
   <li>対象は「外部」を選びます。</li>
   <li>連絡先のメールアドレスを入力して作成します。</li>
   <li>「対象」で公開ステータスが「テスト中」であることを確認し、「テストユーザー」に自分の Google アカウントを追加します。テスト中のまま使えるため、審査は不要です。サインインできるのはテストユーザーに追加した人だけです。</li>
@@ -34,14 +34,14 @@
 <ol>
   <li>「クライアント」→「クライアントを作成」を押します。</li>
   <li>種類は「ウェブ アプリケーション」を選びます。</li>
-  <li>「承認済みの JavaScript 生成元」に、Kona を開いている URL のオリジンを入力します（例: <code>https://wentolia.github.io</code>）。</li>
-  <li>「承認済みのリダイレクト URI」に、Kona を開いている URL をそのまま入力します（例: <code>https://wentolia.github.io/kona-open/</code>）。末尾の <code>/</code> まで一致させてください。Kona の Drive の画面に表示される文字列をコピーすると確実です。</li>
-  <li>作成すると、クライアント ID（<code>…apps.googleusercontent.com</code>）が表示されます。クライアントシークレットは使いません。</li>
+  <li>「承認済みの JavaScript 生成元」に、Kona を開いている URL のオリジンを入力します。公開版なら <code>https://wentolia.github.io</code> です。</li>
+  <li>「承認済みのリダイレクト URI」に、Kona を開いている URL をそのまま入力します。公開版なら <code>https://wentolia.github.io/kona-open/</code> です。末尾の <code>/</code> まで一致させてください。Kona の Drive の画面に表示される文字列をコピーすると確実です。</li>
+  <li>作成すると、<code>…apps.googleusercontent.com</code> で終わるクライアント ID が表示されます。クライアントシークレットは使いません。</li>
 </ol>
 
 <h2>4. Kona に入力する</h2>
 <ol>
-  <li>設定の「その他」→「読み込み元」で「クライアントIDを入れる」を押します。入力後は、開始画面と「フォルダ」のメニューからも開けます。</li>
+  <li>設定の「その他」→「Google Drive と Spotify」で「クライアントIDを入れる」を押します。入力後は、開始画面と「フォルダ」のメニューからも開けます。</li>
   <li>クライアント ID を貼り付け、「保存してサインイン」を押します。</li>
   <li>Google の画面でアカウントを選びます。「Google はこのアプリを確認していません」と表示された場合は「続行」を押します。自分で作成したアプリが審査を受けていないことを示す表示です。</li>
   <li>曲の入ったフォルダまで進み、そのフォルダを開きます。</li>
@@ -50,7 +50,7 @@
 
 <h2>スマートフォンで使う場合</h2>
 <ul>
-  <li>曲は再生時に Drive から取得します。モバイル通信ではデータ通信量を消費します（FLAC は 1 曲あたり 20〜40 MB 程度）。</li>
+  <li>曲は再生時に Drive から取得します。モバイル通信ではデータ通信量を消費します。FLAC は 1 曲あたり 20〜40 MB 程度です。</li>
   <li>よく聴くアルバムは、曲目の「端末に残す」でブラウザの中に保存すると、以後は通信しません。</li>
   <li>タグとジャケットは一度読み込めば端末に残るため、2 回目以降の読み込みは速くなります。</li>
   <li>iPhone の Safari は、しばらく使っていないサイトのデータを削除することがあります。ホーム画面に追加すると残りやすくなります。</li>

@@ -52,6 +52,11 @@ body { transition: background-color .6s ease, color .6s ease; }
 /* ================= 部屋全体の見た目（prefs.ts が <html> に付ける） ================= */
 /* 書体 */
 :root[data-font="mincho"] { --font-body: "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", serif; }
+/* 韓国語・中国語: 同梱の書体にないハングル・簡体字は端末の書体で。中国語は漢字の字形が日本語と違うので、中国語の書体を先に */
+:root:lang(ko) { --font-body: "Zen Kaku Gothic New", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif; }
+:root:lang(ko)[data-font="mincho"] { --font-body: "Zen Old Mincho", "AppleMyungjo", "Batang", "Noto Serif KR", serif; }
+:root:lang(zh-Hans) { --font-body: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Zen Kaku Gothic New", system-ui, sans-serif; }
+:root:lang(zh-Hans)[data-font="mincho"] { --font-body: "Songti SC", "SimSun", "Noto Serif SC", "Zen Old Mincho", serif; }
 /* 文字の大きさ: 文字の多い所だけを拡大する（棚・猫・キャンバスは位置を測っているので、そのまま） */
 .top, #view-library, #view-settings .set, #np, .pop, .pop-menu, .dlg, .toast, .m { zoom: var(--font-scale, 1); }
 /* 動きを減らす（端末の設定か、設定ページで） */

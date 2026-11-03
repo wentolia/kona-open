@@ -12,4 +12,4 @@ function art() {
     ${poly("#d9a441", ngon(41, 44, 3, 6))}`;
 }
 
-export default { key: "still", label: "額（静物）", at: "wall", w: 56, h: 72, x: 0.4, y: 0.2, cat: "飾り", order: 101, art } satisfies ItemDef;
+export default { key: "still", label: "静物画の額", at: "wall", w: 56, h: 72, x: 0.4, y: 0.2, cat: "飾り", order: 101, art } satisfies ItemDef;

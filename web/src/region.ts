@@ -34,7 +34,18 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catc
 const changed = (detail?: { key: string }) => document.dispatchEvent(new CustomEvent("kona:regional", { detail }));
 
 /** 土地の名前（いまの言語で） */
-export const landName = (code: string) => NAMES[code]?.[lang() === "en" ? 1 : 0] ?? code;
+// 都道府県の韓国語・中国語の名前（JP-01〜47 の順）。国の名前はブラウザ（Intl.DisplayNames）に任せる
+const PREF_KO = ["홋카이도", "아오모리현", "이와테현", "미야기현", "아키타현", "야마가타현", "후쿠시마현", "이바라키현", "도치기현", "군마현", "사이타마현", "지바현", "도쿄도", "가나가와현", "니가타현", "도야마현", "이시카와현", "후쿠이현", "야마나시현", "나가노현", "기후현", "시즈오카현", "아이치현", "미에현", "시가현", "교토부", "오사카부", "효고현", "나라현", "와카야마현", "돗토리현", "시마네현", "오카야마현", "히로시마현", "야마구치현", "도쿠시마현", "가가와현", "에히메현", "고치현", "후쿠오카현", "사가현", "나가사키현", "구마모토현", "오이타현", "미야자키현", "가고시마현", "오키나와현"];
+const PREF_ZH = ["北海道", "青森县", "岩手县", "宫城县", "秋田县", "山形县", "福岛县", "茨城县", "栃木县", "群马县", "埼玉县", "千叶县", "东京都", "神奈川县", "新潟县", "富山县", "石川县", "福井县", "山梨县", "长野县", "岐阜县", "静冈县", "爱知县", "三重县", "滋贺县", "京都府", "大阪府", "兵库县", "奈良县", "和歌山县", "鸟取县", "岛根县", "冈山县", "广岛县", "山口县", "德岛县", "香川县", "爱媛县", "高知县", "福冈县", "佐贺县", "长崎县", "熊本县", "大分县", "宫崎县", "鹿儿岛县", "冲绳县"];
+const regionNames: Partial<Record<string, Intl.DisplayNames>> = {};
+export function landName(code: string): string {
+  const l = lang(), n = NAMES[code];
+  if (l === "ja" || l === "en") return n?.[l === "en" ? 1 : 0] ?? code;
+  const pref = /^JP-(\d\d)$/.exec(code);
+  if (pref) return (l === "ko" ? PREF_KO : PREF_ZH)[Number(pref[1]) - 1] ?? n?.[1] ?? code;
+  try { return (regionNames[l] ??= new Intl.DisplayNames([l === "zh" ? "zh-Hans" : l], { type: "region" })).of(code) ?? n?.[1] ?? code; }
+  catch { return n?.[1] ?? code; }
+}
 /** 土地のものの一覧（試作を除く） */
 export const regionalItems = (): readonly ItemDef[] => ALL_ITEMS.filter(d => d.region && !d.draft);
 export const regionalOn = () => st.on;

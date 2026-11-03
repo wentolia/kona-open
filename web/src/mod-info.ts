@@ -1,5 +1,7 @@
 // アルバムの情報: 図書館の貸出カードのように、再生中のアルバムの書誌と、聴いた日付のスタンプを並べる
 
+import { t, tp } from "./i18n";
+import { locale } from "./i18n";
 import { ctx, esc, fmt, fadeSwap, hist } from "./modctx";
 
 export function mountInfo(body: HTMLElement) {
@@ -19,20 +21,20 @@ export function mountInfo(body: HTMLElement) {
     const total = a.tracks.reduce((n, t) => n + (t.duration ?? 0), 0);
     const s = stat(a.key);
     const dates = playLog().filter(e => e.k === a.key).slice(-6).reverse()
-      .map(e => new Date(e.t).toLocaleDateString("ja-JP", { year: "2-digit", month: "2-digit", day: "2-digit" }));
+      .map(e => new Date(e.t).toLocaleDateString(locale(), { year: "2-digit", month: "2-digit", day: "2-digit" }));
     const rows: [string, string][] = [
-      ["アーティスト", a.artist || "—"],
-      ["年", a.year ? String(a.year) : "—"],
-      ["ジャンル", a.genre || "—"],
-      ["棚", a.shelf === a.dir ? a.shelf : `${a.shelf} / ${a.dir}`],
-      ["曲数", `${a.tracks.length} 曲${total ? `　${fmt(total)}` : ""}`],
-      ["形式", a.tracks[0]?.format || "—"],
-      ["再生", s.plays ? `${s.plays} 回` : "—"],
+      [t("アーティスト"), a.artist || "—"],
+      [t("年"), a.year ? String(a.year) : "—"],
+      [t("ジャンル"), a.genre || "—"],
+      [t("棚"), a.shelf === a.dir ? a.shelf : `${a.shelf} / ${a.dir}`],
+      [t("曲数"), `${tp("{0} 曲", a.tracks.length)}${total ? `　${fmt(total)}` : ""}`],
+      [t("形式"), a.tracks[0]?.format || "—"],
+      [t("再生"), s.plays ? tp("{0} 回", s.plays) : "—"],
     ];
     root.innerHTML = `
       <header class="card-head"><b class="card-title">${esc(a.title)}</b><span class="card-no">No. ${String(Math.abs(hash(a.key)) % 100000).padStart(5, "0")}</span></header>
       <dl class="card-rows">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
-      <div class="card-stamps" aria-label="聴いた日">${dates.map((d, i) => `<span class="stamp" style="--r:${((hash(a.key + i) % 9) - 4)}deg">${d}</span>`).join("")}</div>`;
+      <div class="card-stamps" aria-label="${t("聴いた日")}">${dates.map((d, i) => `<span class="stamp" style="--r:${((hash(a.key + i) % 9) - 4)}deg">${d}</span>`).join("")}</div>`;
   };
   P.on(render);
   render();

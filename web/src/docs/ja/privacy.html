@@ -1,10 +1,10 @@
 <h1>プライバシーと利用条件</h1>
-<p>Kona は個人が開発し、無料で公開しているブラウザの音楽プレイヤーです。この文書は公開版（<a href="https://wentolia.github.io/kona-open/">wentolia.github.io/kona-open</a>）と、その<a href="https://github.com/wentolia/kona-open">ソースコード</a>に適用されます。</p>
+<p>Kona は個人が開発し、無料で公開しているブラウザの音楽プレイヤーです。この文書は公開版 <a href="https://wentolia.github.io/kona-open/">wentolia.github.io/kona-open</a> と、その<a href="https://github.com/wentolia/kona-open">ソースコード</a>に適用されます。</p>
 
 <h2>収集しない情報</h2>
 <ul>
   <li>Kona はサーバーを持たず、アクセス解析も行いません。開発者は、利用者の曲、再生履歴、設定、名前、位置を受け取りません。</li>
-  <li>設定、再生履歴、曲の情報は、利用しているブラウザの中（localStorage、IndexedDB、Cache Storage）にだけ保存します。設定の「その他」→「データ」から書き出しと消去ができます。</li>
+  <li>設定、再生履歴、曲の情報は、利用しているブラウザの localStorage、IndexedDB、Cache Storage にだけ保存します。設定の「その他」→「データ」から書き出しと消去ができます。</li>
 </ul>
 
 <h2>端末の外に送られる情報</h2>
@@ -15,9 +15,9 @@
     <tr><td>Google Drive から聴く</td><td>Google の API</td><td>利用者自身が作成した Client ID によるサインインと、読み取りの要求。権限は読み取りのみです。</td></tr>
     <tr><td>Spotify で聴く</td><td>Spotify</td><td>利用者自身が作成した Client ID によるサインインと、再生の操作。</td></tr>
     <tr><td>リスニングパーティー</td><td>公開の Nostr リレー 4 か所</td><td>部屋の鍵で暗号化した接続情報と、使い捨ての公開鍵。リレーは内容を読めず、保存もしません。</td></tr>
-    <tr><td>リスニングパーティー</td><td>STUN サーバー（既定は Google の公開サーバー。変更・削除できます）</td><td>IP アドレス。</td></tr>
-    <tr><td>リスニングパーティー</td><td>ホストが設定した中継サーバー（TURN。Metered、Cloudflare、または任意のサーバー）</td><td>IP アドレスと、暗号化された音声・データ。中継サーバーは内容を読めません。</td></tr>
-    <tr><td>リスニングパーティー</td><td>相手の端末（ホストと参加者の間のみ）</td><td>互いの IP アドレス、名前、猫、チャット、通話の音声、再生中の曲名、棚のアルバムの題名と縮小したジャケット、贈った品。ホストが選んだ場合に限り、ホストのいる都道府県または国。</td></tr>
+    <tr><td>リスニングパーティー</td><td>STUN サーバー。既定は Google の公開サーバーで、変更・削除できます。</td><td>IP アドレス。</td></tr>
+    <tr><td>リスニングパーティー</td><td>ホストが設定した TURN 中継サーバー。Metered、Cloudflare、または任意のサーバーです。</td><td>IP アドレスと、暗号化された音声・データ。中継サーバーは内容を読めません。</td></tr>
+    <tr><td>リスニングパーティー</td><td>相手の端末。ホストと参加者の間のみです。</td><td>互いの IP アドレス、名前、猫、チャット、通話の音声、再生中の曲名、棚のアルバムの題名と縮小したジャケット、贈った品。ホストが選んだ場合に限り、ホストのいる都道府県または国。</td></tr>
   </tbody>
 </table>
 
@@ -40,7 +40,7 @@
   <li>再生する曲は、利用者が所有しているか、利用する権利を持つものに限ってください。</li>
   <li>リスニングパーティーは知人どうしで使ってください。招待リンクを SNS など不特定多数が見る場所に掲載しないでください。流す曲の権利に配慮する責任はホストにあります。</li>
   <li>13 歳未満の方は、保護者と一緒に使ってください。パーティーでは、ホストは「権限」から相手を退出させることができ、参加者はいつでも「抜ける」で退出できます。</li>
-  <li>Google Drive と Spotify の Client ID とアカウントの管理、ならびに各社の規約（<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>、<a href="https://developer.spotify.com/terms">Spotify Developer Terms</a>）の遵守は、利用者の責任です。Kona は Google と Spotify の公式アプリではありません。</li>
+  <li>Google Drive と Spotify の Client ID とアカウントの管理、ならびに各社の規約の遵守は、利用者の責任です。規約は <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a> と <a href="https://developer.spotify.com/terms">Spotify Developer Terms</a> です。Kona は Google と Spotify の公式アプリではありません。</li>
   <li>使用しているソフトウェアのライセンスは、設定の「Kona について」から開ける <a href="./THIRD_PARTY_NOTICES.txt">THIRD_PARTY_NOTICES.txt</a> にあります。</li>
 </ul>
 

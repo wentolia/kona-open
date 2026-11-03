@@ -1,68 +1,67 @@
 <h1>Listening from Google Drive</h1>
 <p>Kona has no server. Your browser reads music from Google Drive directly. To allow this, you create an OAuth client ID in your own Google Cloud project and enter it in Kona. This is done once and costs nothing.</p>
-<p>Labels below are those of the English interface. Where a control is shown only in Japanese, the Japanese label follows in parentheses.</p>
 
 <h2>How it works</h2>
 <table>
   <tbody>
-    <tr><th>Client ID</th><td>From your own Google Cloud project. Kona contains no one's ID.</td></tr>
-    <tr><th>Access</th><td>Read-only (<code>drive.readonly</code>). Kona cannot write to Drive.</td></tr>
-    <tr><th>Token</th><td>Kept only in this tab (sessionStorage) and expires after about an hour. No refresh token is requested.</td></tr>
-    <tr><th>Network</th><td>Google APIs (<code>www.googleapis.com</code>) only. Nothing is sent to anyone else, including the developer.</td></tr>
-    <tr><th>Stored on the device</th><td>Tags and covers already read, and tracks of albums you keep on the device. Clearing the browser's site data removes them.</td></tr>
-    <tr><th>Third-party scripts</th><td>None. Google's libraries are not used, and the CSP forbids them.</td></tr>
+    <tr><th>Client ID</th><td>Your own, from your Google Cloud project. Kona contains no one's ID.</td></tr>
+    <tr><th>Permission</th><td>Read-only, <code>drive.readonly</code>. Kona cannot write to Drive.</td></tr>
+    <tr><th>Token</th><td>Kept only in this tab's sessionStorage and expires in about an hour. No refresh token is requested.</td></tr>
+    <tr><th>Destination</th><td>Only the Google API at <code>www.googleapis.com</code>. Nothing is sent anywhere else, including to the developer.</td></tr>
+    <tr><th>Kept on the device</th><td>Tags and covers that have been read, and the tracks of albums set to Keep on device. Clearing the browser's site data removes them.</td></tr>
+    <tr><th>External scripts</th><td>None. Kona does not use Google's libraries, and the CSP forbids them.</td></tr>
   </tbody>
 </table>
-<p>Google's file picker could limit access to selected files, but it requires loading Google's scripts, which conflicts with the rule against third-party scripts. Kona therefore uses read-only access and lets you choose the folder inside the app.</p>
+<p>Google's file picker, Picker, could limit access to chosen files, but it requires loading Google's scripts, which conflicts with Kona's rule of loading no external scripts. Kona therefore uses read-only access and lets you choose the folder inside Kona.</p>
 
 <h2>1. Create a project and enable the Drive API</h2>
 <ol>
-  <li>Open the <a href="https://console.cloud.google.com/">Google Cloud console</a> and create a new project from the project selector. Any name will do (for example <code>kona</code>).</li>
-  <li>Under APIs &amp; Services → Library, find Google Drive API and enable it.</li>
+  <li>Open the <a href="https://console.cloud.google.com/">Google Cloud console</a> and create a new project from the project selector. Any name will do, for example <code>kona</code>.</li>
+  <li>Under APIs &amp; Services → Library, search for Google Drive API and enable it.</li>
 </ol>
 
-<h2>2. Configure the consent screen</h2>
+<h2>2. Set up the consent screen</h2>
 <ol>
-  <li>Open APIs &amp; Services → OAuth consent screen (or Google Auth Platform) and press Get started.</li>
-  <li>Enter an app name (for example <code>Kona</code>) and a support email address.</li>
+  <li>Open APIs &amp; Services → OAuth consent screen and press Get started. In some consoles it is called Google Auth Platform.</li>
+  <li>Enter an app name, for example <code>Kona</code>, and a support email address.</li>
   <li>Choose External as the audience.</li>
   <li>Enter a contact email address and create.</li>
-  <li>Under Audience, confirm the publishing status is Testing and add your Google account as a test user. The app can stay in testing; no verification is needed. Only test users can sign in.</li>
-  <li>Under Data Access, add the scope <code>.../auth/drive.readonly</code>. If omitted, it is requested at sign-in.</li>
+  <li>Under Audience, check that the publishing status is Testing, and add your Google account under Test users. The app works in testing, so no verification is needed. Only test users can sign in.</li>
+  <li>Under Data Access, add the scope <code>.../auth/drive.readonly</code>. If you skip this, it is requested at sign-in.</li>
 </ol>
 
 <h2>3. Create the client ID</h2>
 <ol>
-  <li>Go to Clients → Create client.</li>
-  <li>Application type: Web application.</li>
-  <li>Under Authorized JavaScript origins, enter the origin of the URL where you open Kona (for example <code>https://wentolia.github.io</code>).</li>
-  <li>Under Authorized redirect URIs, enter that URL exactly (for example <code>https://wentolia.github.io/kona-open/</code>), including the trailing <code>/</code>. Copying the string shown in Kona's Drive dialog avoids mistakes.</li>
-  <li>The client ID (<code>…apps.googleusercontent.com</code>) is shown. The client secret is not used.</li>
+  <li>Open Clients → Create client.</li>
+  <li>Choose Web application as the type.</li>
+  <li>Under Authorized JavaScript origins, enter the origin of the URL where you open Kona. For the public build this is <code>https://wentolia.github.io</code>.</li>
+  <li>Under Authorized redirect URIs, enter the URL where you open Kona, exactly. For the public build this is <code>https://wentolia.github.io/kona-open/</code>. The trailing <code>/</code> must match. Copying the text shown on Kona's Drive screen avoids mistakes.</li>
+  <li>After creation, a client ID ending in <code>…apps.googleusercontent.com</code> is shown. The client secret is not used.</li>
 </ol>
 
 <h2>4. Enter it in Kona</h2>
 <ol>
-  <li>In Settings → Other → Sources (Google Drive, Spotify), press Enter client ID. Once entered, Drive also appears on the start screen and in the Folders menu.</li>
-  <li>Paste the client ID and press Save and sign in (保存してサインイン).</li>
-  <li>Choose your account on Google's screen. If it says Google hasn't verified this app, press Continue; this means only that your own app has not been reviewed.</li>
-  <li>Navigate to the folder with your music and open it.</li>
+  <li>In Settings → Other → Google Drive and Spotify, press Enter client ID. Once entered, Drive also appears on the start screen and in the Folders menu.</li>
+  <li>Paste the client ID and press Save and sign in.</li>
+  <li>Choose your account on Google's screen. If Google says it hasn't verified this app, press Continue. This only means that the app you created yourself has not been reviewed.</li>
+  <li>Go to the folder that holds your music and open it.</li>
 </ol>
-<p>The folder is then offered on the start screen. The token expires after about an hour; sign in again from the notice when it does.</p>
+<p>From then on the folder appears on the start screen. The token expires in about an hour; when it does, sign in again from the notice.</p>
 
 <h2>On a phone</h2>
 <ul>
-  <li>Tracks are downloaded from Drive when played. On mobile data this uses your data allowance (FLAC: roughly 20–40 MB per track).</li>
-  <li>For albums you play often, use Keep on device (端末に残す) in the track list. They are stored in the browser and no longer downloaded.</li>
-  <li>Tags and covers are kept after the first read, so later loads are faster.</li>
+  <li>Tracks are fetched from Drive when played and use mobile data. A FLAC track is about 20 to 40 MB.</li>
+  <li>Albums kept with Keep on device in the track list are stored in the browser and are not downloaded again.</li>
+  <li>Tags and covers stay on the device once read, so later loads are faster.</li>
   <li>Safari on iPhone may delete data of sites not used for a while. Adding Kona to the Home Screen makes this less likely.</li>
 </ul>
 
 <h2>Stopping</h2>
 <ul>
   <li>Sign out in Kona removes the token from this tab.</li>
-  <li>To revoke access itself, remove Kona under <a href="https://myaccount.google.com/connections">third-party connections in your Google Account</a>.</li>
+  <li>The permission itself can be revoked under <a href="https://myaccount.google.com/connections">third-party connections in your Google account</a>.</li>
   <li>Deleting the Google Cloud project also invalidates the client ID.</li>
 </ul>
 
 <h2>Disclaimer</h2>
-<p>Kona is provided under the MIT License, without warranty. You are responsible for managing your client ID and account.</p>
+<p>Kona is provided under the MIT License, without warranty. You are responsible for your client ID and your account.</p>

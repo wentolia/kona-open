@@ -10,7 +10,7 @@ import { openParty, partySupported } from "./party";
 import { type Album, enrichTracks } from "./library";
 import type { Player } from "./player";
 import { stat } from "./store";
-import { t } from "./i18n";
+import { t, t as tr, t as tx, tp } from "./i18n";
 import { libGroup, groupAlbums } from "./libgroup";
 import { modeButtonHTML } from "./modeui";
 import { $, esc, fmt } from "./dom";
@@ -77,14 +77,14 @@ export function initMobile(c: MobileCtx, modeChanged?: () => void, opts: { force
   root.innerHTML = `
     <header class="m-top">
       <div class="m-brand" role="img" aria-label="Kona">${headerIcon("logo")}</div>
-      <label class="m-search">${ICON.search}<input type="search" placeholder="アルバム・アーティストを探す" aria-label="探す" enterkeyhint="search"></label>
-      <button class="m-icon m-more" aria-label="メニュー">${headerIcon("more")}</button>
+      <label class="m-search">${ICON.search}<input type="search" placeholder="${t("アルバム・アーティストを探す")}" aria-label="${t("探す")}" enterkeyhint="search"></label>
+      <button class="m-icon m-more" aria-label="${t("メニュー")}">${headerIcon("more")}</button>
     </header>
-    <nav class="m-sets sets" id="m-sets" aria-label="アルバムのセット" hidden></nav>
+    <nav class="m-sets sets" id="m-sets" aria-label="${t("アルバムのセット")}" hidden></nav>
     <div class="m-shelves" id="m-shelves"></div>
     <div class="m-mini" id="m-mini" hidden></div>
     <div class="m-sheet-host" id="m-sheet" hidden></div>
-    <div class="m-now" id="m-now" hidden role="dialog" aria-modal="true" aria-label="再生中"></div>`;
+    <div class="m-now" id="m-now" hidden role="dialog" aria-modal="true" aria-label="${t("再生中")}"></div>`;
   document.body.append(root);
   const input = $<HTMLInputElement>(".m-search input", root);
   input.addEventListener("input", () => { query = input.value.trim(); renderShelves(); $("#m-shelves").scrollTop = 0; });
@@ -137,19 +137,19 @@ function shelvesOf(): MShelf[] {
   const out: MShelf[] = [];
   const now = ctx.player.album;
   const q = ctx.queue.map(k => all.find(a => a.key === k)).filter((a): a is Album => !!a);
-  if (q.length) out.push({ id: "queue", name: "次に再生", list: q, queue: true });
+  if (q.length) out.push({ id: "queue", name: t("次に再生"), list: q, queue: true });
   const played = all.filter(a => stat(a.key).plays > 0);
   if (played.length) {
     const recent = [...played].sort((x, y) => stat(y.key).last - stat(x.key).last).slice(0, 30);
-    out.push({ id: "recent", name: "最近聴いた", list: recent, face: recent[0], faceLabel: now === recent[0] ? "再生中" : "最近聴いた" });
+    out.push({ id: "recent", name: t("最近聴いた"), list: recent, face: recent[0], faceLabel: t(now === recent[0] ? "再生中" : "最近聴いた") });
     const top = [...played].sort((x, y) => stat(y.key).plays - stat(x.key).plays).slice(0, 30);
-    if (top.length > 3) out.push({ id: "top", name: "よく聴く", list: top, face: top[0], faceLabel: `${stat(top[0].key).plays} 回` });
+    if (top.length > 3) out.push({ id: "top", name: t("よく聴く"), list: top, face: top[0], faceLabel: tp("{0} 回", stat(top[0].key).plays) });
   }
   // ライブラリの棚: 選んだフォルダ直下のフォルダごとか、アーティストごと（設定の「括り方」）
   for (const [name, list] of groupAlbums(all)) {
     const last = [...list].sort((x, y) => stat(y.key).last - stat(x.key).last)[0];
     const face = stat(last.key).last ? last : list[0];
-    out.push({ id: "shelf-" + (libGroup() === "artist" ? "a" : "") + hashOf(name), name: name || "ライブラリ", list, face, faceLabel: stat(last.key).last ? "最近聴いた" : "" });
+    out.push({ id: "shelf-" + (libGroup() === "artist" ? "a" : "") + hashOf(name), name: name || t("ライブラリ"), list, face, faceLabel: stat(last.key).last ? t("最近聴いた") : "" });
   }
   return out;
 }
@@ -160,13 +160,13 @@ function renderShelves() {
   host.querySelectorAll<HTMLElement>(".m-row").forEach(r => scrolls.set(r.dataset.id!, r.scrollLeft));
   const shelves = shelvesOf();
   host.innerHTML = "";
-  if (!ctx.albums().length) { host.innerHTML = `<p class="m-empty">棚が空です</p>`; return; }
+  if (!ctx.albums().length) { host.innerHTML = `<p class="m-empty">${t("棚が空です")}</p>`; return; }
   for (const s of shelves) {
     const sec = document.createElement("section");
     sec.className = "m-shelf" + (s.queue ? " m-queue" : "");
     sec.innerHTML = `<h2 class="m-label"><b>${esc(s.name)}</b><span class="count">${s.list.length}</span></h2><div class="m-row" data-id="${s.id}"></div>`;
     const row = $(".m-row", sec);
-    if (!s.list.length) row.innerHTML = `<span class="m-row-empty">見つかりませんでした</span>`;
+    if (!s.list.length) row.innerHTML = `<span class="m-row-empty">${t("見つかりませんでした")}</span>`;
     // 面陳の欄: 背表紙をタップして選んだアルバムがあればそれを、なければ棚の既定（最近聴いたものなど）を見せる。
     // 背表紙はすべて並べ、面陳中のものに印を付ける
     const picked = s.face && s.list.find(a => a.key === featured.get(s.id));
@@ -183,7 +183,7 @@ function renderShelves() {
     if (tracks.length) {
       const sec = document.createElement("section");
       sec.className = "m-hits";
-      sec.innerHTML = `<h2 class="m-label"><b>曲</b><span class="count">${tracks.length}</span></h2><ol class="m-tracks">${tracks.map((x, n) => `
+      sec.innerHTML = `<h2 class="m-label"><b>${t("曲")}</b><span class="count">${tracks.length}</span></h2><ol class="m-tracks">${tracks.map((x, n) => `
         <li><button data-n="${n}"><span class="t">${esc(x.t.title)}</span><span class="sub">${esc(x.a.title)}</span></button></li>`).join("")}</ol>`;
       $(".m-tracks", sec).onclick = e => {
         const n = (e.target as HTMLElement).closest<HTMLElement>("[data-n]")?.dataset.n;
@@ -256,10 +256,10 @@ function toggleQueue(a: Album) {
   const i = ctx.queue.indexOf(a.key);
   if (i >= 0) {
     ctx.queue.splice(i, 1);
-    ctx.toast(`「${a.title}」を次に再生から外しました`, "元に戻す", () => { if (!ctx.queue.includes(a.key)) ctx.queue.splice(i, 0, a.key); ctx.queueChanged(); });
+    ctx.toast(tp("「{0}」を次に再生から外しました", a.title), t("元に戻す"), () => { if (!ctx.queue.includes(a.key)) ctx.queue.splice(i, 0, a.key); ctx.queueChanged(); });
   } else {
     ctx.queue.push(a.key);
-    ctx.toast(`「${a.title}」を次に再生に入れました`);
+    ctx.toast(tp("「{0}」を次に再生に入れました", a.title));
   }
   ctx.queueChanged();
 }
@@ -270,11 +270,11 @@ function openMenu(anchor: HTMLElement) {
   const el = document.createElement("div");
   el.id = "m-menu"; el.className = "m-menu"; el.setAttribute("role", "menu");
   el.innerHTML = `<p class="m-menu-status">${esc(ctx.status())}</p>
-    <button role="menuitem" data-act="local">この端末のフォルダを開く</button>
-    ${ctx.driveConfigured() ? `<button role="menuitem" data-act="drive">Google Drive から開く${ctx.driveName() ? `<span>${esc(ctx.driveName()!)}</span>` : ""}</button>` : ""}
-    ${partySupported() ? `<button role="menuitem" data-act="party">リスニングパーティー<span>流している音をいっしょに聴く</span></button>` : ""}
+    <button role="menuitem" data-act="local">${t("この端末のフォルダを開く")}</button>
+    ${ctx.driveConfigured() ? `<button role="menuitem" data-act="drive">${t("Google Drive から開く")}${ctx.driveName() ? `<span>${esc(ctx.driveName()!)}</span>` : ""}</button>` : ""}
+    ${partySupported() ? `<button role="menuitem" data-act="party">${t("リスニングパーティー")}<span>${t("流している音をいっしょに聴く")}</span></button>` : ""}
     <button role="menuitem" data-act="settings">${t("設定")}</button>
-    <button role="menuitem" data-act="pc">PC 向けの画面にする</button>`;
+    <button role="menuitem" data-act="pc">${t("PC 向けの画面にする")}</button>`;
   document.body.append(el);
   const r = anchor.getBoundingClientRect();
   el.style.top = `${r.bottom + 6}px`;
@@ -316,7 +316,7 @@ function renderSheet() {
   const isNow = a === ctx.player.album, queued = ctx.queue.includes(a.key);
   const keep = ctx.keepState?.(a);
   const total = a.tracks.reduce((n, t) => n + (t.duration ?? 0), 0);
-  const meta = [a.artist || a.dir, a.year, `${a.tracks.length} 曲${total ? " · " + fmt(total) : ""}`].filter(Boolean).map(x => esc(String(x))).join(" · ");
+  const meta = [a.artist || a.dir, a.year, `${tp("{0} 曲", a.tracks.length)}${total ? " · " + fmt(total) : ""}`].filter(Boolean).map(x => esc(String(x))).join(" · ");
   const keepScroll = $(".m-sheet-body", host)?.scrollTop ?? 0;
   host.hidden = false;
   host.innerHTML = `<div class="m-backdrop"></div>
@@ -329,9 +329,9 @@ function renderSheet() {
             <b>${esc(a.title)}</b>
             <span>${meta}</span>
             <div class="m-sheet-actions">
-              <button class="m-btn primary" data-act="play">${isNow && ctx.player.playing ? ICON.pause + "一時停止" : ICON.play + (isNow ? "続きから" : "再生")}</button>
-              <button class="m-btn" data-act="queue" aria-pressed="${queued}">${queued ? ICON.unqueue + "次に再生から外す" : ICON.queue + "次に再生"}</button>
-              ${keep ? `<button class="m-btn m-keep" data-act="keep"${keep === "keeping" ? " disabled" : ""}>${keep === "keeping" ? "残しています…" : keep === "kept" ? "端末から消す" : "端末に残す"}</button>` : ""}
+              <button class="m-btn primary" data-act="play">${isNow && ctx.player.playing ? ICON.pause + t("一時停止") : ICON.play + t(isNow ? "続きから" : "再生")}</button>
+              <button class="m-btn" data-act="queue" aria-pressed="${queued}">${queued ? ICON.unqueue + t("次に再生から外す") : ICON.queue + t("次に再生")}</button>
+              ${keep ? `<button class="m-btn m-keep" data-act="keep"${keep === "keeping" ? " disabled" : ""}>${t(keep === "keeping" ? "残しています…" : keep === "kept" ? "端末から消す" : "端末に残す")}</button>` : ""}
             </div>
           </div>
         </div>
@@ -392,12 +392,12 @@ function renderMini() {
   if (el.dataset.k === k) return;
   el.dataset.k = k;
   el.innerHTML = `<div class="m-mini-fill"></div>
-    <button class="m-mini-open" aria-label="再生中を開く">
+    <button class="m-mini-open" aria-label="${tr("再生中を開く")}">
       <span class="m-mini-art">${ctx.art(a)}</span>
       <span class="m-mini-meta"><b>${esc(t.title)}</b><span>${esc(a.title)}${a.artist ? " · " + esc(a.artist) : ""}</span></span>
     </button>
-    <button class="m-icon m-mini-play" aria-label="${p.playing ? "一時停止" : "再生"}">${p.playing ? ICON.pause : ICON.play}</button>
-    <button class="m-icon m-mini-next" aria-label="次の曲">${ICON.next}</button>`;
+    <button class="m-icon m-mini-play" aria-label="${tx(p.playing ? "一時停止" : "再生")}">${p.playing ? ICON.pause : ICON.play}</button>
+    <button class="m-icon m-mini-next" aria-label="${tx("次の曲")}">${ICON.next}</button>`;
   $(".m-mini-open", el).onclick = openNow;
   $(".m-mini-play", el).onclick = () => p.toggle();
   $(".m-mini-next", el).onclick = () => p.next();
@@ -437,7 +437,7 @@ function renderNow() {
   const k = `${a.key}#${p.index}#${ctx.queue.join("|")}`;
   if (el.dataset.k === k) { // 曲が同じなら、再生ボタンだけ直す
     const b = $(".m-now-play", el);
-    if (b) { b.innerHTML = p.playing ? ICON.pause : ICON.play; b.setAttribute("aria-label", p.playing ? "一時停止" : "再生"); }
+    if (b) { b.innerHTML = p.playing ? ICON.pause : ICON.play; b.setAttribute("aria-label", tx(p.playing ? "一時停止" : "再生")); }
     return;
   }
   el.dataset.k = k;
@@ -447,8 +447,8 @@ function renderNow() {
   el.innerHTML = `
     <div class="m-now-bg" style="background:${ctx.colorOf(a)}"></div>
     <header class="m-now-top">
-      <button class="m-icon m-now-close" aria-label="閉じる">${ICON.down}</button>
-      <span class="m-now-from">再生中</span>
+      <button class="m-icon m-now-close" aria-label="${tx("閉じる")}">${ICON.down}</button>
+      <span class="m-now-from">${tx("再生中")}</span>
       <span class="m-now-acts">${modeButtonHTML(p.mode, "m-icon m-now-mode")}</span>
     </header>
     <div class="m-now-scroll">
@@ -458,23 +458,23 @@ function renderNow() {
         <span class="m-now-album">${esc(a.title)}${a.artist ? " · " + esc(a.artist) : ""}</span>
       </div>
       <div class="m-seek">
-        <input type="range" class="m-seek-range" min="0" max="1000" step="1" value="0" aria-label="再生位置">
+        <input type="range" class="m-seek-range" min="0" max="1000" step="1" value="0" aria-label="${tr("再生位置")}">
         <div class="m-seek-time"><span class="m-pos">0:00</span><span class="m-no">${String(t.no).padStart(2, "0")} / ${a.tracks.length}</span><span class="m-dur">0:00</span></div>
       </div>
       <div class="m-ctrl">
-        <button class="m-icon m-now-prev" aria-label="前の曲">${ICON.prev}</button>
-        <button class="m-now-play" aria-label="${p.playing ? "一時停止" : "再生"}">${p.playing ? ICON.pause : ICON.play}</button>
-        <button class="m-icon m-now-next" aria-label="次の曲">${ICON.next}</button>
+        <button class="m-icon m-now-prev" aria-label="${tx("前の曲")}">${ICON.prev}</button>
+        <button class="m-now-play" aria-label="${tx(p.playing ? "一時停止" : "再生")}">${p.playing ? ICON.pause : ICON.play}</button>
+        <button class="m-icon m-now-next" aria-label="${tx("次の曲")}">${ICON.next}</button>
       </div>
-      <h2 class="m-label"><b>曲目</b><span class="count">${a.tracks.length}</span></h2>
+      <h2 class="m-label"><b>${tx("曲目")}</b><span class="count">${a.tracks.length}</span></h2>
       <ol class="m-tracks m-now-tracks">${a.tracks.map((tr, i) => `
         <li class="${i === p.index ? "current" : ""}"><button data-i="${i}">
           <span class="no">${String(tr.no).padStart(2, "0")}</span><span class="t">${esc(tr.title)}</span><span class="dur">${tr.duration ? fmt(tr.duration) : ""}</span>
         </button></li>`).join("")}</ol>
-      ${upNext.length ? `<h2 class="m-label"><b>次に再生</b><span class="count">${upNext.length}</span></h2>
+      ${upNext.length ? `<h2 class="m-label"><b>${tx("次に再生")}</b><span class="count">${upNext.length}</span></h2>
       <ol class="m-up">${upNext.map(x => `
         <li><button class="m-up-open" data-k="${esc(x.key)}"><span class="m-up-art">${ctx.art(x)}</span><span class="m-up-meta"><b>${esc(x.title)}</b><span>${esc(x.artist || x.dir)}</span></span></button>
-        <button class="m-icon m-up-rm" data-rm="${esc(x.key)}" aria-label="${esc(x.title)} を次に再生から外す">${ICON.close}</button></li>`).join("")}</ol>` : ""}
+        <button class="m-icon m-up-rm" data-rm="${esc(x.key)}" aria-label="${esc(tp("{0} を次に再生から外す", x.title))}">${ICON.close}</button></li>`).join("")}</ol>` : ""}
     </div>`;
   $(".m-now-scroll", el).scrollTop = keep;
   $(".m-now-close", el).onclick = () => closeNow();

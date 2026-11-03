@@ -17,7 +17,7 @@ export interface StowHooks {
 let h: StowHooks | undefined;
 export function initStow(hooks: StowHooks) { h = hooks; }
 
-const objLabel = (k: string) => { const o = OBJECTS.find(x => x.key === k); return o ? t(o.label.replace(/（.*）/, "")) : k; };
+const objLabel = (k: string) => { const o = OBJECTS.find(x => x.key === k); return o ? t(o.label) : k; };
 const thingLabel = (k: string) => { const d = defOf(k); return d ? t(d.label) : k; };
 const told = (label: string, undo: () => void) => h?.toast(`${label}${t("をしまいました")}`, t("元に戻す"), undo);
 

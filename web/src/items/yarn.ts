@@ -28,4 +28,4 @@ const live: Live = svg => {
   };
 };
 
-export default { key: "yarn", label: "毛糸玉", at: "floor", w: 36, h: 32, x: .44, cat: "猫", order: 50, note: "★ 猫が叩くと床を転がる（押しても転がる）", art, live } satisfies ItemDef;
+export default { key: "yarn", label: "毛糸玉", at: "floor", w: 36, h: 32, x: .44, cat: "猫", order: 50, note: "★ 猫が叩くと床を転がる。押しても転がる", art, live } satisfies ItemDef;

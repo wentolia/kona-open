@@ -45,11 +45,11 @@ This file describes what the app does today. It is the reference for changes: a 
   - More: layered sounds (three noises, rain, fire, waves, vinyl), volume normalisation (off, per track, per album), save the current EQ curve.
 - **Other**
   - Library: loaded folders and their kind, rescan, open another folder, sort order (library boxes and the default for new shelves), grouping (folder or artist).
-  - Text and language: text size (small, normal, large, extra large; text-heavy areas only), typeface (Gothic or Mincho), language (日本語 or English; the page reloads; some English strings are still missing).
+  - Text and language: text size (small, normal, large, extra large; text-heavy areas only), typeface (Gothic or Mincho), language (日本語, English, 한국어 or 简体中文; the default follows the browser and falls back to English; the page reloads on change).
   - Library details: placeholder for missing covers (colour and title, initial, colour only), automatic rescan on return, motion (system or reduced), albums kept on the device (size, delete) and storage used, forget folder (with confirmation).
   - Data: export and import settings; clear listening history; reset everything (both with confirmation; music files are never touched).
   - Keyboard: the fixed bindings. Space play/pause, Shift+←/→ previous/next track, ←/→ 10 s, ↑/↓ volume, M mute, 1/2/3 Home/Library/Settings, / search.
-  - Sources (Google Drive, Spotify): enter or remove the ID, sign in or out, choose a Drive folder, copy the Spotify redirect URI.
+  - Google Drive and Spotify: enter or remove the ID, sign in or out, choose a Drive folder, copy the Spotify redirect URI.
   - About Kona: version, licence, source, privacy and terms, third-party licences.
 
 ## Phone

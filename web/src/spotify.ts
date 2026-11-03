@@ -5,6 +5,7 @@
 //  - トークンはこのブラウザの中（localStorage）だけに置く。サインアウトで消える
 //  - Spotify の中身（曲名・ジャケットなど）は端末に覚えない。開くたびに Spotify から読む（開発者規約に合わせる）
 
+import { t } from "./i18n";
 import type { Album, Track, Entry } from "./library";
 
 const CFG_KEY = "kona.spotify", TOKEN_KEY = "kona.spotify.token", PKCE_KEY = "kona.spotify.pkce";
@@ -136,7 +137,7 @@ interface SAlbum { id: string; uri: string; name: string; album_type?: string; r
 // ジャケットは Spotify の画像サーバーのものだけを使う（文字列を HTML に入れるので、形も確かめる）
 const ART_RE = /^https:\/\/i\.scdn\.co\/image\/[\w-]+$/;
 const OPEN_RE = /^https:\/\/open\.spotify\.com\/[\w/-]+$/;
-const noFile = () => Promise.reject(new Error("Spotify の曲はファイルとして読めません"));
+const noFile = () => Promise.reject(new Error(t("Spotify の曲はファイルとして読めません")));
 
 function toAlbum(s: SAlbum, items: STrack[]): Album {
   const img = (s.images ?? []).filter(i => ART_RE.test(i.url)).sort((a, b) => (b.width ?? 0) - (a.width ?? 0));

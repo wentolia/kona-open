@@ -1,12 +1,13 @@
 // 聴いた距離: 聴いた時間の合計を、レコードの溝をたどった長さに換算する（33⅓ 回転・平均の半径 11cm で毎秒約 0.38m）。
 // 次に越える目じるしまでの進み具合を細い線で見せる
 
+import { t, tp } from "./i18n";
 import { esc, everyFrame, hist } from "./modctx";
 
 const SPEED = 2 * Math.PI * 0.11 * (33.333 / 60); // m/s
 export const MARKS: [number, string][] = [
-  [100, "100m 走"], [333, "東京タワー"], [634, "スカイツリー"], [3776, "富士山"], [8849, "エベレスト"],
-  [34500, "山手線 1 周"], [42195, "フルマラソン"], [552600, "東京 → 新大阪"], [3000000, "日本列島"], [40075000, "地球 1 周"],
+  [100, t("100m 走")], [333, t("東京タワー")], [634, t("スカイツリー")], [3776, t("富士山")], [8849, t("エベレスト")],
+  [34500, t("山手線 1 周")], [42195, t("フルマラソン")], [552600, t("東京 → 新大阪")], [3000000, t("日本列島")], [40075000, t("地球 1 周")],
 ];
 
 export const metersOf = (sec: number) => sec * SPEED;
@@ -35,7 +36,7 @@ export function mountDistance(body: HTMLElement) {
     from.textContent = prev ? prev[1] : "";
     from.style.visibility = prev ? "" : "hidden"; from.dataset.m = prev ? String(prev[0]) : "";
     const rest = Math.max(0, next[0] - m);
-    to.innerHTML = `${esc(next[1])}<small>あと ${rest < 1000 ? `${Math.ceil(rest)}m` : `${(rest / 1000).toFixed(rest < 10000 ? 1 : 0)}km`}</small>`;
+    to.innerHTML = `${esc(next[1])}<small>${tp("あと {0}", rest < 1000 ? `${Math.ceil(rest)}m` : `${(rest / 1000).toFixed(rest < 10000 ? 1 : 0)}km`)}</small>`;
     const lo = prev?.[0] ?? 0, pct = `${Math.min(100, ((m - lo) / (next[0] - lo)) * 100)}%`;
     bar.style.width = pct; dot.style.left = pct;
   });

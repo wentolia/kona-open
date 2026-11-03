@@ -1,10 +1,10 @@
 <h1>隐私与使用条款</h1>
-<p>Kona 是由个人开发、免费公开的浏览器音乐播放器。本文适用于公开版（<a href="https://wentolia.github.io/kona-open/">wentolia.github.io/kona-open</a>）及其<a href="https://github.com/wentolia/kona-open">源代码</a>。</p>
+<p>Kona 是由个人开发、免费公开的浏览器音乐播放器。本文适用于公开版 <a href="https://wentolia.github.io/kona-open/">wentolia.github.io/kona-open</a> 及其<a href="https://github.com/wentolia/kona-open">源代码</a>。</p>
 
 <h2>不收集的信息</h2>
 <ul>
   <li>Kona 没有服务器，也不做访问统计。开发者不会收到用户的音乐、播放记录、设置、姓名或位置。</li>
-  <li>设置、播放记录和曲目信息只保存在所用浏览器内（localStorage、IndexedDB、Cache Storage）。可在设置的 Other → Data 中导出和清除。</li>
+  <li>设置、播放记录和曲目信息只保存在所用浏览器的 localStorage、IndexedDB 和 Cache Storage 中。可在设置的“其他”→“数据”中导出和清除。</li>
 </ul>
 
 <h2>离开设备的信息</h2>
@@ -15,15 +15,15 @@
     <tr><td>从 Google Drive 收听</td><td>Google API</td><td>使用用户自己创建的客户端 ID 登录，以及读取请求。权限仅限读取。</td></tr>
     <tr><td>用 Spotify 收听</td><td>Spotify</td><td>使用用户自己创建的 Client ID 登录，以及播放操作。</td></tr>
     <tr><td>聆听派对</td><td>四个公开的 Nostr 中继</td><td>用房间密钥加密的连接信息和一次性公钥。中继无法读取内容，也不保存。</td></tr>
-    <tr><td>聆听派对</td><td>STUN 服务器（默认为 Google 的公开服务器，可更改或清空）</td><td>IP 地址。</td></tr>
-    <tr><td>聆听派对</td><td>主持人设置的中转服务器（TURN：Metered、Cloudflare 或主持人选择的服务器）</td><td>IP 地址以及加密的音频和数据。中转服务器无法读取内容。</td></tr>
-    <tr><td>聆听派对</td><td>对方的设备（仅限主持人与参与者之间）</td><td>彼此的 IP 地址、名字、猫、聊天、通话语音、正在播放的曲名、书架上专辑的标题和缩小的封面、赠送的物品。仅当主持人选择时，包括主持人所在的都道府县或国家。</td></tr>
+    <tr><td>聆听派对</td><td>STUN 服务器。默认为 Google 的公开服务器，可更改或清空。</td><td>IP 地址。</td></tr>
+    <tr><td>聆听派对</td><td>主持人设置的 TURN 中转服务器，即 Metered、Cloudflare 或主持人选择的服务器。</td><td>IP 地址以及加密的音频和数据。中转服务器无法读取内容。</td></tr>
+    <tr><td>聆听派对</td><td>对方的设备，仅限主持人与参与者之间。</td><td>彼此的 IP 地址、名字、猫、聊天、通话语音、正在播放的曲名、书架上专辑的标题和缩小的封面、赠送的物品。仅当主持人选择时，包括主持人所在的都道府县或国家。</td></tr>
   </tbody>
 </table>
 
 <h2>位置信息</h2>
 <ul>
-  <li>仅在开启 Local keepsakes（ご当地の品）时，每天使用一次浏览器的位置信息。</li>
+  <li>仅在开启“地方特产”时，每天使用一次浏览器的位置信息。</li>
   <li>坐标在设备内转换为都道府县或国家代码后立即丢弃，既不保存也不发送。</li>
   <li>浏览器或操作系统在获取位置时可能使用 Google 或 Apple 的定位服务，这属于浏览器和操作系统的处理。</li>
 </ul>
@@ -39,9 +39,9 @@
   <li>Kona 以 MIT 许可证提供，不作任何担保。对于因使用而产生的损害，开发者不承担责任。</li>
   <li>请只播放您拥有或有权使用的音乐。</li>
   <li>聆听派对请在熟人之间使用。请勿将邀请链接发布到社交媒体等任何人都能看到的地方。所播放音乐的权利由主持人负责。</li>
-  <li>未满 13 岁者请在监护人陪同下使用。在派对中，主持人可在权限（権限）中让对方退出，参与者可随时通过离开（抜ける）退出。</li>
-  <li>Google Drive 和 Spotify 的客户端 ID 与账号的管理，以及遵守各公司的条款（<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>、<a href="https://developer.spotify.com/terms">Spotify Developer Terms</a>），由用户自行负责。Kona 不是 Google 或 Spotify 的官方应用。</li>
-  <li>所用软件的许可证见 <a href="./THIRD_PARTY_NOTICES.txt">THIRD_PARTY_NOTICES.txt</a>，可从设置的 Other → About Kona 打开。</li>
+  <li>未满 13 岁者请在监护人陪同下使用。在派对中，主持人可在“权限”中让对方退出，参与者可随时通过“退出”离开。</li>
+  <li>Google Drive 和 Spotify 的客户端 ID 与账号的管理，以及遵守各公司的条款，由用户自行负责。条款为 <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a> 和 <a href="https://developer.spotify.com/terms">Spotify Developer Terms</a>。Kona 不是 Google 或 Spotify 的官方应用。</li>
+  <li>所用软件的许可证见 <a href="./THIRD_PARTY_NOTICES.txt">THIRD_PARTY_NOTICES.txt</a>，可从设置的“其他”→“关于 Kona”打开。</li>
 </ul>
 
 <h2>修订</h2>

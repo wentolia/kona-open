@@ -26,7 +26,7 @@ export const THINGS: readonly Def[] = [
   ...ITEMS.filter(d => d.at === "floor" && !d.flat).map(d => ({ key: d.key, label: d.label, w: d.w, h: d.h, x: d.x ?? .5, at: "floor" as const })),
   ...ITEMS.filter(d => d.at === "floor" && d.flat).map(d => ({ key: d.key, label: d.label, w: d.w, h: d.h, x: d.x ?? .5, flat: true, at: "floor" as const })),
   { key: "tower", label: "キャットタワー", w: 170, h: 330, x: .92, at: "floor", one: true },
-  { key: "box", label: "箱（紙袋）", w: 120, h: 96, x: .06, at: "floor", one: true },
+  { key: "box", label: tr("箱と紙袋"), w: 120, h: 96, x: .06, at: "floor", one: true },
   { key: "food", label: "猫のごはん", w: 150, h: 40, x: .7, at: "floor", one: true },
   { key: "scratcher", label: "爪とぎ", w: 170, h: 36, x: .38, at: "floor", one: true },
   ...ITEMS.filter(d => d.at === "wall").map(d => ({ key: d.key, label: d.label, w: d.w, h: d.h, x: d.x ?? .5, y: d.y ?? .2, at: "wall" as const })),

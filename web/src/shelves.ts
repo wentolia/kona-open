@@ -1,4 +1,5 @@
 // ホームに置くモジュールの定義（種類・名前・棚の中身の設定）。どこに置くか（段・列・高さ）は layout.ts
+import { t } from "./i18n";
 import { setTag, cleanTag } from "./tags";
 
 export type ModuleType = "shelf" | "player" | "waveform" | "eq" | "clock" | "info" | "log" | "output" | "window" | "objects" | "distance" | "cattower" | "scratcher" | "catfood" | "spectrum" | "catbox";
@@ -41,29 +42,29 @@ export const MODULES: ModuleInfo[] = [
   { type: "cattower", label: "キャットタワー", minHeight: 240, height: 380, ready: true, single: true },
   { type: "scratcher", label: "爪とぎ", minHeight: 70, height: 110, ready: true, single: true },
   { type: "catfood", label: "猫のごはん", minHeight: 70, height: 110, ready: true, single: true },
-  { type: "catbox", label: "箱（紙袋）", minHeight: 80, height: 120, ready: true },
+  { type: "catbox", label: "箱と紙袋", minHeight: 80, height: 120, ready: true },
 ];
 export const moduleInfo = (t: ModuleType) => MODULES.find(m => m.type === t)!;
 
 export const KINDS: { kind: ShelfKind; label: string }[] = [
-  { kind: "search", label: "アルバム（検索と並び順）" },
+  { kind: "search", label: t("アルバムを検索と並び順で") },
   { kind: "queue", label: "次に再生" },
-  { kind: "goods", label: "小物だけ" },
+  { kind: "goods", label: t("小物だけ") },
 ];
 export const kindLabel = (k: ShelfKind) => KINDS.find(x => x.kind === k)!.label;
 
 export const SORTS: { key: SortKey; label: string }[] = [
   { key: "title", label: "アルバム名" },
   { key: "artist", label: "アーティスト" },
-  { key: "year", label: "年（新しい順）" },
-  { key: "yearAsc", label: "年（古い順）" },
+  { key: "year", label: "年が新しい順" },
+  { key: "yearAsc", label: "年が古い順" },
   { key: "plays", label: "再生回数" },
   { key: "last", label: "最近聴いた順" },
-  { key: "hue", label: "ジャケットの色の順" },
+  { key: "hue", label: t("ジャケットの色の順") },
 ];
 
 // 幅は自由。ただし 1/4・1/3・1/2・2/3・3/4・全幅 の近く（±1.5%）では軽く吸い付く
-const MAGNETS: [number, string][] = [[1 / 4, "1/4"], [1 / 3, "1/3"], [1 / 2, "1/2"], [2 / 3, "2/3"], [3 / 4, "3/4"], [1, "全幅"]];
+const MAGNETS: [number, string][] = [[1 / 4, "1/4"], [1 / 3, "1/3"], [1 / 2, "1/2"], [2 / 3, "2/3"], [3 / 4, "3/4"], [1, t("全幅")]];
 export const MIN_W = 0.12;
 export function snapRatio(raw: number): number {
   const w = Math.max(MIN_W, Math.min(1, raw));
@@ -108,15 +109,15 @@ export const newId = () => Math.random().toString(36).slice(2, 9);
 
 const shelf = (title: string, w: number, extra: Partial<ModuleDef> = {}): ModuleDef =>
   ({ id: newId(), type: "shelf", kind: "search", query: "", title, w, height: 180, ...extra });
-const player = (): ModuleDef => ({ id: newId(), type: "player", title: "再生中", w: 1, height: 220 });
+const player = (): ModuleDef => ({ id: newId(), type: "player", title: t("再生中"), w: 1, height: 220 });
 
 function defaults(): ModuleDef[] {
   return [
-    shelf("よく聴く", 1, { sort: "plays" }),
+    shelf(t("よく聴く"), 1, { sort: "plays" }),
     player(),
-    shelf("次に再生", 1, { kind: "queue", query: undefined }),
-    shelf("最近聴いた", 1 / 2, { sort: "last" }),
-    shelf("お気に入り", 1 / 2, { query: "tag:お気に入り" }),
+    shelf(t("次に再生"), 1, { kind: "queue", query: undefined }),
+    shelf(t("最近聴いた"), 1 / 2, { sort: "last" }),
+    shelf(t("お気に入り"), 1 / 2, { query: t("tag:お気に入り") }),
   ];
 }
 
@@ -152,7 +153,7 @@ export function saveLayout(mods: ModuleDef[]): void {
 }
 
 // 気分の棚: ジャケットの平均色から、アルバムをおおまかな気分に振り分ける
-export const MOODS = ["夜", "静か", "明るい", "温かい", "涼しい"] as const;
+export const MOODS = ["夜", t("静か"), t("明るい"), t("温かい"), t("涼しい")] as const;
 export type Mood = typeof MOODS[number];
 export function hsl(color?: string): [number, number, number] | undefined {
   const m = color?.match(/rgb\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);

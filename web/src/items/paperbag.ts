@@ -11,4 +11,4 @@ function art() {
     <i data-cat-plat="bed" data-sink="10" style="left:10%;width:60%;top:40%"></i>`;
 }
 
-export default { key: "paperbag", label: "紙袋", at: "floor", w: 84, h: 94, cat: "猫", order: 41, note: "猫が入る（段ボールとは別に）", art } satisfies ItemDef;
+export default { key: "paperbag", label: "紙袋", at: "floor", w: 84, h: 94, cat: "猫", order: 41, note: "猫が入る。段ボールとは別に置ける", art } satisfies ItemDef;

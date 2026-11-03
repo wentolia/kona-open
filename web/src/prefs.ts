@@ -28,13 +28,22 @@ export interface Prefs {
   /** ジャケットのないアルバムの見せ方: 色と題名 / 無地 / 頭文字 */
   blankArt: "title" | "plain" | "initial";
   /** 言語 */
-  lang: "ja" | "en";
+  lang: "ja" | "en" | "ko" | "zh";
+}
+
+/** 言語の既定: ブラウザの言語が 4 つのどれかならそれ、ほかは英語 */
+function browserLang(): Prefs["lang"] {
+  for (const l of navigator.languages ?? [navigator.language]) {
+    const b = l.toLowerCase().split("-")[0];
+    if (b === "ja" || b === "en" || b === "ko" || b === "zh") return b;
+  }
+  return "en";
 }
 
 export const DEFAULT_PREFS: Prefs = {
   fontScale: 1, font: "gothic", motion: "system", marks: true, crossfade: 0,
   catsHidden: false, catMischief: "queue", catZoomies: true,
-  autoRescan: true, libSort: "title", libGroup: "folder", blankArt: "title", lang: "ja",
+  autoRescan: true, libSort: "title", libGroup: "folder", blankArt: "title", lang: browserLang(),
 };
 
 const KEY = "kona.prefs";
@@ -62,7 +71,7 @@ export function prefs(): Prefs {
     libSort: pick("libSort", oneOf("title", "artist", "year", "yearAsc", "plays", "last", "hue")),
     libGroup: pick("libGroup", oneOf("folder", "artist")),
     blankArt: pick("blankArt", oneOf("title", "plain", "initial")),
-    lang: pick("lang", oneOf("ja", "en")),
+    lang: pick("lang", oneOf("ja", "en", "ko", "zh")),
   };
   return cache;
 }
@@ -91,7 +100,7 @@ export function applyLook() {
   r.style.setProperty("--font-scale", String(p.fontScale));
   r.dataset.font = p.font;
   r.dataset.motion = reduceMotion() ? "reduce" : "full";
-  r.lang = p.lang;
+  r.lang = p.lang === "zh" ? "zh-Hans" : p.lang;
 }
 osReduce.addEventListener("change", applyLook);
 applyLook();

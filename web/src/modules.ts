@@ -4,7 +4,7 @@ import type { Player } from "./player";
 import { mountClock } from "./mod-clock";
 import type { ModuleType } from "./shelves";
 import { BANDS, MAX_DB, BUILTIN_PRESETS, userPresets, presetMatching, type Eq } from "./eq";
-import { t } from "./i18n";
+import { t, tp } from "./i18n";
 import { ctx, fmt, css, fit, everyFrame } from "./modctx";
 import { mountInfo } from "./mod-info";
 import { mountLog } from "./mod-log";
@@ -43,7 +43,7 @@ const fmtDb = (db: number) => (db > 0 ? "+" : db < 0 ? "−" : "±") + Math.abs(
 export function mountEq(body: HTMLElement, eq: Eq) {
   body.innerHTML = `
     <div class="eq">
-      <p class="dsp-off">Spotify の曲では使えません</p>
+      <p class="dsp-off">${t("Spotify の曲では使えません")}</p>
       <div class="eq-bar">
         <button class="eq-power" aria-pressed="${eq.on}"><i></i>EQ</button>
         <span class="eq-pre"></span>
@@ -148,7 +148,7 @@ export function mountEq(body: HTMLElement, eq: Eq) {
     root.classList.toggle("eq-off", !eq.on);
     power.setAttribute("aria-pressed", String(eq.on));
     const pre = eq.preamp;
-    root.querySelector(".eq-pre")!.textContent = pre ? `プリアンプ ${fmtDb(pre)} dB` : "";
+    root.querySelector(".eq-pre")!.textContent = pre ? tp("プリアンプ {0} dB", fmtDb(pre)) : "";
     slots.forEach((slot, i) => {
       const db = eq.gains[i];
       slot.style.setProperty("--v", String((db + MAX_DB) / (MAX_DB * 2)));
@@ -222,9 +222,9 @@ function remember(key: string, peaks: Float32Array) {
 export function mountWave(body: HTMLElement, player: Player) {
   body.innerHTML = `
     <div class="wave">
-      <canvas class="wave-canvas" aria-label="波形（クリックでその位置へ）"></canvas>
+      <canvas class="wave-canvas" aria-label="${t("波形。クリックでその位置へ")}"></canvas>
       <span class="wave-time"></span>
-      <p class="dsp-off">Spotify の曲では波形を出せません</p>
+      <p class="dsp-off">${t("Spotify の曲では波形を出せません")}</p>
     </div>`;
   const root = body.querySelector<HTMLElement>(".wave")!;
   const canvas = root.querySelector<HTMLCanvasElement>("canvas")!;

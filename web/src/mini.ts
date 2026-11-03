@@ -1,5 +1,6 @@
 // 小窓のプレイヤー: ジャケット・曲名・シーク・曲の操作だけ。常に手前に出る小窓（Document Picture-in-Picture）に描く
 
+import { t, t as tr } from "./i18n";
 import type { Album } from "./library";
 import type { Player } from "./player";
 import { $, esc, fmt } from "./dom";
@@ -33,9 +34,9 @@ export function mountMini(root: HTMLElement, d: MiniDeps): () => void {
       <div class="mini-bar"><span class="mini-pos">0:00</span><div class="mini-track"><div class="mini-fill"></div></div><span class="mini-dur">0:00</span></div>
     </div>
     <div class="mini-ctrl">
-      <button class="b-prev" aria-label="前の曲">${I.prev}</button>
-      <button class="b-play play" aria-label="再生">${I.play}</button>
-      <button class="b-next" aria-label="次の曲">${I.next}</button>
+      <button class="b-prev" aria-label="${t("前の曲")}">${I.prev}</button>
+      <button class="b-play play" aria-label="${t("再生")}">${I.play}</button>
+      <button class="b-next" aria-label="${t("次の曲")}">${I.next}</button>
     </div>
     ${d.actions.length ? `<div class="mini-acts">${d.actions.map((a, i) => `<button class="mini-act ${a.cls}" data-i="${i}" aria-label="${esc(a.label)}" title="${esc(a.label)}">${a.icon}</button>`).join("")}</div>` : ""}
   </div>`;
@@ -65,7 +66,7 @@ export function mountMini(root: HTMLElement, d: MiniDeps): () => void {
     }
     const b = q(".b-play");
     b.innerHTML = player.playing ? I.pause : I.play;
-    b.setAttribute("aria-label", player.playing ? "一時停止" : "再生");
+    b.setAttribute("aria-label", player.playing ? tr("一時停止") : tr("再生"));
     tick();
   };
   const tick = () => {
@@ -117,7 +118,7 @@ async function openPip() {
   w.document.body.classList.add("pip");
   const root = w.document.createElement("section");
   w.document.body.append(root);
-  const off = mountMini(root, miniDeps([{ cls: "act-back", label: "元のウィンドウに戻る", icon: W.back, run: () => { window.focus(); w.close(); } }]));
+  const off = mountMini(root, miniDeps([{ cls: "act-back", label: t("元のウィンドウに戻る"), icon: W.back, run: () => { window.focus(); w.close(); } }]));
   w.addEventListener("pagehide", off, { once: true });
 }
 

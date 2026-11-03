@@ -1,5 +1,6 @@
 // Google Drive の入口: クライアントIDの入力 → サインイン → フォルダを選ぶ。
 // 画面の文字はすべて textContent か esc() で入れ、Drive のファイル名をHTMLとして読ませない
+import { t, tp } from "./i18n";
 import type { Entry } from "./library";
 import { driveConfig, saveDriveConfig, redirectUri, driveToken, signIn, signOut, listFolders, walkDrive, DriveAuthError } from "./drive";
 import { esc } from "./dom";
@@ -23,7 +24,7 @@ export function initDriveUI(h: Host) {
     if (Date.now() - last < 8000) return;
     last = Date.now();
     const c = driveConfig();
-    if (c) host?.toast("Google Drive のサインインが切れました", "サインインし直す", () => { signIn(c.clientId).catch(() => {}); });
+    if (c) host?.toast("Google Drive のサインインが切れました", t("サインインし直す"), () => { signIn(c.clientId).catch(() => {}); });
   });
 }
 
@@ -60,7 +61,7 @@ async function withResume<T>(what: "open" | "browse", f: () => Promise<T>) {
 }
 
 function failed(e: unknown) {
-  const msg = e instanceof DriveAuthError ? "サインインできませんでした" : "Google Drive を読めませんでした";
+  const msg = e instanceof DriveAuthError ? t("サインインできませんでした") : t("Google Drive を読めませんでした");
   host?.toast(msg);
 }
 
@@ -81,7 +82,7 @@ function frame(): HTMLElement {
     dlg = document.createElement("div");
     dlg.className = "dlg-back";
     dlg.innerHTML = `<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
-      <div class="dlg-head"><h2 id="dlg-title">Google Drive</h2><button class="dlg-x" aria-label="閉じる">×</button></div>
+      <div class="dlg-head"><h2 id="dlg-title">Google Drive</h2><button class="dlg-x" aria-label="${t("閉じる")}">×</button></div>
       <div class="dlg-body"></div></div>`;
     dlg.addEventListener("pointerdown", e => { if (e.target === dlg) close(); });
     dlg.querySelector<HTMLElement>(".dlg-x")!.onclick = close;
@@ -96,30 +97,30 @@ export function openDrive() {
   const c = driveConfig();
   if (!c) return setup();
   if (!driveToken()) return signInStep(c.clientId);
-  browse([{ id: "root", name: "マイドライブ" }]);
+  browse([{ id: "root", name: t("マイドライブ") }]);
 }
 
 function setup(prev = "") {
   const body = frame();
   body.innerHTML = `
-    <p class="dlg-lead">Kona はサーバーを持たず、このブラウザから直接あなたの Drive を読みます。そのための「OAuth クライアントID」を、あなたの Google Cloud で作って入れてください。<a href="${docHref("google-drive")}" target="_blank" rel="noopener noreferrer">作り方の手順</a></p>
+    <p class="dlg-lead">${t("Kona はサーバーを持たず、このブラウザから直接あなたの Drive を読みます。そのための「OAuth クライアントID」を、あなたの Google Cloud で作って入れてください。")}<a href="${docHref("google-drive")}" target="_blank" rel="noopener noreferrer">${t("作り方の手順")}</a></p>
     <dl class="dlg-uris">
-      <dt>承認済みの JavaScript 生成元</dt><dd><code>${esc(location.origin)}</code><button class="dlg-copy" data-v="${esc(location.origin)}">コピー</button></dd>
-      <dt>承認済みのリダイレクト URI</dt><dd><code>${esc(redirectUri())}</code><button class="dlg-copy" data-v="${esc(redirectUri())}">コピー</button></dd>
+      <dt>${t("承認済みの JavaScript 生成元")}</dt><dd><code>${esc(location.origin)}</code><button class="dlg-copy" data-v="${esc(location.origin)}">${t("コピー")}</button></dd>
+      <dt>${t("承認済みのリダイレクト URI")}</dt><dd><code>${esc(redirectUri())}</code><button class="dlg-copy" data-v="${esc(redirectUri())}">${t("コピー")}</button></dd>
     </dl>
-    <label class="dlg-field"><span>クライアントID</span>
+    <label class="dlg-field"><span>${t("クライアントID")}</span>
       <input id="dlg-client" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="xxxxxxxx.apps.googleusercontent.com" value="${esc(prev)}"></label>
     <p class="dlg-note" id="dlg-err" hidden></p>
-    <p class="dlg-note">読み取りだけの権限（drive.readonly）で使います。トークンはこのタブの中だけに置き、約 1 時間で切れます。Kona の側には何も送られません。</p>
-    <div class="dlg-actions"><button class="btn primary" id="dlg-save">保存してサインイン</button></div>`;
+    <p class="dlg-note">${t("読み取りだけの権限 drive.readonly で使います。トークンはこのタブの中だけに置き、約 1 時間で切れます。Kona の側には何も送られません。")}</p>
+    <div class="dlg-actions"><button class="btn primary" id="dlg-save">${t("保存してサインイン")}</button></div>`;
   body.querySelectorAll<HTMLButtonElement>(".dlg-copy").forEach(b => b.onclick = () => {
-    navigator.clipboard?.writeText(b.dataset.v!).then(() => { b.textContent = "コピーしました"; setTimeout(() => b.textContent = "コピー", 1500); }).catch(() => {});
+    navigator.clipboard?.writeText(b.dataset.v!).then(() => { b.textContent = t("コピーしました"); setTimeout(() => b.textContent = t("コピー"), 1500); }).catch(() => {});
   });
   const input = body.querySelector<HTMLInputElement>("#dlg-client")!;
   const save = () => {
     const id = input.value.trim();
     const err = body.querySelector<HTMLElement>("#dlg-err")!;
-    if (!CLIENT_RE.test(id)) { err.hidden = false; err.textContent = "「…apps.googleusercontent.com」で終わるIDを入れてください"; input.focus(); return; }
+    if (!CLIENT_RE.test(id)) { err.hidden = false; err.textContent = t("「…apps.googleusercontent.com」で終わるIDを入れてください"); input.focus(); return; }
     saveDriveConfig({ clientId: id });
     doSignIn(id);
   };
@@ -133,10 +134,10 @@ function signInStep(clientId: string, note = "") {
   const body = frame();
   body.innerHTML = `
     ${note ? `<p class="dlg-note dlg-warn">${esc(note)}</p>` : ""}
-    <p class="dlg-lead">Google でサインインして、聴きたいフォルダを選びます。</p>
+    <p class="dlg-lead">${t("Google でサインインして、聴きたいフォルダを選びます。")}</p>
     <div class="dlg-actions">
-      <button class="btn" id="dlg-change">クライアントIDを変える</button>
-      <button class="btn primary" id="dlg-signin">Google でサインイン</button>
+      <button class="btn" id="dlg-change">${t("クライアントIDを変える")}</button>
+      <button class="btn primary" id="dlg-signin">${t("Google でサインイン")}</button>
     </div>`;
   body.querySelector<HTMLButtonElement>("#dlg-signin")!.onclick = () => doSignIn(clientId);
   body.querySelector<HTMLButtonElement>("#dlg-change")!.onclick = () => setup(clientId);
@@ -145,12 +146,12 @@ function signInStep(clientId: string, note = "") {
 
 async function doSignIn(clientId: string) {
   const body = frame();
-  body.innerHTML = `<p class="dlg-lead">別の小さな画面で Google にサインインしてください…</p>`;
+  body.innerHTML = `<p class="dlg-lead">${t("別の小さな画面で Google にサインインしてください…")}</p>`;
   try {
     await withResume("browse", () => signIn(clientId));
-    browse([{ id: "root", name: "マイドライブ" }]);
+    browse([{ id: "root", name: t("マイドライブ") }]);
   } catch (e) {
-    signInStep(clientId, (e as Error).message === "timeout" ? "時間切れになりました。もう一度どうぞ。" : "サインインできませんでした。クライアントIDと、Google Cloud に登録した URI を確かめてください。");
+    signInStep(clientId, (e as Error).message === "timeout" ? t("時間切れになりました。もう一度どうぞ。") : t("サインインできませんでした。クライアントIDと、Google Cloud に登録した URI を確かめてください。"));
   }
 }
 
@@ -160,10 +161,10 @@ async function browse(path: Crumb[]) {
   const body = frame();
   const here = path[path.length - 1];
   body.innerHTML = `
-    <nav class="dlg-crumbs" aria-label="場所"></nav>
-    <ul class="dlg-folders" aria-busy="true"><li class="dlg-empty">読んでいます…</li></ul>
+    <nav class="dlg-crumbs" aria-label="${t("場所")}"></nav>
+    <ul class="dlg-folders" aria-busy="true"><li class="dlg-empty">${t("読んでいます…")}</li></ul>
     <div class="dlg-actions">
-      <button class="btn dlg-quiet" id="dlg-out">サインアウト</button>
+      <button class="btn dlg-quiet" id="dlg-out">${t("サインアウト")}</button>
       <button class="btn primary" id="dlg-open"></button>
     </div>`;
   const crumbs = body.querySelector<HTMLElement>(".dlg-crumbs")!;
@@ -176,7 +177,7 @@ async function browse(path: Crumb[]) {
     crumbs.append(b);
   });
   const open = body.querySelector<HTMLButtonElement>("#dlg-open")!;
-  open.textContent = `「${here.name}」を開く`;
+  open.textContent = tp("「{0}」を開く", here.name);
   open.onclick = () => {
     const c = driveConfig();
     if (!c) return;
@@ -192,7 +193,7 @@ async function browse(path: Crumb[]) {
     if (!dlg || !body.isConnected) return;
     ul.removeAttribute("aria-busy");
     ul.replaceChildren();
-    if (!subs.length) ul.append(Object.assign(document.createElement("li"), { className: "dlg-empty", textContent: "この中にフォルダはありません" }));
+    if (!subs.length) ul.append(Object.assign(document.createElement("li"), { className: "dlg-empty", textContent: t("この中にフォルダはありません") }));
     for (const f of subs) {
       const li = document.createElement("li"), b = document.createElement("button");
       b.textContent = f.name;
@@ -202,7 +203,7 @@ async function browse(path: Crumb[]) {
     (ul.querySelector("button") ?? open).focus();
   } catch (e) {
     const c = driveConfig();
-    if (e instanceof DriveAuthError && c) return signInStep(c.clientId, "サインインが切れました。");
-    ul.replaceChildren(Object.assign(document.createElement("li"), { className: "dlg-empty", textContent: "読めませんでした。少し待ってからもう一度どうぞ。" }));
+    if (e instanceof DriveAuthError && c) return signInStep(c.clientId, t("サインインが切れました。"));
+    ul.replaceChildren(Object.assign(document.createElement("li"), { className: "dlg-empty", textContent: t("読めませんでした。少し待ってからもう一度どうぞ。") }));
   }
 }

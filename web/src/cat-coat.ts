@@ -1,4 +1,5 @@
 // 猫の毛並み・品種・性格・名前（描き方と動きは cat.ts）。設定の読み込みから来た猫を確かめる isCoat もここ
+import { t } from "./i18n";
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
@@ -105,7 +106,7 @@ export const BREEDS: Record<string, Breed> = {
     const base = pick<[number, number, number]>([[30, .35, .36], [28, .5, .45], [30, .04, .16], [35, .05, .45]]);
     return { ...solid(base, pick(["#d8a03a", "#c7d36a", "#e9c46a"]), Math.random() < .5), pat: "tabby", mark: hsl(base[0], base[1], Math.max(.08, base[2] - .2)) };
   } },
-  mike: { name: "三毛（日本猫）", weight: 1, size: [.86, .98], tail: "bob", coat: () => ({
+  mike: { name: "三毛", weight: 1, size: [.86, .98], tail: "bob", coat: () => ({
     ...shades(WHITE), cream: hsl(40, .1, .88), ink: pick(["#e9c46a", "#d8a03a"]), pat: "calico",
     pt: shades([28, .6, .5]), pt2: shades([30, .05, .14]),
   }) },
@@ -145,8 +146,8 @@ export function breedCoat(breed: string): Coat {
   p.size = rnd(...B.size);
   return { ...B.coat(), breed, p, name: pick(NAMES) };
 }
-const NAMES = ["むぎ", "こむぎ", "もち", "きなこ", "あずき", "ごま", "そら", "くう", "レオ", "ルナ", "ミケ", "タマ", "クロ", "シロ", "ちゃちゃ", "はな",
-  "ゆず", "こてつ", "ポテト", "ぽんず", "さくら", "ひなた", "ノア", "ココ", "ミルク", "チョコ", "ねね", "とら", "ふく", "おはぎ", "だいず", "みかん"];
+const NAMES = [t("むぎ"), t("こむぎ"), t("もち"), t("きなこ"), t("あずき"), t("ごま"), t("そら"), t("くう"), t("レオ"), t("ルナ"), t("ミケ"), t("タマ"), t("クロ"), t("シロ"), t("ちゃちゃ"), t("はな"),
+  t("ゆず"), t("こてつ"), t("ポテト"), t("ぽんず"), t("さくら"), t("ひなた"), t("ノア"), t("ココ"), t("ミルク"), t("チョコ"), t("ねね"), t("とら"), t("ふく"), t("おはぎ"), t("だいず"), "みかん"];
 /** 名前。付いていない以前の猫は、毛並みから決まった名前にする */
 export const nameOf = (C: Coat) => C.name ?? NAMES[Math.floor(seeded(C.hi + C.mid + C.ink)() * NAMES.length)];
 
