@@ -1102,8 +1102,10 @@ function shelfBody(body: HTMLElement, d: ShelfDef) {
 // ---------- 棚の好きな位置に置いた小物 ----------
 // 置き場所は棚の中の左右の位置（goodsAt。0 左端〜1 右端）。小物はそこから動かず、アルバムは面陳の欄と同じく、
 // 小物の左右の窓を流れる（小物の所だけ、アルバムが隙間をあける）。アルバムのない棚では右端に立つ
+const PIN_GOODS = false;
 function withGoods(d: ShelfDef, c: Contents): Contents {
-  if (!c.list.length) return c;
+  // アルバムのあいだに置くのはやめた（棚の端で不自然になるため）。小物は棚の右端に並ぶ。以前の goodsAt は読まない
+  if (!PIN_GOODS || !c.list.length) return c;
   const at = d.goodsAt ?? {};
   const pins = (d.goods ?? []).filter(k => typeof at[k] === "number" && objectAvailable(k)).map(k => ({ key: k, x: Math.max(0, Math.min(1, at[k])) }));
   return pins.length ? { ...c, pins } : c;
