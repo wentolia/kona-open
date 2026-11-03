@@ -7,8 +7,8 @@ import { roomSurface, setRoomSurface } from "./room-surface";
 import { renderSettings } from "./settings";
 
 export interface PlaceHooks {
-  /** 小物を棚に置く（at はその棚の小物の中で何番目か）。shelfId がなければしまう */
-  putObject(key: string, shelfId?: string, at?: number): void;
+  /** 小物を棚に置く（at は棚の右端の小物の中で何番目か、after はアルバムのあいだに置くときの前のアルバム）。shelfId がなければしまう */
+  putObject(key: string, shelfId?: string, at?: number, after?: string): void;
   /** 置ける棚か */
   isShelf(id: string): boolean;
   /** 置いてある棚 */
@@ -27,7 +27,7 @@ function sourceOf(n: EventTarget | null, h: PlaceHooks): Src | undefined {
     const [kind, key] = tile.dataset.put!.split(":") as ["obj" | "thing", string];
     return { kind, key, from: tile, placed: kind === "obj" ? !!h.shelfOf(key) : (placedThings() as string[]).includes(key) };
   }
-  const svg = n.closest<SVGSVGElement>("#view-home .goods > svg");
+  const svg = n.closest<SVGSVGElement>("#view-home .goods > svg"); // 棚の右端の小物も、アルバムのあいだの小物も
   if (svg?.dataset.goods) return { kind: "obj", key: svg.dataset.goods, from: svg, placed: true };
   return undefined;
 }
@@ -42,6 +42,21 @@ function dropAt(x: number, y: number, src: Src, h: PlaceHooks): Drop {
     if (mod && h.isShelf(mod.dataset.id!)) return { to: "shelf", id: mod.dataset.id!, mod };
   }
   return undefined;
+}
+
+/** アルバムのあいだに落としたなら、その前のアルバムの key（列の頭なら ""）。棚の右端の小物の所や、アルバムのない棚なら undefined */
+function anchorIn(mod: HTMLElement, x: number, y: number): string | undefined {
+  if (mod.dataset.kind === "goods") return undefined;
+  const end = mod.querySelector(".goods:not(.goods-float)");
+  if (end && !(end as HTMLElement).hidden) { const r = end.getBoundingClientRect(); if (x >= r.left - 4 && y >= r.top && y <= r.bottom) return undefined; }
+  const seen = [...mod.querySelectorAll<HTMLElement>(".spines .spine:not(.cut)")].filter(sp => {
+    const r = sp.getBoundingClientRect(), p = sp.closest(".spines")!.getBoundingClientRect();
+    return r.width > 0 && r.left >= p.left - 1 && r.right <= p.right + 1;
+  });
+  if (!seen.length) return undefined;
+  let prev: HTMLElement | undefined;
+  for (const sp of seen) { const r = sp.getBoundingClientRect(); if (r.left + r.width / 2 < x && (!prev || r.left > prev.getBoundingClientRect().left)) prev = sp; }
+  return prev?.dataset.key ?? "";
 }
 
 /** 落とした位置が、その棚の小物の中で何番目か（ドラッグしている小物自身は数えない） */
@@ -90,7 +105,7 @@ export function initPlaceDrag(h: PlaceHooks) {
       setTimeout(() => removeEventListener("click", eat, { capture: true }), 300);
       if (ev.type === "pointercancel" || !drop) return;
       if (src.kind === "obj") {
-        if (drop.to === "shelf") h.putObject(src.key, drop.id, indexIn(drop.mod, ev.clientX, src.from));
+        if (drop.to === "shelf") h.putObject(src.key, drop.id, indexIn(drop.mod, ev.clientX, src.from), anchorIn(drop.mod, ev.clientX, ev.clientY));
         else if (drop.to === "away" && src.placed) h.putObject(src.key);
         return;
       }

@@ -34,7 +34,7 @@ import "./room-light.css";
 import "./header.css";
 import { mountThings, placedThings, toggleThing, setThing, THING_OF_MODULE } from "./room-things";
 import { roomSurface, setRoomSurface } from "./room-surface";
-import { placeObjects, legacyShown, markPlaced } from "./mod-objects";
+import { placeObjects, legacyShown, markPlaced, objectAvailable, objectSize, OBJECTS } from "./mod-objects";
 import { initSizeKnob } from "./size-knob";
 import { initPlaceDrag } from "./place-drag";
 import { spectrumPrefs, setSpectrumPrefs, type SpectrumPrefs } from "./mod-spectrum";
@@ -78,11 +78,18 @@ let modules = loadLayout();
   }
 }
 document.addEventListener("kona:objects", () => renderShelves()); // 賞状が届いたら、置いてある棚に立てる
-/** 小物を棚に置く（at はその棚の小物の中で何番目か）。shelfId がなければしまう。小物はひとつの棚にだけ */
-function putObject(key: string, shelfId?: string, at?: number) {
-  for (const m of modules) if (m.goods?.includes(key)) m.goods = m.goods.filter(x => x !== key);
+/** 小物を棚に置く（at はその棚の右端の小物の中で何番目か、after はアルバムのあいだに置くときの、前のアルバム）。
+ * shelfId がなければしまう。小物はひとつの棚にだけ */
+function putObject(key: string, shelfId?: string, at?: number, after?: string) {
+  for (const m of modules) {
+    if (m.goods?.includes(key)) m.goods = m.goods.filter(x => x !== key);
+    if (m.goodsAt && key in m.goodsAt) { delete m.goodsAt[key]; if (!Object.keys(m.goodsAt).length) delete m.goodsAt; }
+  }
   const d = shelfId ? shelfById(shelfId) : undefined;
-  if (d) { const g = [...(d.goods ?? [])]; g.splice(Math.max(0, Math.min(g.length, at ?? g.length)), 0, key); d.goods = g; }
+  if (d) {
+    const g = [...(d.goods ?? [])]; g.splice(Math.max(0, Math.min(g.length, at ?? g.length)), 0, key); d.goods = g;
+    if (after !== undefined) d.goodsAt = { ...d.goodsAt, [key]: after };
+  }
   saveMods(); renderShelves(); renderSettings();
 }
 const saveMods = () => saveLayout(modules);
@@ -864,12 +871,16 @@ function fillRow(row: HTMLElement, rowId: string, c: Contents, pos = 0) {
   const pane = (side: "l" | "r") => {
     const el = document.createElement("div");
     el.className = `spines pane-${side}`;
+    // 小物の場所: アルバムのあいだに小物の幅だけ隙間をあける（小物そのものは .goods-float に立て、隙間の上へ動かす）
+    const slot = (after: string) => c.slots?.get(after)?.forEach(k => el.append(goodsSlot(k)));
+    slot("");
     list.forEach((a, i) => {
       if (c.folderGaps && i > 0 && groupKey(list[i - 1]) !== groupKey(a)) el.append(folderGap(groupKey(list[i - 1]), groupKey(a)));
       const sp = spine(a, rowId);
       if (a === chosen) sp.classList.add("featured");
       sp.addEventListener("mouseenter", () => feature(row, rowId, a, faces.get(a) ?? ""));
       el.append(sp);
+      slot(a.key);
     });
     return el;
   };
@@ -930,7 +941,7 @@ const recentFace = (list: Album[]) => {
   return r && stat(r.key).last ? new Map([[r, "最近聴いた"]]) : new Map<Album, string>();
 };
 
-interface Contents { list: Album[]; faces: Map<Album, string>; folderGaps?: boolean }
+interface Contents { list: Album[]; faces: Map<Album, string>; folderGaps?: boolean; slots?: Map<string, string[]> }
 
 // ブックエンドを置く棚は、並び順を保ったままフォルダごとにまとめる（最初に出てきたフォルダから順に）
 function withFolderGaps(d: ShelfDef, c: Contents): Contents {
@@ -1077,26 +1088,66 @@ function shelfBody(body: HTMLElement, d: ShelfDef) {
     placeObjects($(".goods", body), d.goods ?? []);
     return;
   }
-  const old = body.querySelector<HTMLElement>(".goods");
-  if (old) placeObjects(old, []);
-  const c = withFolderGaps(d, contentsOf(d));
+  body.querySelectorAll<HTMLElement>(".goods").forEach(b => placeObjects(b, []));
+  const c = withGoods(d, withFolderGaps(d, contentsOf(d)));
   body.innerHTML = `
     ${inlineSearch(d) ? `<input class="mod-search" id="q-${esc(d.id)}" type="search" placeholder="検索" autocomplete="off" value="${esc(d.query ?? "")}" aria-label="${esc(d.title)}の中を検索">` : ""}
-    <div class="shelf-line"><div class="row"></div><div class="goods"></div></div>`;
-  placeObjects($(".goods", body), d.goods ?? []);
+    <div class="shelf-line"><div class="row"></div><div class="goods"></div><div class="goods goods-float"></div></div>`;
+  const line = $(".shelf-line", body), float = $(".goods-float", body);
+  const floating = [...c.slots?.values() ?? []].flat();
+  placeObjects($(".goods:not(.goods-float)", body), (d.goods ?? []).filter(k => !floating.includes(k)));
+  placeObjects(float, floating);
+  float.hidden = false;
   const row = $(".row", body);
   // 次に再生の棚は、再生中を欄の左に置けるよう、欄を端に寄せきらない
   const pos = d.facePos ?? 0;
   fillRow(row, d.id, c, pos);
+  floatGoods(line);
+  line.addEventListener("scroll", () => floatGoods(line), { capture: true, passive: true });
+  new ResizeObserver(() => floatGoods(line)).observe(line);
   const q = $<HTMLInputElement>(".mod-search", body);
   if (q) q.oninput = () => {
     d.query = q.value; saveMods();
-    fillRow(row, d.id, withFolderGaps(d, contentsOf(d)), pos);
+    fillRow(row, d.id, withGoods(d, withFolderGaps(d, contentsOf(d))), pos);
+    floatGoods(line);
     const mq = document.getElementById("sm-query") as HTMLInputElement | null;
     if (mq && editing?.id === d.id) mq.value = q.value;
   };
   wireFaceMove(row, d);
   if (accepts(d)) wireAlbumDrop(row, d);
+}
+
+// ---------- 棚の好きな位置に置いた小物 ----------
+// 置き場所は「どのアルバムの後ろか」（goodsAt。"" は列の頭）。並び順や中身が変わっても、そのアルバムの隣にいる。
+// そのアルバムが棚にないときは、ふつうどおり棚の右端に立つ
+function withGoods(d: ShelfDef, c: Contents): Contents {
+  const at = d.goodsAt ?? {}, keys = new Set(c.list.map(a => a.key)), slots = new Map<string, string[]>();
+  for (const k of d.goods ?? []) {
+    const after = at[k];
+    if (after === undefined || !objectAvailable(k) || (after !== "" && !keys.has(after))) continue;
+    slots.set(after, [...slots.get(after) ?? [], k]);
+  }
+  return slots.size ? { ...c, slots } : c;
+}
+function goodsSlot(k: string) {
+  const el = document.createElement("i");
+  el.className = "goods-slot"; el.dataset.slot = k; el.setAttribute("aria-hidden", "true");
+  el.style.setProperty("--s", String(objectSize(k)));
+  el.style.setProperty("--ow", String(OBJECTS.find(o => o.key === k)?.w ?? 50));
+  return el;
+}
+/** 隙間の上に小物を立てる。窓が 2 つある段では、見えている方の隙間に。窓の外に出た隙間の小物は隠す */
+function floatGoods(line: HTMLElement) {
+  const L = line.getBoundingClientRect();
+  line.querySelectorAll<SVGSVGElement>(".goods-float > svg").forEach(svg => {
+    let best: DOMRect | undefined;
+    for (const sl of line.querySelectorAll<HTMLElement>(`.goods-slot[data-slot="${svg.dataset.goods}"]`)) {
+      const r = sl.getBoundingClientRect(), p = sl.closest(".spines")!.getBoundingClientRect();
+      if (r.width && r.left >= p.left - 1 && r.right <= p.right + 1) { best = r; break; }
+    }
+    svg.style.visibility = best ? "" : "hidden";
+    if (best) svg.style.left = `${(best.left - L.left).toFixed(1)}px`;
+  });
 }
 
 // ---------- モジュールの追加と設定: どちらも設定ページの「モジュール」タブで ----------
@@ -1907,3 +1958,5 @@ boot();
 // ホームで直接: 小物・家具の大きさのつまみ、設定の「置くもの」からドラッグで置く
 initSizeKnob();
 initPlaceDrag({ putObject, isShelf: id => !!shelfById(id), shelfOf: k => modules.find(m => m.goods?.includes(k))?.id });
+// 小物の大きさを変えたら、アルバムのあいだの隙間も合わせる
+document.addEventListener("kona:object-size", () => document.querySelectorAll<HTMLElement>("#view-home .shelf-line").forEach(line => { line.querySelectorAll<HTMLElement>(".goods-slot").forEach(sl => sl.style.setProperty("--s", String(objectSize(sl.dataset.slot!)))); requestAnimationFrame(() => floatGoods(line)); }));
