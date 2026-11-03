@@ -519,7 +519,7 @@ function refresh(c: Cat) {
       c.y = Math.min(v.top, p.y) - 50 * c.s; c.dir = tx < c.x ? -1 : 1;
       launch(c, tx, p.y, 0, 0); go(c, "fall");
       c.entering = true;
-      c.after = () => { c.entering = false; pupRest(c); };
+      c.after = () => { c.entering = false; if (pp.later) pupGo(c, pp.plat, pp.fx); else pupRest(c); };
       return;
     }
     c.cur = p; c.x = tx; c.y = p.y;
@@ -2350,7 +2350,7 @@ export const debugDo = { walk: (c: unknown, x: number) => { (c as Cat).state = "
 // やり取りするので、画面の大きさが違う人どうしでも同じ所にいる
 export type Emote = "stand" | "sit" | "lie" | "sleep" | "wag" | "groove" | "groom" | "stretch" | "yawn";
 export const EMOTES: Emote[] = ["stand", "sit", "lie", "sleep", "wag", "groove", "groom", "stretch", "yawn"];
-interface Pup { plat: number; fx: number; emote: Emote; going: number; enter?: boolean }
+interface Pup { plat: number; fx: number; emote: Emote; going: number; enter?: boolean; later?: boolean }
 export interface Puppet {
   /** plat 番目の足場の、幅の fx 割（0〜1）の所へ行く */
   go(plat: number, fx: number): void;
@@ -2385,9 +2385,11 @@ function pupNext(c: Cat) {
   pupRest(c);
 }
 /** 足場をまたいで歩く: 跳び移れる足場をたどる道すじ（幅優先）を探し、一段ずつ歩いて跳ぶ */
-function pupPath(c: Cat, from: Plat, to: Plat): Plat[] {
+// 部屋（パーティー）の段は間が広いことがあるので、届かないときは跳べる高さを広げてもう一度探す（下へは高さを問わず飛び降りる）
+const PUP_UP = [REACH_Y - 10, REACH_Y * 1.8];
+function pupPath(c: Cat, from: Plat, to: Plat, up = PUP_UP[0]): Plat[] {
   const gap = (a: Plat, b: Plat) => Math.max(0, Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1));
-  const ok = (a: Plat, b: Plat) => !samePlat(a, b) && Math.abs(a.y - b.y) <= REACH_Y - 10 && gap(a, b) <= REACH_X - 20;
+  const ok = (a: Plat, b: Plat) => !samePlat(a, b) && (b.y > a.y ? up > REACH_Y || b.y - a.y <= up : a.y - b.y <= up) && gap(a, b) <= REACH_X - 20;
   const prev = new Map<Plat, Plat>(), q = [from], seen = new Set([from]);
   while (q.length) {
     const a = q.shift()!;
@@ -2399,7 +2401,9 @@ function pupPath(c: Cat, from: Plat, to: Plat): Plat[] {
 function pupGo(c: Cat, pi: number, fx: number) {
   const pp = c.stage!.pup!, go_ = ++pp.going;
   const p = c.plats[clamp(pi, 0, c.plats.length - 1)];
-  if (!p || !c.cur) return;
+  if (!p) return;
+  if (!c.cur) { pp.later = true; return; } // 飛び込んでいる途中: 着いてから向かう
+  pp.later = false;
   const live = () => pp.going === go_;
   const x = clamp(p.x0 + fx * (p.x1 - p.x0), lo(p), hi(p));
   const done = () => { if (live()) pupRest(c); };
@@ -2407,7 +2411,8 @@ function pupGo(c: Cat, pi: number, fx: number) {
   const walk = (to: number, then: () => void) => walkTo(c, to, then, Math.abs(to - c.x) > 160);
   const arrive = () => { if (!live()) return; Math.abs(x - c.x) < 2 ? done() : walk(x, done); };
   const from = c.plats.find(q => samePlat(q, c.cur)) ?? c.cur;
-  const path = samePlat(from, p) ? [] : pupPath(c, from, p);
+  let path = samePlat(from, p) ? [] : pupPath(c, from, p);
+  if (!samePlat(from, p) && !path.length) path = pupPath(c, from, p, PUP_UP[1]);
   if (!samePlat(from, p) && !path.length) return done(); // 届かない所はあきらめて、その場で
   const hop = (i: number) => {
     if (!live()) return;
@@ -2416,13 +2421,15 @@ function pupGo(c: Cat, pi: number, fx: number) {
     // 跳ぶ先の着地点: 最後の段なら目当ての所、途中の段なら今の足場に近い所
     const aim = last ? x : clamp(c.x, lo(nx), hi(nx));
     const launchX = clamp(aim, lo(c.cur!), hi(c.cur!));
+    // 道すじで選んだ段へは、ふだんより高くても跳ぶ（横の届く距離はふだんどおり）
+    const far = (at: number) => { if (!c.cur || samePlat(nx, c.cur)) return undefined; const a = Math.max(lo(nx), at - REACH_X), b = Math.min(hi(nx), at + REACH_X); return b < a ? undefined : clamp(aim, a, b); };
     const jump = () => {
       if (!live()) return;
-      const r = reach(c, nx, aim);
-      if (r === undefined) return done();
+      const r = reach(c, nx, aim) ?? far(c.x);
+          if (r === undefined) return done();
       leap(c, nx, r, () => hop(i + 1));
     };
-    if (reach(c, nx, aim) !== undefined) jump(); else walk(launchX, jump);
+    if ((reach(c, nx, aim) ?? far(c.x)) !== undefined) jump(); else walk(launchX, jump);
   };
   hop(0);
 }
