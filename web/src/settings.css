@@ -7,48 +7,48 @@ body { transition: background-color .6s ease, color .6s ease; }
   #view-settings { flex: 1; width: auto; border-left: 0; box-shadow: none; }
 }
 .set { height: 100%; display: flex; flex-direction: column; min-height: 0; }
-.set-head { display: flex; align-items: center; padding: 12px 12px 4px 18px; }
+.set-head { display: flex; align-items: center; padding: var(--sp-3) var(--sp-3) var(--sp-1) var(--inset-panel); }
 .set-head h2 { margin: 0; font-size: 14px; font-weight: 500; letter-spacing: .14em; }
-.set-close { margin-left: auto; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; color: var(--muted); text-decoration: none; font-size: 20px; line-height: 1; }
+.set-close { margin-left: auto; width: var(--ctl-md); height: var(--ctl-md); display: grid; place-items: center; border-radius: 50%; color: var(--muted); text-decoration: none; font-size: 20px; line-height: 1; }
 .set-close:hover { background: var(--soft); color: var(--ink); }
-.set-tabs { display: flex; gap: 2px; padding: 4px 12px 0; border-bottom: 1px solid var(--line); }
-.set-tabs button { flex: 1 1 auto; white-space: nowrap; padding: 8px 4px 9px; font-size: 13px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.set-tabs { display: flex; gap: var(--sp-0h); padding: var(--sp-1) var(--sp-3) 0; border-bottom: 1px solid var(--line); }
+.set-tabs button { flex: 1 1 auto; white-space: nowrap; padding: var(--sp-2) var(--sp-1) var(--sp-2); font-size: 13px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .set-tabs button:hover { color: var(--ink); }
 .set-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
-.set-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 18px 48px; display: grid; align-content: start; gap: 24px; overscroll-behavior: contain; }
-.set-sec { display: grid; gap: 10px; min-width: 0; }
+.set-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-4) var(--inset-panel) var(--sp-12); display: grid; align-content: start; gap: var(--gap-section); overscroll-behavior: contain; }
+.set-sec { display: grid; gap: var(--sp-3); min-width: 0; }
 .set-sec h3 { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: .14em; color: var(--muted); }
-.set-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.set-sub { font-size: 11px; color: var(--muted); margin-top: var(--sp-1); }
 /* 行: 狭い板なので、名前を上に、操作をその下に */
-.set-row { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; font-size: 13px; }
+.set-row { display: flex; align-items: center; gap: var(--sp-1h) var(--sp-3); flex-wrap: wrap; font-size: 13px; }
 .set-row > span:first-child { width: 100%; color: var(--muted); font-size: 12px; }
 .set-row.set-top { align-items: flex-start; }
-.set-row select { font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; }
+.set-row select { font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--pad-field); }
 .set-row select option { background: var(--panel); }
-.set-check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.set-check { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: 13px; cursor: pointer; }
 .set-check input, .set-checks input { accent-color: var(--accent); margin: 0; }
-.set-checks { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.set-checks { display: grid; grid-template-columns: 1fr; gap: var(--sp-2); }
 .set-num { font-family: var(--font-mono); font-size: 12px; min-width: 3.5em; }
-.set-btn { font-size: 12px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 4px; }
+.set-btn { font-size: 12px; padding: var(--pad-btn-sm); border: 1px solid var(--line); border-radius: var(--r-sm); }
 .set-btn:hover:not(:disabled) { background: var(--soft); }
 .set-btn:disabled { opacity: .4; cursor: default; }
 
-.set-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; justify-self: start; }
-.set-seg button { padding: 5px 11px; font-size: 12px; color: var(--muted); }
+.set-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; justify-self: start; }
+.set-seg button { padding: var(--pad-btn-sm); font-size: 12px; color: var(--muted); }
 .set-seg button + button { border-left: 1px solid var(--line); }
 .set-seg button[aria-checked="true"] { background: var(--soft); color: var(--ink); }
 
 /* 色の見本: 地の色の小さな部屋に、灯りの色の点がともる */
-.set-sws { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 6px; }
-.set-sw { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; background: var(--sw-bg); color: var(--sw-ink);
+.set-sws { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: var(--sp-1h); }
+.set-sw { display: flex; align-items: center; gap: var(--sp-3); padding: var(--inset-card); border-radius: var(--r-md); background: var(--sw-bg); color: var(--sw-ink);
   border: 1.5px solid color-mix(in srgb, var(--sw-ink) 14%, transparent); font-size: 12px; text-align: left; transition: border-color .15s ease; }
 .set-sw i { width: 10px; height: 10px; flex: none; border-radius: 50%; background: var(--sw-acc); box-shadow: 0 0 10px var(--sw-acc); }
 .set-sw span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .set-sw:hover { border-color: color-mix(in srgb, var(--sw-ink) 40%, transparent); }
 .set-sw[aria-pressed="true"] { border-color: var(--sw-acc); }
 
-.set-custom label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-.set-custom input[type=color] { width: 30px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
+.set-custom label { display: inline-flex; align-items: center; gap: var(--sp-1h); font-size: 12px; color: var(--muted); }
+.set-custom input[type=color] { width: 30px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: var(--r-sm); background: none; cursor: pointer; }
 
 
 @media (prefers-reduced-motion: reduce) { body { transition: none; } }
@@ -67,23 +67,23 @@ body { transition: background-color .6s ease, color .6s ease; }
 
 /* ================= 設定ページの部品 ================= */
 /* もっと見る: 畳んだ残りの項目 */
-.set-more { border-top: 1px solid var(--soft); padding-top: 10px; }
-.set-more summary { cursor: pointer; font-size: 12px; color: var(--muted); list-style: none; display: flex; align-items: center; gap: 6px; }
+.set-more { border-top: 1px solid var(--soft); padding-top: var(--sp-3); }
+.set-more summary { cursor: pointer; font-size: 12px; color: var(--muted); list-style: none; display: flex; align-items: center; gap: var(--sp-1h); }
 .set-more summary::-webkit-details-marker { display: none; }
 .set-more summary::before { content: "›"; display: inline-block; width: 10px; transition: transform .15s ease; }
 .set-more[open] summary::before { transform: rotate(90deg); }
 .set-more summary:hover { color: var(--ink); }
-.set-more-body { display: grid; gap: 12px; padding: 12px 0 4px; min-width: 0; }
+.set-more-body { display: grid; gap: var(--sp-3); padding: var(--sp-3) 0 var(--sp-1); min-width: 0; }
 .set-more-body > h3:first-child { display: none; }
 .set-more + .set-more { margin-top: -14px; }
 
 /* 見本つきの選択（棚・壁・床） */
-.set-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; }
-.set-tile { display: grid; gap: 4px; padding: 4px 4px 5px; border: 1.5px solid transparent; border-radius: 6px; font-size: 11px; color: var(--muted); text-align: center; }
+.set-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: var(--sp-1h); }
+.set-tile { display: grid; gap: var(--sp-1); padding: var(--sp-1) var(--sp-1) var(--sp-1h); border: 1.5px solid transparent; border-radius: var(--r-md); font-size: 11px; color: var(--muted); text-align: center; }
 .set-tile span { font-size: 10.5px; line-height: 1.35; overflow-wrap: anywhere; }
 .set-tile:hover { background: var(--soft); }
 .set-tile[aria-checked="true"] { border-color: var(--accent); color: var(--ink); }
-.set-tile i { height: 38px; border-radius: 3px; border: 1px solid var(--soft); background: var(--bg); position: relative; overflow: hidden; }
+.set-tile i { height: 38px; border-radius: var(--r-sm); border: 1px solid var(--soft); background: var(--bg); position: relative; overflow: hidden; }
 /* 棚: 棚板 1 枚と、その上の背表紙 */
 .set-skin::after { content: ""; position: absolute; left: 0; right: 0; bottom: 6px; height: 7px; background: linear-gradient(to bottom, var(--w-hi), var(--w) 35%, var(--w-lo)); box-shadow: 0 4px 6px -3px rgba(0, 0, 0, .6); }
 .set-skin::before { content: ""; position: absolute; left: 12px; bottom: 13px; width: 26px; height: 18px;
@@ -104,28 +104,28 @@ body { transition: background-color .6s ease, color .6s ease; }
 .set-floor[data-k="stone"]::after { background: repeating-linear-gradient(to right, #8a8d90 0 15px, #5f6366 15px 16px); }
 
 /* 窓の外などの小さな選択 */
-.set-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.set-chips button { font-size: 12px; padding: 4px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+.set-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1h); }
+.set-chips button { font-size: 12px; padding: var(--pad-btn-sm); border: 1px solid var(--line); border-radius: var(--r-pill); color: var(--muted); }
 .set-chips button:hover { color: var(--ink); }
 .set-chips button[aria-checked="true"] { border-color: var(--accent); color: var(--ink); background: var(--soft); }
-.set-btns { gap: 8px; }
+.set-btns { gap: var(--sp-2); }
 .set-btn.danger, .set-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
 .set-btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 12%, transparent); }
-.set-color { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-.set-color input[type=color] { width: 30px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; cursor: pointer; }
+.set-color { display: inline-flex; align-items: center; gap: var(--sp-1h); font-size: 12px; color: var(--muted); }
+.set-color input[type=color] { width: 30px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: var(--r-sm); background: none; cursor: pointer; }
 .set-note { margin: 0; font-size: 11px; color: var(--muted); }
 .set-num { color: var(--muted); }
 .set input:not([type]), .set-cat-name, #set-preset-name {
-  font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; min-width: 0;
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--pad-field); min-width: 0;
 }
-.set select { font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; }
+.set select { font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--pad-field); }
 .set select option { background: var(--panel); }
 
 /* EQ のプリセット: 形の小さな絵と名前 */
-.set-presets { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.set-preset { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; }
+.set-presets { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-1h); }
+.set-preset { display: flex; align-items: center; border: 1px solid var(--line); border-radius: var(--r-md); }
 .set-preset.on { border-color: var(--accent); }
-.set-preset-apply { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 7px 10px; font-size: 12px; text-align: left; }
+.set-preset-apply { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); font-size: 12px; text-align: left; }
 .set-preset-apply span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set-preset-apply svg { width: 42px; height: 24px; flex: none; fill: var(--muted); border-bottom: 1px solid var(--soft); }
 .set-preset.on svg { fill: var(--accent); }
@@ -135,48 +135,48 @@ body { transition: background-color .6s ease, color .6s ease; }
 .set-save #set-preset-name { flex: 1; }
 
 /* 猫の一覧 */
-.set-cats { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.set-cats li { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 28px; gap: 6px; align-items: center; }
+.set-cats { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1h); }
+.set-cats li { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 28px; gap: var(--sp-1h); align-items: center; }
 .set-cats .set-cat-kind { color: var(--muted, #9b968d); font-size: 11px; white-space: nowrap; }
-.set-cats select { min-width: 0; font: inherit; font-size: 12px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; }
+.set-cats select { min-width: 0; font: inherit; font-size: 12px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--pad-field); }
 .set-cats select option { background: var(--panel); }
-.set-cats .set-x { height: 28px; }
+.set-cats .set-x { height: var(--ctl-sm); }
 
 /* 読み込み元・端末に残したアルバム */
-.set-source { display: flex; align-items: baseline; gap: 12px; font-size: 13px; min-width: 0; }
+.set-source { display: flex; align-items: baseline; gap: var(--sp-3); font-size: 13px; min-width: 0; }
 .set-source b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set-source span { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .set-kept { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; border-top: 1px solid var(--soft); }
-.set-kept li { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--soft); font-size: 12px; }
+.set-kept li { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-1h) 0; border-bottom: 1px solid var(--soft); font-size: 12px; }
 .set-kept span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set-kept i { font-style: normal; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
 
 /* キーボード */
-.set-keys { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.set-keys li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--soft); font-size: 13px; }
-.set-key { font-family: var(--font-mono); font-size: 11px; padding: 3px 9px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; min-width: 44px; text-align: center; }
+.set-keys { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-0h); }
+.set-keys li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-1) 0; border-bottom: 1px solid var(--soft); font-size: 13px; }
+.set-key { font-family: var(--font-mono); font-size: 11px; padding: var(--pad-chip); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: var(--r-sm); min-width: 44px; text-align: center; }
 
 /* Kona について */
-.set-about { display: grid; grid-template-columns: 96px 1fr; gap: 6px 10px; margin: 0; font-size: 13px; }
+.set-about { display: grid; grid-template-columns: 96px 1fr; gap: var(--sp-1h) var(--sp-3); margin: 0; font-size: 13px; }
 .set-about dt { color: var(--muted); font-size: 12px; }
 .set-about dd { margin: 0; }
 .set-about a { color: var(--accent); }
-.set-privacy { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: 12px; color: var(--muted); line-height: 1.7; }
+.set-privacy { margin: 0; padding-left: 1.2em; display: grid; gap: var(--sp-1); font-size: 12px; color: var(--muted); line-height: 1.7; }
 
 
 /* モジュール: ホームで押して選んだモジュールの設定だけを出す */
 .set-mod-body { min-width: 0; white-space: normal; }
 .set-mod-body .sm-actions { justify-content: flex-end; }
-.set-pick-hint { margin: 0 0 20px; padding: 18px 12px; border: 1px dashed var(--line); border-radius: 6px; font-size: 13px; color: var(--muted); text-align: center; }
+.set-pick-hint { margin: 0 0 var(--sp-5); padding: var(--sp-5) var(--sp-3); border: 1px dashed var(--line); border-radius: var(--r-md); font-size: 13px; color: var(--muted); text-align: center; }
 .set-chips button:disabled { opacity: .35; cursor: default; }
 .set-chips button:disabled:hover { color: var(--muted); }
 
 
 /* 床に置く家具: 置いたものごとに位置と大きさ */
 /* 置くもの: 小物と家具の見本。ホームへドラッグして置く。置いてあるものは印がつき、押すとしまう */
-.set-puts-head { font-size: 11px; color: var(--muted); margin: 6px 0 4px; }
-.set-puts { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
-.set-put { position: relative; display: grid; grid-template-rows: 48px auto; gap: 2px; justify-items: center; padding: 6px 4px 5px; border: 1px solid var(--line); border-radius: 6px; cursor: grab; touch-action: none; user-select: none; }
+.set-puts-head { font-size: 11px; color: var(--muted); margin: var(--sp-1h) 0 var(--sp-1); }
+.set-puts { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: var(--sp-1h); }
+.set-put { position: relative; display: grid; grid-template-rows: 48px auto; gap: var(--sp-0h); justify-items: center; padding: var(--sp-1h) var(--sp-1) var(--sp-1h); border: 1px solid var(--line); border-radius: var(--r-md); cursor: grab; touch-action: none; user-select: none; }
 .set-put:hover { background: var(--soft); }
 .set-put-art { width: 100%; height: 48px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; pointer-events: none; }
 .set-put-art > svg { height: 44px; width: auto; max-width: 100%; overflow: visible; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .4)); }
@@ -191,8 +191,8 @@ body { transition: background-color .6s ease, color .6s ease; }
 .set.put-away { box-shadow: inset 0 0 0 2px var(--accent); }
 
 /* 重ねる音: 名前とつまみ */
-.set-noise { display: grid; gap: 4px; }
-.set-noise-row { display: grid; grid-template-columns: 6em minmax(0, 1fr); align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+.set-noise { display: grid; gap: var(--sp-1); }
+.set-noise-row { display: grid; grid-template-columns: 6em minmax(0, 1fr); align-items: center; gap: var(--sp-3); font-size: 12px; color: var(--muted); }
 .set-noise-row input { accent-color: var(--accent); width: 100%; }
 #set-sink { max-width: 100%; }
 .set-put-n { position: absolute; top: 3px; right: 5px; font: 10px/1 var(--font-mono); color: var(--accent); }

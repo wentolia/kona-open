@@ -31,7 +31,7 @@
 }
 .cs-pad {
   position: absolute; left: 50%; bottom: var(--board); width: min(62%, 220px); height: 14px; transform: translateX(-50%);
-  border-radius: 2px 2px 0 0;
+  border-radius: var(--r-xs) var(--r-xs) 0 0;
   /* 段ボールの断面: 細かい波の縞 */
   background:
     repeating-linear-gradient(90deg, rgba(0, 0, 0, .18) 0 1px, transparent 1px 4px),
@@ -50,7 +50,7 @@
 .cfood { --food: .6; }
 .cf-mat {
   position: absolute; left: 50%; bottom: var(--board); width: min(70%, 240px); height: 3px; transform: translateX(-50%);
-  background: #4f5a5c; border-radius: 2px;
+  background: #4f5a5c; border-radius: var(--r-xs);
 }
 .cf-bowl {
   position: absolute; left: 50%; bottom: calc(var(--board) + 3px); width: 46px; height: 22px; transform: translateX(-80%);

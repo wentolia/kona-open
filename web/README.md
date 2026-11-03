@@ -57,6 +57,7 @@ npm run build:single # dist-single/index.html（1ファイルにまとめたも�
 | `src/shelf-marks.ts` | 棚板の跡: 猫の毛と擦れ・爪あとを棚ごとに覚えて描く（`kona.marks`） |
 | `src/store.ts` | 再生回数・最終再生日時・再生の記録（アルバムと日時だけ。以前の版が残した場所は読み込み時に消す） |
 | `src/theme.ts` | テーマカラー（地・文字・灯りの色の組み合わせ）と、時刻での移ろい。CSS 変数に流し込む |
+| `docs/design-tokens.md` | 寸法のトークン（余白・角丸・操作部の大きさ）の決まり。定義は `src/style.css` の `:root` |
 | `src/settings.ts` / `settings.css` | 設定ページ（`#settings`）: 部屋・モジュール・猫・音・その他 の 5 つのタブ |
 | `src/prefs.ts` | 設定ページで決める細かな設定（文字の大きさ・書体・動き・クロスフェード・猫・言語など）。`kona.prefs` |
 | `src/shortcuts.ts` | キーボードの割り当て（決まったもの。設定の「キーボード」に一覧） |

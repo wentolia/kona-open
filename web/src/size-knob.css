@@ -8,7 +8,7 @@
 .size-knob::before { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--accent); }
 .size-knob:hover, .size-knob.active { opacity: 1; transform: scale(1.15); }
 .size-knob::after {
-  content: attr(data-v); position: absolute; left: 20px; top: -2px; padding: 1px 6px; border-radius: 3px;
+  content: attr(data-v); position: absolute; left: 20px; top: -2px; padding: 1px var(--sp-1h); border-radius: var(--r-sm);
   font: 11px/1.5 var(--font-mono); color: var(--ink); background: var(--panel); border: 1px solid var(--line);
   white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s;
 }

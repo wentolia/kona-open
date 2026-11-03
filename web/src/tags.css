@@ -1,7 +1,7 @@
 /* タグとアルバムのセット（tags.ts）: 上の帯のセットのタブ・タグをつけるパネル・フォルダの箱と曲目パネルのタグの札 */
 
 /* ---------- セットのタブ（ライブラリの上の段とスマホ）: ページのタブより小さく、細い六角の札。選んだものだけ面が立つ ---------- */
-.sets { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.sets { display: flex; gap: var(--sp-0h); min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .sets::-webkit-scrollbar { display: none; }
 .sets[hidden] { display: none; }
 /* ライブラリの上の段: 括り方・並び順のすぐ右に置き、検索は右端のまま */
@@ -11,7 +11,7 @@
 .lib-bar .lib-search { order: 3; margin-left: auto; }
 .sets button {
   position: relative; isolation: isolate; flex: none; white-space: nowrap;
-  font-size: 12px; color: var(--muted); padding: 4px 9px;
+  font-size: 12px; color: var(--muted); padding: var(--pad-chip);
 }
 .sets button::before {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .15s;
@@ -25,22 +25,22 @@
 .sets button.not { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .sets button::before { transition: none; } }
 /* スマホ: 上の帯のすぐ下に 1 列 */
-.m-sets { padding: 0 var(--gut, 16px) 6px; flex: none; }
+.m-sets { padding: 0 var(--gut, var(--sp-4)) var(--sp-1h); flex: none; }
 
 /* ---------- タグをつけるパネル ---------- */
-.tag-pop { z-index: 70; width: 260px; padding: 10px; gap: 8px; }
+.tag-pop { z-index: 70; width: 260px; padding: var(--inset-card); gap: var(--sp-2); }
 .tag-pop .tag-title { font-size: 11px; color: var(--muted); letter-spacing: .06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tag-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .tag-chips:empty { display: none; }
-.tag-pop .tag-chip { display: inline-block; font-size: 12px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.tag-pop .tag-chip { display: inline-block; font-size: 12px; padding: var(--pad-chip); border-radius: var(--r-pill); border: 1px solid var(--line); color: var(--muted); }
 .tag-pop button.tag-chip[aria-pressed="true"] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
 .tag-pop button.tag-chip[aria-pressed="mixed"] { color: var(--ink); border-color: var(--ink); border-style: dashed; }
 .tag-pop .tag-chip.inherited { color: var(--ink); border-style: dotted; opacity: .7; }
-.tag-new { font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 0; border-radius: 4px; padding: 6px 8px; }
+.tag-new { font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 0; border-radius: var(--r-sm); padding: var(--pad-field); }
 .tag-new:focus { outline: 2px solid var(--accent); outline-offset: 0; }
 
 /* ---------- フォルダの箱の札: ふだんは隠し、タグがあれば薄く見せる ---------- */
-.box-tag { margin-left: auto; align-self: center; font-size: 10px; letter-spacing: .04em; color: var(--muted); padding: 1px 6px; border-radius: 3px; opacity: 0; transition: opacity .15s ease; max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.box-tag { margin-left: auto; align-self: center; font-size: 10px; letter-spacing: .04em; color: var(--muted); padding: 1px var(--sp-1h); border-radius: var(--r-sm); opacity: 0; transition: opacity .15s ease; max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .box-tag.on { opacity: .8; }
 .box:hover .box-tag, .box-tag:focus-visible { opacity: 1; }
 .box-tag:hover { color: var(--ink); background: var(--soft); }
