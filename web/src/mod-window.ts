@@ -5,7 +5,8 @@ import { noiseLevel } from "./noise";
 import { reduceMotion } from "./prefs";
 import { drawFrame, material } from "./window-frame";
 import { type Bird, newBird, stepBird, drawBird, publishBird } from "./window-bird";
-import { type RGB, type SceneKey, type View, hex, mixN, rgba, mix, rnd, SCENES, DAILY, dailyScene, seasonAt, drawScene, precipitation, snowfall } from "./window-scenes";
+import { type RGB, type SceneKey, hex, mixN, rgba, rnd, SCENES, DAILY, dailyScene } from "./window-scenes";
+import { drawOutside } from "./window-sky";
 
 // 設定: 外の景色。雨は「出力」で雨の音を重ねているときだけ降る（降らせる仕組みはひとつ）
 const KEY = "kona.window";
@@ -26,34 +27,12 @@ export const currentScene = (): SceneKey => { const s = windowScene(); return s 
 interface Drop { u: number; v: number; r: number; vy: number; top: number; life: number; wob: number }
 interface Rain { amt: number; drops: Drop[]; env: number; slow: number; lastOn: number; rate: number; carry: number; t: number }
 
-// 時刻（0〜24）ごとの空の色（上・下）
-const SKY: [number, string, string][] = [
-  [0, "#070a12", "#121827"], [4.5, "#0b1020", "#1c2236"], [5.5, "#2a3050", "#c98a6b"], [6.5, "#5d7fa8", "#f0c590"],
-  [8, "#6f9ccc", "#bcd3e6"], [16, "#6a94c4", "#c7d6e2"], [17.5, "#4a5f8f", "#e9a26c"], [18.5, "#262c4e", "#b8664f"],
-  [19.5, "#0f1426", "#2a2a44"], [24, "#070a12", "#121827"],
-];
+export { skyAt } from "./window-sky";
 
-
-export function skyAt(h: number): [RGB, RGB] {
-  for (let i = 0; i < SKY.length - 1; i++) {
-    const [h0, t0, b0] = SKY[i], [h1, t1, b1] = SKY[i + 1];
-    if (h >= h0 && h <= h1) { const t = (h - h0) / (h1 - h0); return [mixN(t0, t1, t), mixN(b0, b1, t)]; }
-  }
-  return [hex(SKY[0][1]), hex(SKY[0][2])];
-}
-
-// 星の位置は固定（毎回同じ空）
-const STARS = Array.from({ length: 70 }, (_, i) => {
-  const r = (n: number) => { const x = Math.sin(i * 97.13 + n * 13.7) * 43758.5453; return x - Math.floor(x); };
-  return { x: r(1), y: r(2) * 0.75, s: 0.5 + r(3), tw: r(4) * 6.28 };
-});
-
-
-// 雲: 高さ・大きさ・速さ・形（固定の乱数）
-const CLOUDS = Array.from({ length: 6 }, (_, i) => ({
-  y: .08 + rnd(i, 1) * .4, s: .5 + rnd(i, 2) * .8, v: .004 + rnd(i, 3) * .006, o: i / 6 * 1.4 + rnd(i, 4) * .15,
-  puffs: Array.from({ length: 4 + Math.floor(rnd(i, 5) * 3) }, (_, k, ) => [k * .55 - 1 + rnd(i * 7 + k, 6) * .25, -.1 - Math.sin((k + .5) / 5 * Math.PI) * .35 - rnd(i * 7 + k, 7) * .2, .3 + rnd(i * 7 + k, 8) * .25]),
-}));
+/** ガラスの範囲（窓のキャンバスに対する CSS ピクセル）と、左のカーテンの右端。部屋に差し込む日差しの形に使う */
+export interface WindowGlass { x: number; y: number; w: number; h: number; curtain: number; canvas: HTMLCanvasElement | null }
+let glass: WindowGlass = { x: 0, y: 0, w: 0, h: 0, curtain: 0, canvas: null };
+export const windowGlass = () => glass;
 /** 窓の下の桟の高さ（css px）。猫はここに座る */
 export const SILL = 12;
 
@@ -158,89 +137,16 @@ function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bi
   const r = cw * .9, gx0 = ox0 + r, gx1 = ox1 - r, gy0 = oy0 + r, gy1 = oy1 - r * .4; // ガラス
   const gw = gx1 - gx0, gh = gy1 - gy0;
   const night = h < 5 || h > 19.5 ? 1 : h < 6 ? 6 - h : h > 18.5 ? h - 18.5 : 0;
-  const day = 1 - night;
 
   // ---- 外の景色（ガラスの内側だけ） ----
   g.save(); g.beginPath(); g.rect(ox0, oy0, ox1 - ox0, oy1 - oy0); g.clip();
-  const [top0, bottom0] = skyAt(h), wet = rain.amt;
-  // 雨の日は空が灰色に曇り、少し暗くなる
-  const grey = (c: RGB) => { const m = (c[0] + c[1] + c[2]) / 3; return mixN(c, [m * .8, m * .82, m * .88], .65 * wet); };
-  const top = grey(top0), bottom = grey(bottom0);
-  const sky = g.createLinearGradient(0, oy0, 0, oy1);
-  sky.addColorStop(0, rgba(top)); sky.addColorStop(1, rgba(bottom));
-  g.fillStyle = sky; g.fillRect(ox0, oy0, ox1 - ox0, oy1 - oy0);
-  const X = (u: number) => gx0 + u * gw, Y = (v: number) => gy0 + v * gh;
-
-  if (night > 0) {
-    g.fillStyle = "#f4ecd8";
-    for (const s of STARS) {
-      g.globalAlpha = night * (.3 + .3 * Math.sin(t * .8 + s.tw)) * (1 - s.y * .7);
-      g.fillRect(X(s.x), Y(s.y * .8), s.s * d, s.s * d);
-    }
-    g.globalAlpha = 1;
-  }
-  // 太陽と月は弧を描いて横切る
-  const arc = (p: number) => ({ x: X(.08 + .84 * p), y: Y(.82 - .62 * Math.sin(Math.PI * p)) });
-  const sunP = (h - 6) / 12, moonP = ((h + 6) % 24) / 12;
-  let sun: View["sun"] = null, moon: View["moon"] = null;
-  g.globalAlpha = 1 - .85 * wet;
-  if (sunP > 0 && sunP < 1) {
-    const { x, y } = arc(sunP), low = 1 - Math.sin(Math.PI * sunP);
-    sun = { x, y, low };
-    g.fillStyle = mix("#fff1c9", "#ffb36b", low); g.shadowColor = mix("#ffe2a0", "#ff9a4a", low); g.shadowBlur = 26 * d;
-    g.beginPath(); g.arc(x, y, Math.max(4 * d, gh * .065), 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
-  } else if (moonP > 0 && moonP < 1) {
-    const { x, y } = arc(moonP), mr = Math.max(4 * d, gh * .055);
-    moon = { x, y, low: 1 - Math.sin(Math.PI * moonP) };
-    g.fillStyle = "#efe6cf"; g.shadowColor = "#efe6cf"; g.shadowBlur = 16 * d;
-    g.beginPath(); g.arc(x, y, mr, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
-    // 欠けた部分は、その高さの空の色で塗る（輪郭が浮かない）
-    g.save(); g.beginPath(); g.arc(x, y, mr + d, 0, Math.PI * 2); g.clip();
-    g.fillStyle = rgba(mixN(top, bottom, (y - oy0) / (oy1 - oy0)));
-    g.beginPath(); g.arc(x + mr * .45, y - mr * .2, mr * .85, 0, Math.PI * 2); g.fill(); g.restore();
-  }
-  g.globalAlpha = 1;
-  // 雲: ゆっくり流れる。朝夕は下から染まり、夜は暗い影になる
-  for (const cl of CLOUDS) {
-    const u = ((cl.o + (calm ? 0 : t * cl.v * .2)) % 1.4) - .2, cy = Y(cl.y), sz = gh * .11 * cl.s;
-    const lit = g.createLinearGradient(0, cy - sz, 0, cy + sz * .4);
-    lit.addColorStop(0, wet > .05 ? rgba(mixN([255, 255, 255], [96, 102, 112], wet), (.55 * day + .06) * (1 + wet * .6)) : `rgba(255,255,255,${(.55 * day + .06).toFixed(3)})`);
-    lit.addColorStop(1, day > .1 ? rgba(mixN("#ffffff", bottom, .55), .4 * day + .05) : "rgba(120,130,150,.08)");
-    g.fillStyle = lit; g.globalAlpha = 1;
-    // 底は平らに、上はもこもこ
-    g.save(); g.beginPath(); g.rect(X(u) - sz * 3, cy - sz * 2, sz * 6, sz * 2.15); g.clip();
-    g.beginPath();
-    const n = cl.puffs.length, x0 = X(u) + cl.puffs[0][0] * sz * 1.6, x1 = X(u) + cl.puffs[n - 1][0] * sz * 1.6;
-    g.ellipse((x0 + x1) / 2, cy, (x1 - x0) / 2 + sz * .3, sz * .3, 0, 0, Math.PI * 2);
-    for (const [px, py, pr] of cl.puffs) { const x = X(u) + px * sz * 1.6, y = cy + py * sz; g.moveTo(x + pr * sz, y); g.arc(x, y, pr * sz, 0, Math.PI * 2); }
-    g.fill(); g.restore(); g.globalAlpha = 1;
-  }
-  // ときどき鳥が横切る（昼だけ）
-  if (day > .6 && !calm && wet < .2) {
-    const cyc = 46, k = (t % cyc) / 9;
-    if (k < 1) for (let b = 0; b < 3; b++) {
-      const bx = X(-.05 + k * 1.1 - b * .035), by = Y(.3 + b * .03 + Math.sin(k * 9 + b) * .01), fl = Math.sin(t * 9 + b * 2) * 2 * d;
-      g.strokeStyle = "rgba(30,34,44,.55)"; g.lineWidth = d;
-      g.beginPath(); g.moveTo(bx - 3 * d, by - fl); g.lineTo(bx, by); g.lineTo(bx + 3 * d, by - fl); g.stroke();
-    }
-  }
-  // 地上の景色（選んだもの）と、外に降る雨・雪
   const key = currentScene();
-  const V: View = { g, d, t, h, X, Y, gw, gh, x0: ox0, x1: ox1, y1: oy1, night, day, wet, top, bottom, accent, calm, season: seasonAt(now), sun, moon };
-  drawScene(key, V);
-  drawBird(g, bird, X(bird.u), Y(bird.v), gh * .04, t, night + wet * .5, calm);
-  const pr = precipitation(key, V);
-  if (pr.kind === "snow") { if (pr.amt > .02) snowfall(V, pr.amt); }
-  else if (wet > .02) {
-    g.strokeStyle = `rgba(210,220,235,${(.22 * wet).toFixed(3)})`; g.lineWidth = Math.max(.6, .7 * d);
-    g.beginPath();
-    const n = Math.round(90 * wet), fall = gh * .09;
-    for (let i = 0; i < n; i++) {
-      const x = X(rnd(i, 21) * 1.1 - .05), sp = 1.6 + rnd(i, 22), y = Y((((rnd(i, 23) + t * sp * .9) % 1.2) - .1));
-      g.moveTo(x, y); g.lineTo(x - fall * .12, y + fall * (.6 + rnd(i, 24) * .4));
-    }
-    g.stroke();
-  }
+  const V = drawOutside({
+    g, d, t, now, h, wet: rain.amt, calm, accent, key, box: { ox0, oy0, ox1, oy1, gx0, gy0, gw, gh },
+    before: V => drawBird(g, bird, V.X(bird.u), V.Y(bird.v), gh * .04, t, night + rain.amt * .5, calm),
+  });
+  const { X, Y } = V;
+  glass = { x: gx0 / d, y: gy0 / d, w: gw / d, h: gh / d, curtain: (X0 - cw * .2 + Math.max(14 * d, gw * .17)) / d, canvas: c };
   // ガラスについた雨粒と、流れた跡
   if (rain.drops.length) {
     const hiCol = night > .5 ? "rgba(255,226,180," : "rgba(255,255,255,";
