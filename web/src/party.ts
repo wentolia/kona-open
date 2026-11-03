@@ -25,12 +25,11 @@ import { setPartyEar, setCatsAway, type Coat, type Emote } from "./cat";
 import { hereLand, isLand, landName } from "./region";
 import { giftable, giftToday, gave, receiveGift } from "./presents";
 import { itemOf } from "./items";
+import { iceServers, relayHTML, relayReady, relayStatusHTML, wireRelay } from "./party-ice";
 
 const NAME_KEY = "kona.party.name";
 const VOL_KEY = "kona.party.volume";
 const LAND_KEY = "kona.party.land";   // ご当地の品: ホストの土地を参加者に届けるか（既定は届けない）
-const ICE_KEY = "kona.party.ice";
-const DEFAULT_ICE = "stun:stun.l.google.com:19302";
 const HASH = "#party=";            // 招待リンク（# 以降はどのサーバーにも送られない）
 const MAX_PEERS = 8;
 const MAX_KNOCKS = 8;              // 返事を待っている「入れてください」の上限（それ以上は黙って捨てる）
@@ -207,23 +206,10 @@ let ears: { meters: AnalyserNode[]; spec: AnalyserNode } | undefined;
 let earVol: GainNode | undefined, earOn = false, offEq: (() => void) | undefined;   // 参加者: 手元の EQ・音量を通して鳴らす経路
 
 const myName = () => { try { return localStorage.getItem(NAME_KEY) ?? ""; } catch { return ""; } };
-const iceText = () => { try { return localStorage.getItem(ICE_KEY) ?? DEFAULT_ICE; } catch { return DEFAULT_ICE; } };
 const label = (n: string) => n || "名無し";
 const partyVol = () => { try { const v = Number(localStorage.getItem(VOL_KEY) ?? 0.8); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.8; } catch { return 0.8; } };
 
 // ---------- WebRTC ----------
-/** 「stun:… turn:…?username=u&credential=p」を ICE サーバーの設定に。空なら同じ LAN の中だけでつなぐ */
-function iceServers(): RTCIceServer[] {
-  // 書き損じ（「turn::80」や「<サーバー>」のまま）が 1 つでもあると接続の準備ごと失敗するので、形の合うものだけを使う
-  return iceText().split(/[\s,]+/).filter(u => /^(stun|turns?):[\w.-]+(:\d+)?(\?|$)/i.test(u)).map(u => {
-    const q = u.indexOf("?");
-    if (!/^turns?:/.test(u) || q < 0) return { urls: u };
-    const p = new URLSearchParams(u.slice(q + 1)), username = p.get("username") ?? undefined, credential = p.get("credential") ?? undefined;
-    p.delete("username"); p.delete("credential");
-    const rest = p.toString();
-    return { urls: u.slice(0, q) + (rest ? `?${rest}` : ""), username, credential };
-  });
-}
 function newPc() { return new RTCPeerConnection({ iceServers: iceServers() }); }
 /** 経路の候補を集め終えるまで待つ（候補を全部入れて、やり取りを 1 往復で済ませる） */
 function gathered(pc: RTCPeerConnection): Promise<void> {
@@ -289,7 +275,7 @@ const lanTip = (open: boolean) => {
 };
 function tipHTML() {
   if (endTip === "lan") return `<div class="party-tip">${lanTip(true)}</div>`;
-  if (endTip === "turn") return `<div class="party-tip"><p><b>別の回線どうしでつながらないとき</b>: 会社・学校・テザリングなどの回線では、「つなぎ方の設定」に TURN を足すとつながることがあります。</p>
+  if (endTip === "turn") return `<div class="party-tip"><p><b>別の回線どうしでつながらないとき</b>: ${relayReady() ? "中継サーバーが設定されていても届かなかったようです。ホストにも中継サーバーを設定してもらうか、「つながるか確かめる」で設定を確かめてください。" : "ホストに、リスニングパーティーの画面で「中継サーバー」を設定してもらってから、新しい招待リンクで入り直してください。"}</p>
     ${lanTip(false)}</div>`;
   return "";
 }
@@ -927,12 +913,6 @@ function changeShare(s: AlbumSet | null) {
   if (h) room?.setHome(h.rows, h.albums);
   for (const p of peers) if (p.inRoom) sendHome(p);
 }
-const ICE = () => `<details class="party-ice"><summary>つなぎ方の設定</summary>
-  <label class="dlg-field"><span>STUN / TURN サーバー（空白区切り。空にすると同じ LAN の中だけでつなぐ）</span>
-    <input id="party-ice" type="text" spellcheck="false" autocapitalize="off" value="${esc(iceText())}" placeholder="stun:… turn:…?username=…&amp;credential=…"></label>
-  <p class="dlg-note">既定は Google の公開 STUN（相手までの道を調べるのに、あなたの IP アドレスが Google に届きます）。家庭のルーターどうしでつながらないときは、自分で用意した TURN を書いてください。</p>
-</details>`;
-
 function render() {
   renderPill();
   if (!dlg) return;
@@ -951,9 +931,10 @@ function render() {
     ${editorHtml()}
     ${LAND()}
     ${RIGHTS}
+    ${relayHTML(true)}
     <div class="dlg-actions"><button class="btn primary" id="party-host">パーティーを開く</button></div>
     <p class="dlg-note">参加するときは、ホストから届いた招待リンクを開いてください。</p>
-    ${PRIVACY}${ICE()}`);
+    ${PRIVACY}`);
   else if (ph === "host") h(`
     <p class="dlg-lead">この招待リンクを、一緒に聴く人に送ってください。開いた人が名乗ると、ここに出ます。「入れる」を押した人だけがつながります。</p>
     <input class="party-code" id="party-out" readonly value="${esc(inviteLink())}">
@@ -963,6 +944,7 @@ function render() {
       <button class="btn" id="party-renew">リンクを作り直す</button>
     </div>
     <p class="dlg-note party-wait" id="party-relay"></p>
+    <p class="dlg-note">${relayStatusHTML()}</p>
     <div class="party-knocks" id="party-knocks"></div>
     <div class="party-people" id="party-people"></div>
     ${SHARE(shareSet())}
@@ -976,7 +958,8 @@ function render() {
     ${nameField()}
     ${editorHtml()}
     <div class="dlg-actions"><button class="btn primary" id="party-knock">入れてもらう</button><button class="btn" id="party-leave">やめる</button></div>
-    ${PRIVACY}${ICE()}`);
+    ${relayHTML(false)}
+    ${PRIVACY}`);
   else if (ph === "guest-knock" || ph === "guest-connect") h(`
     <p class="dlg-lead party-wait" id="party-relay"></p>
     <div class="dlg-actions"><button class="btn" id="party-leave">やめる</button></div>`);
@@ -984,14 +967,13 @@ function render() {
     <p class="dlg-lead party-wait"><b>${esc(label(hostName))}</b>さんのホームに入っています…</p>
     <div class="dlg-actions"><button class="btn" id="party-leave">やめる</button></div>`);
   else if (ph === "guest-ended") h(`
-    <p class="dlg-lead">${esc(ended)}。</p>${tipHTML()}
+    <p class="dlg-lead">${esc(ended)}。</p>${tipHTML()}${endTip === "turn" ? relayHTML(false) : ""}
     <div class="dlg-actions"><button class="btn primary" id="party-done">閉じる</button></div>`);
 
   const $ = <T extends HTMLElement>(s: string) => body.querySelector<T>(s);
   const name = $<HTMLInputElement>("#party-name");
   if (name) name.onchange = () => { try { localStorage.setItem(NAME_KEY, name.value.trim()); } catch { /* ignore */ } };
-  const ice = $<HTMLInputElement>("#party-ice");
-  if (ice) ice.onchange = () => { try { localStorage.setItem(ICE_KEY, ice.value.trim()); } catch { /* ignore */ } };
+  wireRelay(body);
   const keepName = () => name?.onchange?.(new Event("change"));
   $<HTMLButtonElement>("#party-host")?.addEventListener("click", () => { keepName(); host(); });
   $<HTMLButtonElement>("#party-knock")?.addEventListener("click", () => { keepName(); knock(); });
