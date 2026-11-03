@@ -9,7 +9,6 @@ import { ctx, fmt, css, fit, everyFrame } from "./modctx";
 import { mountInfo } from "./mod-info";
 import { mountLog } from "./mod-log";
 import { mountOutput } from "./mod-output";
-import { mountTurntable } from "./mod-turntable";
 import { mountWindow } from "./mod-window";
 import { mountDistance } from "./mod-distance";
 import { mountSpectrum } from "./mod-spectrum";
@@ -25,7 +24,6 @@ export function mountModule(type: ModuleType, body: HTMLElement) {
     case "info": return mountInfo(body);
     case "log": return mountLog(body);
     case "output": return mountOutput(body);
-    case "turntable": return mountTurntable(body);
     case "window": return mountWindow(body);
     case "distance": return mountDistance(body);
     case "spectrum": return mountSpectrum(body);
