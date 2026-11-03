@@ -1,6 +1,6 @@
 // 窓辺: いまの時刻の空を、部屋の窓から見る。朝焼け・昼・夕焼け・夜（星と月）が時間とともに移る
 
-import { css, ctx, fit, everyFrame, onDocument } from "./modctx";
+import { css, ctx, fit, everyFrame, onDocument, stored, inCopy } from "./modctx";
 import { noiseLevel } from "./noise";
 import { reduceMotion } from "./prefs";
 import { drawFrame, material } from "./window-frame";
@@ -22,6 +22,14 @@ export const setWindowScene = (key: string) => savePrefs({ scene: key });
 export const roomLightOn = () => prefs().room !== false;
 export const setRoomLight = (on: boolean) => savePrefs({ room: on });
 export const currentScene = (): SceneKey => { const s = windowScene(); return s === DAILY ? dailyScene() : s as SceneKey; };
+/** 組み立てるときの景色の選び方（部屋の写しではホストの景色） */
+function sceneNow(): () => SceneKey {
+  if (!inCopy()) return currentScene;
+  let s: string | undefined;
+  try { s = JSON.parse(stored(KEY) ?? "{}").scene; } catch { /* 既定 */ }
+  const key = WINDOW_SCENES.some(x => x.key === s) ? s! : "city";
+  return () => key === DAILY ? dailyScene() : key as SceneKey;
+}
 
 // ガラスについた雨粒（ガラスの幅・高さに対する位置と大きさ）。大きい粒はやがて流れ落ち、跡を残す
 interface Drop { u: number; v: number; r: number; vy: number; top: number; life: number; wob: number }
@@ -77,7 +85,7 @@ export function mountWindow(body: HTMLElement) {
   });
   const end = () => { drawing = null; };
   canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
-  const P = ctx().player;
+  const P = ctx().player, scene = sceneNow();
   everyFrame(root, () => {
     const now = performance.now(), dt = Math.min(.1, (now - last) / 1000); last = now;
     // カーテンは音に合わせて、ほんの少しだけ揺れる
@@ -87,7 +95,7 @@ export function mountWindow(body: HTMLElement) {
     // 窓辺の鳥: 晴れた朝（6〜10時半ごろ）に来る
     const d = new Date(), hr = d.getHours() + d.getMinutes() / 60;
     stepBird(bird, dt, hr > 5.8 && hr < 10.5 && rain.amt < .1);
-    fit(canvas); draw(canvas, sway, rain, fog, bird);
+    fit(canvas); draw(canvas, sway, rain, fog, bird, scene);
     const cr = canvas.getBoundingClientRect(), px = devicePixelRatio || 1, [gx, gy, gw, gh] = fog.glass;
     publishBird(bird, cr.left + (gx + bird.u * gw) / px, cr.top + (gy + bird.v * gh) / px);
   });
@@ -122,7 +130,7 @@ function stepRain(R: Rain, dt: number, level: number, on: boolean) {
   R.drops = R.drops.filter(d => d.life > 0 && d.v < 1.05);
 }
 
-function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bird) {
+function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bird, scene: () => SceneKey) {
   const g = c.getContext("2d")!, W = c.width, H = c.height, d = devicePixelRatio || 1, t = performance.now() / 1000;
   const now = new Date(), h = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
   const calm = reduceMotion();
@@ -140,7 +148,7 @@ function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bi
 
   // ---- 外の景色（ガラスの内側だけ） ----
   g.save(); g.beginPath(); g.rect(ox0, oy0, ox1 - ox0, oy1 - oy0); g.clip();
-  const key = currentScene();
+  const key = scene();
   const V = drawOutside({
     g, d, t, now, h, wet: rain.amt, calm, accent, key, box: { ox0, oy0, ox1, oy1, gx0, gy0, gw, gh },
     before: V => drawBird(g, bird, V.X(bird.u), V.Y(bird.v), gh * .04, t, night + rain.amt * .5, calm),

@@ -510,7 +510,19 @@ function refresh(c: Cat) {
   }
   if (!c.cur && c.stage?.pup) {
     const pp = c.stage.pup, p = c.plats[clamp(pp.plat, 0, c.plats.length - 1)] ?? c.plats[c.plats.length - 1];
-    c.cur = p; c.x = clamp(p.x0 + pp.fx * (p.x1 - p.x0), lo(p), hi(p)); c.y = p.y;
+    const tx = clamp(p.x0 + pp.fx * (p.x1 - p.x0), lo(p), hi(p));
+    if (pp.enter && !c.reduced) {
+      // 部屋に入ってきた猫: 見えている範囲の上から、決まった足場へ飛び込んでくる
+      pp.enter = false;
+      const v = view(c);
+      c.cur = undefined; c.dest = p; c.x = clamp(tx - rnd(40, 90) * (Math.random() < .5 ? -1 : 1), 0, v.w);
+      c.y = Math.min(v.top, p.y) - 50 * c.s; c.dir = tx < c.x ? -1 : 1;
+      launch(c, tx, p.y, 0, 0); go(c, "fall");
+      c.entering = true;
+      c.after = () => { c.entering = false; pupRest(c); };
+      return;
+    }
+    c.cur = p; c.x = tx; c.y = p.y;
     pupRest(c);
     return;
   }
@@ -1156,7 +1168,16 @@ function nowLike(c: Cat): number {
   const label = hooks?.tasteOf?.(tasteAt);
   return label ? likeOf(c, label) : 0;
 }
+/** リスニングパーティーの間、ホームの猫はお出かけする（ホストの猫と入ってきた猫だけがホームにいる）。終われば帰ってくる */
+let away = false;
+export function setCatsAway(on: boolean) {
+  if (away === on) return;
+  away = on;
+  document.dispatchEvent(new Event("kona:cats-away"));
+}
+export const catsAway = () => away;
 export function setCats(grid: HTMLElement, coats: Coat[], animate = false): void {
+  if (away) coats = [];
   // 日だまりの位置と、来客の猫の訪れは、数秒ごとに確かめる
   if (!ambient) ambient = window.setInterval(() => { paintSun(); maybeVisit(); learnTaste(); maybeZoomies(); }, 3000);
   while (cats.length > coats.length) { const c = cats.pop()!; if (animate) leave(c); else removeCat(c); }
@@ -2329,11 +2350,13 @@ export const debugDo = { walk: (c: unknown, x: number) => { (c as Cat).state = "
 // やり取りするので、画面の大きさが違う人どうしでも同じ所にいる
 export type Emote = "stand" | "sit" | "lie" | "sleep" | "wag" | "groove" | "groom" | "stretch" | "yawn";
 export const EMOTES: Emote[] = ["stand", "sit", "lie", "sleep", "wag", "groove", "groom", "stretch", "yawn"];
-interface Pup { plat: number; fx: number; emote: Emote; going: number }
+interface Pup { plat: number; fx: number; emote: Emote; going: number; enter?: boolean }
 export interface Puppet {
   /** plat 番目の足場の、幅の fx 割（0〜1）の所へ行く */
   go(plat: number, fx: number): void;
   emote(e: Emote): void;
+  /** 通話で話している（名札に印を出す） */
+  talk(on: boolean): void;
   /** 目線の先（部屋の中の割合 0〜1）。undefined なら前を見る */
   look(p?: [number, number]): void;
   /** 吹き出し（文字だけ。HTML としては読まない） */
@@ -2403,8 +2426,9 @@ function pupGo(c: Cat, pi: number, fx: number) {
   };
   hop(0);
 }
-export function puppetCat(room: HTMLElement, coat: Coat, at: { plat: number; fx: number; emote: Emote }, size = 1): Puppet {
-  const pup: Pup = { plat: at.plat, fx: at.fx, emote: at.emote, going: 0 };
+/** enter: 置くときに、上から飛び込んでくる */
+export function puppetCat(room: HTMLElement, coat: Coat, at: { plat: number; fx: number; emote: Emote }, size = 1, enter = false): Puppet {
+  const pup: Pup = { plat: at.plat, fx: at.fx, emote: at.emote, going: 0, enter };
   const c = addCat(room, coat, { sleep: 0, pup }, size);
   c.layer.classList.add("cat-room");
   let sayT = 0;
@@ -2434,6 +2458,7 @@ export function puppetCat(room: HTMLElement, coat: Coat, at: { plat: number; fx:
     get where() {
       return { plat: pup.plat, fx: pup.fx, emote: pup.emote };
     },
+    talk(on) { c.el.classList.toggle("talking", on); },
     remove() { clearTimeout(sayT); removeCat(c); },
   };
 }

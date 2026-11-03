@@ -5,7 +5,7 @@
 // 形は「バー」（波形と同じ細い柱）と「波」（イコライザーと同じ灯る線）。向きは外側・内側・両側（直線では上・下・上下）。
 // 音を見せるだけのモジュールなので、再生位置の表示やシークは持たない（それは再生中・波形の役目）
 
-import { ctx, css, fit, everyFrame } from "./modctx";
+import { ctx, css, fit, everyFrame, stored, inCopy } from "./modctx";
 
 export interface SpectrumPrefs {
   style: "bars" | "wave";
@@ -14,17 +14,18 @@ export interface SpectrumPrefs {
   size: number;               // 円の大きさ（モジュールに収まる最大に対する比率 0.3〜1）
 }
 const KEY = "kona.spectrum";
-const prefs: SpectrumPrefs = (() => {
+const parsePrefs = (raw: string | null): SpectrumPrefs => {
   const p: SpectrumPrefs = { style: "bars", shape: "circle", dir: "out", size: .7 };
   try {
-    const s = JSON.parse(localStorage.getItem(KEY) ?? "{}");
+    const s = JSON.parse(raw ?? "{}");
     if (s.style === "wave") p.style = "wave";
     if (s.shape === "line") p.shape = "line";
     if (s.dir === "in" || s.dir === "both") p.dir = s.dir;
     if (typeof s.size === "number") p.size = Math.max(.3, Math.min(1, s.size));
   } catch { /* 既定のまま */ }
   return p;
-})();
+};
+const prefs: SpectrumPrefs = parsePrefs((() => { try { return localStorage.getItem(KEY); } catch { return null; } })());
 let version = 0;   // 設定が変わったら描き直す
 export const spectrumPrefs = (): Readonly<SpectrumPrefs> => prefs;
 export function setSpectrumPrefs(p: Partial<SpectrumPrefs>) {
@@ -40,6 +41,8 @@ const SEAM = .06;            // 円の継ぎ目で、高音の端を低音の端
 
 export function mountSpectrum(body: HTMLElement) {
   const player = ctx().player;
+  // 部屋の写しでは、ホストの描き方で描く
+  const look = inCopy() ? parsePrefs(stored(KEY)) : prefs;
   body.innerHTML = `
     <div class="spec">
       <canvas class="spec-canvas" aria-label="スペクトラム"></canvas>
@@ -84,7 +87,7 @@ export function mountSpectrum(body: HTMLElement) {
     const resized = fit(canvas);
     const now = performance.now(), dt = Math.min(.1, (now - last) / 1000); last = now;
     const w = canvas.width, h = canvas.height, d = devicePixelRatio || 1;
-    const { style, shape, dir, size } = prefs;
+    const { style, shape, dir, size } = look;
 
     // 隠れている間（ホームとライブラリの切り替えの途中など）は大きさが 0 になるので、描かずに待つ
     if (w < 24 * d || h < 24 * d) { quiet = false; return; }

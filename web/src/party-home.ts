@@ -9,16 +9,67 @@ import { ctx, everyFrame, fmt, mountingWith, releaseIn, type ModOverride } from 
 import type { Player } from "./player";
 import { enrichTracks, type Album } from "./library";
 import { mountModule } from "./modules";
-import { mountSingle, unwatchIn } from "./panes";
+import { esc } from "./dom";
+import { modeButtonHTML } from "./modeui";
+import { hashOf } from "./album-sort";
+import { OBJECTS, placeObjects, objectSize } from "./mod-objects";
+import { thingsLayer } from "./room-things";
+import { mountSingle, mountTwin, unwatchIn } from "./panes";
 import type { ModuleType } from "./shelves";
 import { inSet, type AlbumSet } from "./tags";
 
-export interface SnapAlbum { id: string; t: string; a: string; c: string; n: number; y?: number }
-export interface SnapMod { type: ModuleType; title: string; h: number; kind?: string; albums?: string[]; face?: string }
+// hs: 背表紙の高さ・ジャケットの切り取り位置を決める数（ホストの棚と同じばらつきにする）。r: ジャケットの縦横比
+export interface SnapAlbum { id: string; t: string; a: string; c: string; n: number; y?: number; hs?: number; r?: number }
+// pos: 面陳の位置（0 左端〜1 右端）。sid: 雑貨の棚の番号（小物の置き場所は棚ごと）
+export interface SnapMod { type: ModuleType; title: string; h: number; kind?: string; albums?: string[]; face?: string; pos?: number; sid?: string; goods?: string[]; at?: Record<string, string> }
+/** ホームの見た目の設定: <html> の data-*（棚板・壁・床・字体）と色などの変数、モジュールの設定（localStorage の値） */
+export interface SnapLook { ds: Record<string, string>; css: Record<string, string>; store: Record<string, string> }
+const LOOK_DS = ["shelf", "wall", "floor", "font"];
+const LOOK_STORE = ["kona.clock", "kona.window", "kona.spectrum", "kona.objects", "kona.things", "kona.catfood", "kona.scratch", "kona.box", "kona.room"];
+const SAFE_VAL = /^[#\w\s.,%()+\-/]{0,80}$/;
+export function snapLook(): SnapLook {
+  const root = document.documentElement, ds: Record<string, string> = {}, css: Record<string, string> = {}, store: Record<string, string> = {};
+  for (const k of LOOK_DS) { const v = root.dataset[k]; if (v) ds[k] = v; }
+  for (let i = 0; i < root.style.length && i < 60; i++) {
+    const k = root.style[i];
+    if (k.startsWith("--")) { const v = root.style.getPropertyValue(k).trim(); if (SAFE_VAL.test(v)) css[k] = v; }
+  }
+  for (const k of LOOK_STORE) { try { const v = localStorage.getItem(k); if (v && v.length < 6000) store[k] = v; } catch { /* ignore */ } }
+  return { ds, css, store };
+}
+export function cleanLook(x: unknown): SnapLook | undefined {
+  const o = x as Record<string, Record<string, unknown>> | undefined;
+  if (!o || typeof o !== "object") return undefined;
+  const pick = (src: unknown, ok: (k: string, v: string) => boolean, max: number) => {
+    const out: Record<string, string> = {};
+    if (!src || typeof src !== "object") return out;
+    for (const [k, v] of Object.entries(src).slice(0, max)) if (typeof v === "string" && ok(k, v)) out[k] = v;
+    return out;
+  };
+  return {
+    ds: pick(o.ds, (k, v) => LOOK_DS.includes(k) && /^[a-z0-9-]{1,24}$/.test(v), 10),
+    css: pick(o.css, (k, v) => /^--[a-z0-9-]{1,30}$/.test(k) && SAFE_VAL.test(v), 60),
+    store: pick(o.store, (k, v) => { if (!LOOK_STORE.includes(k) || v.length > 6000) return false; try { JSON.parse(v); return true; } catch { return false; } }, 20),
+  };
+}
+/** 参加者: 部屋を開いている間だけ、ホストの見た目にする。戻すための関数を返す */
+export function applyLook(look: SnapLook): () => void {
+  const root = document.documentElement;
+  const wasDs: Record<string, string | undefined> = {}, wasCss: Record<string, string> = {};
+  for (const k of LOOK_DS) { wasDs[k] = root.dataset[k]; if (look.ds[k]) root.dataset[k] = look.ds[k]; else delete root.dataset[k]; }
+  for (const [k, v] of Object.entries(look.css)) { wasCss[k] = root.style.getPropertyValue(k); root.style.setProperty(k, v); }
+  dispatchEvent(new Event("resize"));
+  return () => {
+    for (const k of LOOK_DS) { const v = wasDs[k]; if (v) root.dataset[k] = v; else delete root.dataset[k]; }
+    for (const [k, v] of Object.entries(wasCss)) { if (v) root.style.setProperty(k, v); else root.style.removeProperty(k); }
+    dispatchEvent(new Event("resize"));
+  };
+}
 export interface SnapRow { h: number; cols: { w: number; cells: SnapMod[] }[] }
 export interface SnapTrack { no: number; t: string; d: number }
 
-const DECOR: ModuleType[] = ["clock", "window", "objects", "cattower", "scratcher", "catfood", "catbox"];
+
+const OWN: ModuleType[] = ["eq", "output"];
 const TYPES: ModuleType[] = ["shelf", "player", "waveform", "eq", "clock", "info", "log", "output", "turntable", "window", "objects", "distance", "cattower", "scratcher", "catfood", "spectrum", "catbox"];
 const MAX_ROWS = 24, MAX_COLS = 8, MAX_CELLS = 8, MAX_SHELF = 600, MAX_ALBUMS = 5000;
 
@@ -63,6 +114,23 @@ export function snapshotHome(): { rows: SnapRow[]; albums: SnapAlbum[] } | undef
           mod.albums = list.map(idOf);
           const f = byKey(m.querySelector<HTMLElement>(".face[data-key]")?.dataset.key ?? "");
           if (ok(f)) { used.add(f); mod.face = idOf(f); }
+          const row = m.querySelector<HTMLElement>(".row[data-row]");
+          const pos = parseFloat(row?.style.getPropertyValue("--pos") ?? "");
+          if (Number.isFinite(pos)) mod.pos = Math.max(0, Math.min(1, pos));
+          if (m.dataset.id && /^[\w-]{1,24}$/.test(m.dataset.id)) mod.sid = m.dataset.id;
+          const goods = [...m.querySelectorAll<SVGElement>(".goods [data-goods]")].map(e => e.dataset.goods!).filter(Boolean);
+          if (goods.length) mod.goods = goods;
+          // アルバムのあいだに置いた小物: どのアルバムの後ろか（"" は列の頭）
+          const pane = m.querySelector<HTMLElement>(".spines");
+          if (pane) {
+            const at: Record<string, string> = {}; let prev = "";
+            for (const e of pane.children) {
+              const el = e as HTMLElement;
+              if (el.classList.contains("spine") && el.dataset.key) { const a = byKey(el.dataset.key); prev = ok(a) ? idOf(a) : prev; }
+              else if (el.classList.contains("goods-slot") && el.dataset.slot && goods.includes(el.dataset.slot)) at[el.dataset.slot] = prev;
+            }
+            if (Object.keys(at).length) mod.at = at;
+          }
         }
         return mod;
       }),
@@ -70,9 +138,11 @@ export function snapshotHome(): { rows: SnapRow[]; albums: SnapAlbum[] } | undef
   }));
   const now = ctx().player.album;
   if (ok(now)) used.add(now);
-  const albums = [...used].slice(0, MAX_ALBUMS).map(a => ({ id: idOf(a), t: a.title.slice(0, 200), a: (a.artist ?? "").slice(0, 200), c: ctx().colorOf(a), n: a.tracks.length, y: a.year }));
+  const albums = [...used].slice(0, MAX_ALBUMS).map(snapAlbum);
   return { rows, albums };
 }
+/** 送るアルバムの札（棚の背表紙をホストと同じ高さ・幅にするための数も付ける） */
+export const snapAlbum = (a: Album): SnapAlbum => ({ id: idOf(a), t: a.title.slice(0, 200), a: (a.artist ?? "").slice(0, 200), c: ctx().colorOf(a), n: a.tracks.length, y: a.year, hs: hashOf(a.key) % 600, r: a.ratio });
 /** アルバムの写しの番号（見せるセットの外なら undefined） */
 export const idFor = (a: Album) => ok(a) ? idOf(a) : undefined;
 export const nowId = () => { const a = ctx().player.album; return ok(a) ? idOf(a) : undefined; };
@@ -113,7 +183,7 @@ export function findAlbums(q: string): SnapAlbum[] {
   const f = fold(q.trim());
   if (!f) return [];
   return ctx().albums().filter(a => ok(a) && (fold(a.title).includes(f) || fold(a.artist ?? "").includes(f))).slice(0, 20)
-    .map(a => ({ id: idOf(a), t: a.title.slice(0, 200), a: (a.artist ?? "").slice(0, 200), c: ctx().colorOf(a), n: a.tracks.length, y: a.year }));
+    .map(snapAlbum);
 }
 
 // ---------- 参加者: 確かめる ----------
@@ -126,7 +196,8 @@ export function cleanAlbum(x: unknown): SnapAlbum | undefined {
   const o = x as Record<string, unknown>;
   if (!o || !isId(o.id)) return undefined;
   const c = typeof o.c === "string" && SAFE_COLOR.test(o.c) ? o.c : "#555";
-  return { id: o.id, t: str(o.t, 200), a: str(o.a, 200), c, n: num(o.n, 0, 999), y: typeof o.y === "number" ? num(o.y, 0, 9999) : undefined };
+  return { id: o.id, t: str(o.t, 200), a: str(o.a, 200), c, n: num(o.n, 0, 999), y: typeof o.y === "number" ? num(o.y, 0, 9999) : undefined,
+    hs: typeof o.hs === "number" ? Math.round(num(o.hs, 0, 599)) : undefined, r: typeof o.r === "number" ? num(o.r, .2, 5) : undefined };
 }
 export function cleanRows(x: unknown): SnapRow[] | undefined {
   if (!Array.isArray(x) || x.length > MAX_ROWS) return undefined;
@@ -144,6 +215,14 @@ export function cleanRows(x: unknown): SnapRow[] | undefined {
           mod.kind = m.kind === "goods" ? "goods" : "albums";
           if (Array.isArray(m.albums)) mod.albums = (m.albums as unknown[]).filter(isId).slice(0, MAX_SHELF);
           if (isId(m.face)) mod.face = m.face;
+          if (typeof m.pos === "number") mod.pos = num(m.pos, 0, 1);
+          if (typeof m.sid === "string" && /^[\w-]{1,24}$/.test(m.sid)) mod.sid = m.sid;
+          if (Array.isArray(m.goods)) mod.goods = [...new Set((m.goods as unknown[]).filter((k): k is string => typeof k === "string" && OBJECTS.some(o => o.key === k)))];
+          if (m.at && typeof m.at === "object" && mod.goods) {
+            const at: Record<string, string> = {};
+            for (const [k, v] of Object.entries(m.at as Record<string, unknown>)) if (mod.goods.includes(k) && (v === "" || (isId(v) && mod.albums?.includes(v as string)))) at[k] = v as string;
+            if (Object.keys(at).length) mod.at = at;
+          }
         }
         cells.push(mod);
       }
@@ -165,8 +244,8 @@ export interface HomeView { el: HTMLElement; setCover(id: string, url: string): 
 export interface HomeSource {
   /** 再生まわりのモジュールを動かすもの（ホストは自分のプレイヤー、参加者はホストの再生の写し） */
   over?: ModOverride;
-  /** 聴いた記録・聴いた距離を見せるか（ホスト自身は見える。参加者はホストが見せると決めたときだけ） */
-  history: boolean;
+  /** 参加者の手元の音量（再生中モジュールの音量のつまみ）。ホストは自分のプレイヤーの音量なのでなし */
+  volume?: { get(): number; set(v: number): void };
   /** 再生中のアルバムを、写しの番号にする（ホストのプレイヤーはフォルダの key を持つので） */
   idOf?(a: Album): string | undefined;
 }
@@ -177,6 +256,7 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
   grid.className = "grid";
   home.append(grid);
   const covers = new Map<string, string>();
+  let borrowed = false;
   const faces = new Map<string, HTMLElement[]>();   // ジャケットを待っている面陳・札
   const art = (id: string, box: HTMLElement) => {
     const a = albums.get(id);
@@ -191,38 +271,71 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
     const waiting = faces.get(id) ?? faces.set(id, []).get(id)!;
     if (!waiting.includes(box)) waiting.push(box);
   };
-  const hash = (s: string) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); };
+  // 背表紙・面陳は、ホストの棚（main.ts の spine / face / fillRow）と同じ形・同じばらつきで組む
+  const light = (c: string) => { const m = c.match(/rgb\((\d+)[ ,]+(\d+)[ ,]+(\d+)/); return !!m && 0.299 * +m[1] + 0.587 * +m[2] + 0.114 * +m[3] > 150; };
+  const spines: Map<string, HTMLElement[]> = new Map();   // ジャケットが届いたら、背表紙の地にも使う
+  const tex = (b: HTMLElement, id: string) => {
+    const url = covers.get(id), a = albums.get(id);
+    if (!url || b.querySelector(".spine-tex")) return;
+    const i = document.createElement("i"); i.className = "spine-tex";
+    i.style.backgroundImage = `url("${url}")`; i.style.backgroundPosition = `${(a?.hs ?? 0) % 100}% 50%`;
+    b.prepend(i);
+  };
   const spine = (id: string, face: HTMLElement) => {
-    const a = albums.get(id);
+    const a = albums.get(id), h = a?.hs ?? 0, bg = a?.c ?? "#555";
     const b = document.createElement("button");
     b.className = "spine";
     b.style.width = `${15 + Math.min(11, Math.round((a?.n ?? 8) * .65))}px`;
-    b.style.height = `${66 + hash(id) % 24}%`;
-    b.style.background = a?.c ?? "#555";
+    b.style.height = `${66 + h % 24}%`;
+    b.style.background = bg;
+    b.style.color = light(bg) ? "#15181b" : "#f2f2f0";
     b.title = a ? (a.a ? `${a.t} — ${a.a}` : a.t) : "";
+    b.dataset.id = id;
     const s = document.createElement("span"); s.textContent = a?.t ?? ""; b.append(s);
+    tex(b, id);
+    (spines.get(id) ?? spines.set(id, []).get(id)!).push(b);
     b.onclick = e => { e.stopPropagation(); opts.open(id); };
     b.onmouseenter = () => { face.dataset.id = id; art(id, face); };
     return b;
   };
   const shelf = (body: HTMLElement, m: SnapMod) => {
+    const line = document.createElement("div"); line.className = "shelf-line";
     const row = document.createElement("div");
     row.className = "row";
     const list = m.albums ?? [];
     if (list.length) {
       const face = document.createElement("button");
-      face.className = "face";
-      const first = m.face && list.includes(m.face) ? m.face : list[0];
+      const first = m.face && list.includes(m.face) ? m.face : list[0], fa = albums.get(first);
+      face.className = "face" + ((fa?.r ?? 1) < 1 ? " tall" : "");
+      face.style.setProperty("--ar", String(fa?.r ?? 1));
       face.dataset.id = first;
       art(first, face);
       face.onclick = e => { e.stopPropagation(); opts.open(face.dataset.id!); };
-      const pane = document.createElement("div");
-      pane.className = "spines pane-r";
-      list.forEach(id => pane.append(spine(id, face)));
-      row.append(face, pane);
-      mountSingle(pane);
+      const at = m.pos ?? 0;
+      // 小物の場所（ホストと同じく、そのアルバムの後ろに小物の幅だけ隙間をあける）
+      const slot = (p: HTMLElement, after: string) => Object.entries(m.at ?? {}).forEach(([k, a]) => {
+        if (a !== after) return;
+        const el = document.createElement("i");
+        el.className = "goods-slot"; el.dataset.slot = k; el.setAttribute("aria-hidden", "true");
+        el.style.setProperty("--s", String(mountingWith(opts.src.over, () => objectSize(k))));
+        el.style.setProperty("--ow", String(OBJECTS.find(o => o.key === k)?.w ?? 50));
+        p.append(el);
+      });
+      const pane = (side: "l" | "r") => { const p = document.createElement("div"); p.className = `spines pane-${side}`; slot(p, ""); list.forEach(id => { p.append(spine(id, face)); slot(p, id); }); return p; };
+      row.style.setProperty("--pos", String(at));
+      if (at > 0 && at < 1) {
+        row.classList.add("two-panes");
+        const l = pane("l"), r = pane("r");
+        row.append(l, face, r);
+        mountTwin(row, l, r);
+      } else {
+        const p = pane(at <= 0 ? "r" : "l");
+        if (at <= 0) row.append(face, p); else row.append(p, face);
+        mountSingle(p);
+      }
     }
-    body.append(row);
+    line.append(row);
+    body.append(line);
   };
   for (const r of rows) {
     const row = document.createElement("div");
@@ -243,16 +356,33 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
         const plat = document.createElement("i");
         plat.className = m.type === "shelf" ? "pr-plat pr-plat-board" : "pr-plat";
         plat.dataset.catPlat = "";
-        if (m.type === "shelf" && m.kind !== "goods") shelf(body, m);
-        else if ((m.type === "log" || m.type === "distance") && !opts.src.history) {
-          const n = document.createElement("div"); n.className = "pr-now-card pr-hidden-card";
-          n.textContent = "ホストの聴いた記録は見せていません"; body.append(n);
+        if (m.type === "shelf") {
+          if (m.kind !== "goods") shelf(body, m);
+          else { const line = document.createElement("div"); line.className = "shelf-line only"; body.append(line); }
+          // 棚の小物: ホストがその棚に置いているもの（大きさなどはホストの設定）。小物は一つずつしかないので、写しの間はここへ移す
+          const box = document.createElement("div"); box.className = "goods"; box.hidden = true;
+          body.querySelector(".shelf-line")!.append(box);
+          const floating = Object.keys(m.at ?? {}), rest = (m.goods ?? []).filter(k => !floating.includes(k));
+          if (rest.length) { try { mountingWith(opts.src.over, () => placeObjects(box, rest)); borrowed = true; } catch (e) { console.error(e); } }
+          if (floating.length) {
+            const line = body.querySelector<HTMLElement>(".shelf-line")!;
+            const float = document.createElement("div"); float.className = "goods goods-float";
+            line.append(float);
+            try { mountingWith(opts.src.over, () => placeObjects(float, floating)); borrowed = true; } catch (e) { console.error(e); }
+            float.hidden = false;
+            const go = () => floatGoods(line);
+            requestAnimationFrame(go);
+            line.addEventListener("scroll", go, { capture: true, passive: true });
+            new ResizeObserver(go).observe(line);
+          }
         }
         else {
           // 飾り・再生まわりのモジュールは、ホストの再生（の写し）で動かす。参加者は見るだけ（操作は受け付けない）
-          if (!DECOR.includes(m.type) && m.type !== "shelf" && opts.src.over) sec.classList.add("pr-view-only");
+          // 出力・イコライザーは、参加者が自分の設定で聴くためのもの（参加者の手元の設定で組み立てる）
+          const own = OWN.includes(m.type);
+          if (!own && m.type !== "player" && opts.src.over) sec.classList.add("pr-view-only");
           try {
-            mountingWith(opts.src.over, () => m.type === "player" ? mountNowCard(body, ctx().player, opts, opts.src) : mountModule(m.type === "shelf" ? "objects" : m.type, body));
+            mountingWith(own ? undefined : opts.src.over, () => m.type === "player" ? mountNowCard(body, ctx().player, opts, opts.src) : mountModule(m.type, body));
           } catch (e) { console.error(e); /* 置けなくても続ける */ }
         }
         sec.append(plat);
@@ -263,12 +393,19 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
     grid.append(row);
     const gap = document.createElement("div"); gap.className = "split split-row"; grid.append(gap);
   }
+  // 床の家具（ホストの床に置いているもの）。ホストのホームと同じく grid のいちばん前に置く（猫の足場の順もそろう）
+  try { mountingWith(opts.src.over, () => grid.prepend(thingsLayer())); } catch (e) { console.error(e); }
   return {
     el: home,
     // 写しを捨てるとき: 棚の窓の見張りと、飾りのモジュールが document に付けた聞き耳を外す（残すと写しが丸ごと解放されない）
-    dispose() { unwatchIn(home); releaseIn(home); home.remove(); faces.clear(); },
+    dispose() {
+      unwatchIn(home); releaseIn(home); home.remove(); faces.clear();
+      // 借りていた小物を、自分のホームの棚へ戻す
+      if (borrowed) document.dispatchEvent(new Event("kona:objects"));
+    },
     setCover(id, url) {
       covers.set(id, url);
+      for (const b of spines.get(id) ?? []) if (b.isConnected) tex(b, id);
       for (const box of faces.get(id) ?? []) if (box.isConnected && (box.dataset.id === id || !box.dataset.id)) art(id, box);
       faces.set(id, (faces.get(id) ?? []).filter(b => b.isConnected));
     },
@@ -277,49 +414,94 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
   };
 }
 
-/** 再生中: ジャケット・アルバム・曲名・進み具合・曲目（見るだけ）。ホームの「再生中」モジュールの写し */
+/** 再生中: ホームの「再生中」モジュールと同じ形（ジャケット・アルバム・曲名・進み具合・操作・曲目）。
+ * 参加者は見るだけなので、曲の操作は押せない。音量だけは参加者の手元の音量（src.volume）につなぐ */
+const ICON = {
+  prev: '<svg viewBox="0 0 16 16"><path d="M3 2h2v12H3zM14 2v12L6 8z"/></svg>',
+  next: '<svg viewBox="0 0 16 16"><path d="M11 2h2v12h-2zM2 2v12l8-6z"/></svg>',
+  play: '<svg viewBox="0 0 16 16"><path d="M4 2v12l10-6z"/></svg>',
+  pause: '<svg viewBox="0 0 16 16"><path d="M3 2h4v12H3zM9 2h4v12H9z"/></svg>',
+  vol: '<svg viewBox="0 0 16 16"><path d="M2 6h3l4-3v10L5 10H2z"/><path d="M11 5.2a4 4 0 0 1 0 5.6l-.9-.9a2.7 2.7 0 0 0 0-3.8zM12.8 3.4a6.5 6.5 0 0 1 0 9.2l-.9-.9a5.2 5.2 0 0 0 0-7.4z"/></svg>',
+};
 function mountNowCard(body: HTMLElement, player: Player, opts: { open(id: string): void }, src: HomeSource) {
-  const root = document.createElement("div"); root.className = "pr-np";
-  body.append(root);
-  let shown = "", fill: HTMLElement | undefined, pos: HTMLElement | undefined, dur: HTMLElement | undefined;
-  const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: string) => { const e = document.createElement(tag); e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  const center = document.createElement("div"); center.className = "center pr-center";
+  body.append(center);
+  let shown = "", playing: boolean | undefined;
   const render = () => {
     const a = player.album, t = player.track;
-    const k = a && t ? `${a.key}#${player.index}#${a.cover ?? ""}#${a.tracks.length}` : "";
-    if (k === shown) return;
-    shown = k;
-    root.replaceChildren(); fill = pos = dur = undefined;
-    if (!a || !t) { root.append(el("p", "pr-np-none", "いまは何も流れていません")); return; }
-    const jacket = el("button", "pr-np-art"); jacket.type = "button";
-    if (a.cover) { const img = el("img", "art"); img.alt = ""; img.src = a.cover; jacket.append(img); }
-    else { const b = el("div", "art-blank", a.title); b.style.background = a.color ?? "#555"; jacket.append(b); }
+    const k = a && t ? `${a.key}#${player.index}#${a.cover ?? ""}#${a.tracks.length}#${player.mode}` : "";
+    if (k === shown) {
+      if (playing !== player.playing) {
+        playing = player.playing;
+        const b = center.querySelector<HTMLElement>(".b-play"); if (b) b.innerHTML = playing ? ICON.pause : ICON.play;
+      }
+      return;
+    }
+    shown = k; playing = player.playing;
+    if (!a || !t) { center.innerHTML = ""; return; }
+    const meta = [a.artist, a.year, a.genre].filter(Boolean).map(x => esc(String(x))).join(" · ");
+    const art = a.cover ? `<img class="art" alt="" src="${esc(a.cover)}">` : `<div class="art-blank" style="background:${esc(safeColor(a.color) ?? "#555")}">${esc(a.title)}</div>`;
+    const vol = src.volume?.get() ?? 1;
+    center.innerHTML = `<div class="jacket${(a.ratio ?? 1) < 1 ? " tall" : ""}" style="--ar:${Number(a.ratio) || 1}">${art}</div>
+      <div class="np"><div class="np-main">
+        <div class="np-meta">
+          <div class="np-album">${esc(a.title)}</div>
+          <div class="np-sub">${meta}</div>
+          <div class="np-title"><span class="np-no">${String(t.no).padStart(2, "0")} / ${a.tracks.length}</span>${esc(t.title)}</div>
+        </div>
+        <div class="np-bar"><span class="np-pos">0:00</span><div class="np-track"><div class="np-fill"></div></div><span class="np-dur">0:00</span></div>
+        <div class="np-row">
+          <div class="np-ctrl">
+            <button class="b-prev" disabled aria-label="前の曲（ホストが操作します）">${ICON.prev}</button>
+            <button class="b-play play" disabled aria-label="${player.playing ? "再生中" : "一時停止中"}（ホストが操作します）">${player.playing ? ICON.pause : ICON.play}</button>
+            <button class="b-next" disabled aria-label="次の曲（ホストが操作します）">${ICON.next}</button>
+            ${modeButtonHTML(player.mode, "b-mode").replace("<button", "<button disabled")}
+          </div>
+          <div class="np-vol">
+            <span class="b-mute" aria-hidden="true">${ICON.vol}</span>
+            <input class="np-vol-range" type="range" min="0" max="100" step="1" value="${Math.round(vol * 100)}" aria-label="あなたの手元の音量"${src.volume ? "" : " disabled"}>
+          </div>
+        </div>
+      </div>
+      <ol class="tracks np-tracks" aria-label="曲目">${a.tracks.map((tr, i) => `
+        <li class="${i === player.index ? "current" : ""}"><button type="button" tabindex="-1">
+          <span class="no">${String(tr.no).padStart(2, "0")}</span><span class="t">${esc(tr.title)}</span><span class="dur">${tr.duration ? fmt(tr.duration) : ""}</span>
+        </button></li>`).join("")}</ol></div>`;
+    const jacket = center.querySelector<HTMLElement>(".jacket")!;
+    jacket.style.cursor = "pointer";
     jacket.onclick = e => { e.stopPropagation(); const id = src.idOf ? src.idOf(a) : a.key; if (id) opts.open(id); };
-    const meta = el("div", "pr-np-meta");
-    meta.append(el("b", "pr-np-album", a.title), el("span", "pr-np-sub", [a.artist, a.year].filter(Boolean).join(" · ")));
-    const title = el("span", "pr-np-title"); title.append(el("span", "pr-np-no", `${String(t.no).padStart(2, "0")} / ${a.tracks.length}`), document.createTextNode(t.title));
-    const bar = el("div", "pr-np-bar"); pos = el("span", "pr-np-pos", "0:00"); dur = el("span", "pr-np-dur", "0:00");
-    const track = el("div", "pr-np-track"); fill = el("div", "pr-np-fill"); track.append(fill);
-    bar.append(pos, track, dur);
-    meta.append(title, bar);
-    const list = el("ol", "pr-np-tracks");
-    a.tracks.forEach((tr, i) => {
-      const li = el("li", i === player.index ? "current" : "");
-      li.append(el("span", "no", String(tr.no).padStart(2, "0")), el("span", "t", tr.title), el("span", "dur", tr.duration ? fmt(tr.duration) : ""));
-      list.append(li);
-    });
-    root.append(jacket, meta, list);
+    const range = center.querySelector<HTMLInputElement>(".np-vol-range")!;
+    const paint = () => range.style.setProperty("--fill", `${Number(range.value)}%`);
+    range.oninput = () => { src.volume?.set(Number(range.value) / 100); paint(); };
+    paint();
     // 曲目は横に流れる。いまの曲が見えるところまで送る（部屋全体はスクロールさせない）
-    requestAnimationFrame(() => { const cur = list.querySelector<HTMLElement>(".current"); if (cur) list.scrollLeft = cur.offsetLeft - list.offsetLeft - 20; });
+    requestAnimationFrame(() => { const cur = center.querySelector<HTMLElement>(".np-tracks .current"), list = cur?.parentElement; if (cur && list) list.scrollLeft = cur.offsetLeft - list.offsetLeft - 20; });
   };
-  player.on(render);
   render();
-  everyFrame(root, () => {
+  everyFrame(center, () => {
     render();
+    const fill = center.querySelector<HTMLElement>(".np-fill"), pos = center.querySelector<HTMLElement>(".np-pos"), dur = center.querySelector<HTMLElement>(".np-dur");
     if (!fill || !pos || !dur) return;
     const d = player.duration, p = Math.min(d || 0, player.position);
     fill.style.width = d ? `${(p / d) * 100}%` : "0";
     const ps = fmt(p), ds = fmt(d);
     if (pos.textContent !== ps) pos.textContent = ps;
     if (dur.textContent !== ds) dur.textContent = ds;
+    const r = center.querySelector<HTMLInputElement>(".np-vol-range");
+    if (r && src.volume && document.activeElement !== r) { const v = String(Math.round(src.volume.get() * 100)); if (r.value !== v) { r.value = v; r.style.setProperty("--fill", `${v}%`); } }
+  });
+}
+
+/** 隙間の上に小物を立てる（ホストのホームと同じ。窓が 2 つある段では見えている方の隙間に） */
+function floatGoods(line: HTMLElement) {
+  const L = line.getBoundingClientRect();
+  line.querySelectorAll<SVGSVGElement>(".goods-float > svg").forEach(svg => {
+    let best: DOMRect | undefined;
+    for (const sl of line.querySelectorAll<HTMLElement>(`.goods-slot[data-slot="${svg.dataset.goods}"]`)) {
+      const r = sl.getBoundingClientRect(), p = sl.closest(".spines")!.getBoundingClientRect();
+      if (r.width && r.left >= p.left - 1 && r.right <= p.right + 1) { best = r; break; }
+    }
+    svg.style.visibility = best ? "" : "hidden";
+    if (best) svg.style.left = `${(best.left - L.left).toFixed(1)}px`;
   });
 }

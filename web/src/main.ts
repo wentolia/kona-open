@@ -1804,6 +1804,7 @@ let coats: Coat[] = (() => {
     return localStorage.getItem("kona.cat") === "off" ? [] : [randomCoat()];
   } catch { return [randomCoat()]; }
 })();
+document.addEventListener("kona:cats-away", () => placeCats(true));
 function placeCats(animate = false) {
   try { localStorage.setItem(CATS_KEY, JSON.stringify(coats)); } catch { /* ignore */ }
   const grid = $(".grid");

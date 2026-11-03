@@ -16,7 +16,7 @@
 //  夏の夜に灯りを点けていると、小さな虫が寄ってくる
 
 import "./mod-objects.css";
-import { ctx, everyFrame, esc, fmt, onDocument } from "./modctx";
+import { ctx, everyFrame, esc, fmt, onDocument, stored } from "./modctx";
 import { playLog, listenedSeconds } from "./store";
 import { reduceMotion } from "./prefs";
 import { awards, openCertificate } from "./awards";
@@ -40,7 +40,7 @@ const CANDLE_MIN = 30;
 type Saved = { lamp: boolean; hide: string[]; placed?: boolean; size?: Record<string, number>; candle?: number; water?: number };
 const load = (): Saved => {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) || "{}");
+    const v = JSON.parse(stored(KEY) || "{}");
     return { lamp: !!v.lamp, hide: Array.isArray(v.hide) ? v.hide : [], ...(v.placed ? { placed: true } : {}), ...(v.size && typeof v.size === "object" ? { size: v.size } : {}), ...(typeof v.candle === "number" ? { candle: v.candle } : {}), ...(typeof v.water === "number" ? { water: v.water } : {}) };
   } catch { return { lamp: false, hide: [] }; }
 };

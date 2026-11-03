@@ -4,10 +4,10 @@
 // ごはんを入れると "kona:feed" を出し、お腹の空いた猫が寄ってくる
 
 import "./mod-cat.css";
-import { onDocument } from "./modctx";
+import { onDocument, stored } from "./modctx";
 
 const FOOD = "kona.catfood", SCRATCH = "kona.scratch";
-const num = (k: string, d: number) => { try { const v = Number(localStorage.getItem(k)); return Number.isFinite(v) && localStorage.getItem(k) !== null ? v : d; } catch { return d; } };
+const num = (k: string, d: number) => { try { const s = stored(k), v = Number(s); return Number.isFinite(v) && s !== null ? v : d; } catch { return d; } };
 const put = (k: string, v: number) => { try { localStorage.setItem(k, String(v)); } catch { /* 保存できなくても動く */ } };
 // ---------- ローポリで描く道具 ----------
 // 猫・小物と同じく、平らな多角形を同じ色の細い縁で塗って継ぎ目を消し、濃淡 4 段（光の当たる上・左が明るく、右・下が暗い）で形を見せる。

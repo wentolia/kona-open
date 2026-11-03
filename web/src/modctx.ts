@@ -27,7 +27,8 @@ const ownHistory: HistorySource = { log: playLog, stat, listened: listenedSecond
 
 // リスニングパーティーの部屋では、ホームの写しのモジュールを、ホストの再生（の写し）と記録で動かす。
 // モジュールは組み立てるときに ctx().player / hist() を受け取って持ち続けるので、組み立てる間だけ差し替える
-export type ModOverride = Partial<ModuleContext> & { history?: HistorySource };
+// store: モジュールの見た目の設定（localStorage の値）。部屋の写しではホストの設定で組み立てる
+export type ModOverride = Partial<ModuleContext> & { history?: HistorySource; store?: Record<string, string | null> };
 let over: ModOverride | undefined;
 export function mountingWith<T>(o: ModOverride | undefined, fn: () => T): T {
   const was = over; over = o;
@@ -35,6 +36,15 @@ export function mountingWith<T>(o: ModOverride | undefined, fn: () => T): T {
 }
 export const ctx = (): ModuleContext => over ? { ...current!, ...over } : current!;
 export const hist = (): HistorySource => over?.history ?? ownHistory;
+/** モジュールの設定を読む。組み立てる間だけ写しの設定に差し替わる（組み立てるときに読んで持っておくこと） */
+export function stored(key: string): string | null {
+  if (over?.store && key in over.store) return over.store[key];
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+/** 写しの中で組み立てているか（写しでは設定を書き換えない・鐘を鳴らさないなど） */
+export const inCopy = () => !!over?.store;
+/** いまの読み替え（あとで描くものに持ち越す） */
+export const currentOver = () => over;
 
 export const css = (name: string, fallback: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 

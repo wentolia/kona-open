@@ -102,3 +102,7 @@
 /* 毛づや: 背中に浮く光の筋。撫でてもらうほど濃くなる */
 .cat .sheen { fill: #fff; stroke: none; pointer-events: none !important; opacity: calc(var(--gloss, 0) * .42); }
 .cat-visitor .sheen { display: none; }
+
+/* リスニングパーティーの通話: 話している猫の名札 */
+.cat.talking .cat-tag { box-shadow: 0 0 0 2px var(--accent); }
+.cat.talking .cat-tag::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 4px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }

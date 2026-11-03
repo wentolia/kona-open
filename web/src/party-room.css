@@ -47,11 +47,13 @@
 .pe select { font: inherit; font-size: 12px; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 4px; padding: 5px 8px; }
 .pe-traits summary { font-size: 11px; color: var(--muted); cursor: pointer; }
 .pe-traits label { display: grid; grid-template-columns: 7em 1fr; align-items: center; gap: 8px; font-size: 12px; margin-top: 4px; }
+.pe-traits meter { width: 100%; height: 8px; }
+.pe-traits .party-row { margin-top: 6px; align-items: center; }
 
 /* ホームの写し: 本物のホームと同じ組み方（style.css の .home / .grid / .mod）を使い、見るだけにする */
 .pr-home { position: absolute; inset: 0; overflow-y: auto; }
 .pr-home .grid { position: relative; min-height: 100%; }
-.pr-home .mod-head { opacity: .6; pointer-events: none; }
+.pr-home .mod-head { pointer-events: none; }
 .pr-home .split { cursor: default; pointer-events: none; }
 .pr-home .face, .pr-home .spine { cursor: pointer; }
 .pr-plat { position: absolute; left: 11px; right: 11px; top: 0; height: 0; pointer-events: none; }
@@ -95,19 +97,29 @@
 
 /* 再生の写し: 再生中（ジャケット・曲名・進み具合・曲目）。参加者は見るだけ */
 .pr-view-only .mod-body { pointer-events: none; }
-.pr-np { flex: 1; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto 1fr; gap: 10px 16px; padding: 14px; min-height: 0; overflow: hidden; }
-.pr-np-art { grid-row: 1 / 3; align-self: start; width: min(180px, 28vw); aspect-ratio: 1; padding: 0; border: 0; border-radius: 3px; overflow: hidden; background: none; box-shadow: 0 6px 14px rgba(0, 0, 0, .3); cursor: pointer; pointer-events: auto; }
-.pr-np-art img, .pr-np-art .art-blank { display: block; width: 100%; height: 100%; object-fit: cover; }
-.pr-np-meta { display: grid; gap: 4px; min-width: 0; align-content: start; }
-.pr-np-album { color: var(--ink); font-size: 17px; font-weight: 500; overflow-wrap: anywhere; }
-.pr-np-sub { color: var(--muted); font-size: 12px; }
-.pr-np-title { color: var(--ink); font-size: 14px; overflow-wrap: anywhere; }
-.pr-np-no { margin-right: 8px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.pr-np-bar { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; margin-top: 6px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-.pr-np-track { height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; }
-.pr-np-fill { height: 100%; background: var(--accent); }
-.pr-np-tracks { display: flex; gap: 6px; margin: 0; padding: 0 0 4px; list-style: none; overflow-x: auto; color: var(--muted); font-size: 12px; align-self: end; min-width: 0; }
-.pr-np-tracks li { display: flex; gap: 6px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px; white-space: nowrap; }
-.pr-np-tracks li.current { border-color: var(--accent); color: var(--ink); }
-.pr-np-none { margin: auto; grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
-.pr-hidden-card { place-content: center; text-align: center; cursor: default; }
+/* 再生中の写し: ホームの再生中モジュールと同じ形。曲の操作はホストがする（押せないボタンも、見た目はそのまま） */
+.pr-center .np-ctrl button:disabled { opacity: 1; cursor: default; }
+.pr-center .np-ctrl button:disabled:hover { background: none; }
+.pr-center .np-tracks button { cursor: default; }
+
+/* ホスト: 自分のホームのまま、部屋の操作の帯だけを下に重ねる（ホームの操作はそのまま） */
+.party-room.pr-inline { inset: auto 0 0 0; grid-template-rows: auto; background: none; pointer-events: none; animation: none; overflow: visible; }
+.party-room.pr-inline > * { pointer-events: auto; }
+.party-room.pr-inline .pr-bar { grid-row: 1; box-shadow: 0 -8px 24px rgba(0, 0, 0, .25); }
+.party-room.pr-inline .pr-side { position: fixed; right: 0; top: 0; bottom: var(--pr-bar-h, 64px); grid-row: auto; z-index: 4; }
+:root[data-party-bar] #view-home .home { padding-bottom: var(--pr-bar-h, 64px); }
+/* 参加者: ホストの壁（body の後ろの模様）を、写しの舞台の奥にも敷く */
+:root[data-wall] .pr-stage::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: color-mix(in srgb, var(--bg), var(--ink) 7%);
+  -webkit-mask: var(--wall-mask) left top / var(--wall-size) repeat;
+  mask: var(--wall-mask) left top / var(--wall-size) repeat;
+  opacity: .55;
+}
+:root[data-wall="brick"] .pr-stage::before { opacity: .45; }
+
+/* 通話のマイク */
+.pr-mic { display: inline-flex; align-items: center; gap: 6px; }
+.pr-mic select { font: inherit; font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; }
+#pr-mic { touch-action: none; user-select: none; }
+.pr-home .room-things .thing { pointer-events: none; cursor: default; }
