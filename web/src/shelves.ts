@@ -16,6 +16,7 @@ export interface ModuleDef {
   // 以下は棚のときだけ使う
   kind?: ShelfKind;
   goods?: string[];    // この棚に置く小物（mod-objects の OBJECTS の key、並べる順）。ひとつの小物はひとつの棚にだけ
+  goodsAt?: Record<string, string>; // アルバムのあいだに置いた小物: 小物の key → 前のアルバムの key（"" は列の頭）。ないものは棚の右端に
   facePos?: number;    // ジャケットの表示欄の位置（棚の幅に対する比率 0 左端〜1 右端）
   query?: string;      // 検索の棚: 検索語
   sort?: SortKey;      // 検索の棚: 並び順

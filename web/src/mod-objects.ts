@@ -907,6 +907,7 @@ export function setObjectSize(key: string, v: number) {
   patch({ size });
   const box = els.get(key)?.parentElement;
   if (box?.classList.contains("goods")) fit(box);
+  document.dispatchEvent(new CustomEvent("kona:object-size"));
 }
 // 小物ごとの大きさ（--s）と、並べる幅（--units: 高さ 100 に対する幅の合計）から、棚に収まる大きさを決める
 function fit(box: HTMLElement) {

@@ -84,3 +84,9 @@
 .goods .aclock .ac-hands circle { fill: #2e2620; }
 .goods .aclock .ac-glass { fill: none; }
 .goods .dclock .dc-t { font-family: var(--font-mono); font-size: 15px; font-weight: 500; letter-spacing: .5px; fill: var(--accent); filter: drop-shadow(0 0 2px var(--accent)); }
+
+/* アルバムのあいだに置いた小物: 列の中に小物の幅だけの隙間（.goods-slot）をあけ、小物はその上に立てる */
+.goods-slot { flex: none; align-self: stretch; width: calc(min(70cqh, 170px) * var(--s, 1) * var(--ow) / 100 + 8px); }
+.goods.goods-float { position: absolute; inset: 0; padding: 0; border: 0; pointer-events: none; display: block; }
+.goods.goods-float::before { display: none; }
+.goods-float > svg { position: absolute; bottom: 2px; margin-left: 4px; pointer-events: auto; height: calc(min(70cqh, 170px) * var(--s, 1)); }
