@@ -20,8 +20,23 @@ import pkg from "../package.json";
 import { esc } from "./dom";
 
 export interface KeptAlbum { key: string; title: string; bytes: number; forget(): Promise<void> }
+export interface ModuleHooks {
+  /** ホームに並んでいる順 */
+  list(): { id: string; title: string; label: string }[];
+  addable(): { type: string; label: string; disabled: boolean }[];
+  /** ホームに足して、その id を返す */
+  add(type: string): string;
+  /** そのモジュールの設定の欄（名前・中身・形など） */
+  form(id: string): string;
+  wire(el: HTMLElement, id: string, again: () => void): void;
+  /** ホームのそのモジュールを目立たせる（undefined で戻す） */
+  focus(id: string | undefined, scroll?: boolean): void;
+}
 export interface SettingsHooks {
   player: Player;
+  modules: ModuleHooks;
+  /** 猫と遊ぶ（ホームの「＋」にあったもの） */
+  play: { canPick(): boolean; pick(): void; wandOn(): boolean; toggleWand(): void };
   cats(): Coat[];
   addCat(): void;
   removeCat(i: number): void;
@@ -57,10 +72,12 @@ function swatch(key: string, label: string, cur: boolean, p: ThemePrefs) {
 }
 const allPalettes = () => [...PALETTES.map(p => ({ key: p.key, label: t(p.label) })), { key: CUSTOM, label: t("自分で選ぶ") }];
 
-// ---------- 4 つのタブ: 部屋・猫・音・その他。よく触るものを上に、残りは「もっと見る」に畳む ----------
-type Tab = "room" | "cats" | "sound" | "other";
-const TABS: { id: Tab; label: string }[] = [{ id: "room", label: "部屋" }, { id: "cats", label: "猫" }, { id: "sound", label: "音" }, { id: "other", label: "その他" }];
+// ---------- 5 つのタブ: 部屋・モジュール・猫・音・その他。よく触るものを上に、残りは「もっと見る」に畳む ----------
+type Tab = "room" | "modules" | "cats" | "sound" | "other";
+const TABS: { id: Tab; label: string }[] = [{ id: "room", label: "部屋" }, { id: "modules", label: "モジュール" }, { id: "cats", label: "猫" }, { id: "sound", label: "音" }, { id: "other", label: "その他" }];
 let tab: Tab = "room";
+/** モジュールのタブで設定を開いているモジュール（ひとつだけ） */
+let openMod: string | undefined;
 /** 開いている畳み（描き直しても開いたまま） */
 const opened = new Set<string>();
 
@@ -121,6 +138,22 @@ function soundTab(h: SettingsHooks) {
       <form class="set-row set-save" id="set-save-preset"><span>${t("いまの形を残す")}</span><input id="set-preset-name" maxlength="24" placeholder="${esc(t("名前"))}" autocomplete="off"><button class="set-btn">${t("残す")}</button></form>`)}`;
 }
 
+// モジュール: ホームに並んでいる順に。押すとそのモジュールの設定が開き、ホームでもそのモジュールに札が立つ
+function modulesTab(h: SettingsHooks) {
+  const list = h.modules.list();
+  if (openMod && !list.some(m => m.id === openMod)) openMod = undefined;
+  return `
+    ${sec(`${t("ホームのモジュール")} · ${list.length}`, `
+      <ul class="set-mods">${list.map(m => `
+        <li class="set-mod${m.id === openMod ? " open" : ""}" data-mod="${esc(m.id)}">
+          <button type="button" class="set-mod-head" aria-expanded="${m.id === openMod}"><b>${esc(m.title)}</b>${m.title !== m.label ? `<i>${esc(m.label)}</i>` : ""}</button>
+          ${m.id === openMod ? `<div class="set-mod-body sm-form">${h.modules.form(m.id)}</div>` : ""}
+        </li>`).join("")}
+      </ul>`)}
+    ${sec(t("モジュールを足す"), `
+      <div class="set-chips">${h.modules.addable().map(a => `<button type="button" data-add-mod="${esc(a.type)}"${a.disabled ? " disabled" : ""}>＋ ${esc(a.label)}</button>`).join("")}</div>`)}`;
+}
+
 function catsTab(h: SettingsHooks) {
   const q = prefs(), cats = h.cats();
   const breeds = Object.entries(BREEDS);
@@ -135,6 +168,11 @@ function catsTab(h: SettingsHooks) {
       </ul>
       <div class="set-row"><button type="button" class="set-btn" id="set-cat-add">＋ ${t("猫を呼ぶ")}</button></div>
       ${check("set-cats-hidden", q.catsHidden, t("猫を出さない"))}`)}
+    ${sec(t("遊ぶ"), `
+      <div class="set-row set-btns">
+        <button type="button" class="set-btn" id="set-wand"${cats.length ? "" : " disabled"} aria-pressed="${h.play.wandOn()}">${h.play.wandOn() ? t("猫じゃらしをしまう") : t("猫じゃらしで遊ぶ")}</button>
+        <button type="button" class="set-btn" id="set-pick"${h.play.canPick() ? "" : " disabled"}>${t("ランダムで1枚")}</button>
+      </div>`)}
     ${fold("cats-more", t("もっと見る"), `
       ${check("set-zoomies", q.catZoomies, t("夜中にときどき駆け回る（夜の運動会）"))}
       ${row(t("よく聴くアルバムをくわえてきたら"), seg("mischief", [{ v: "off", label: t("させない") }, { v: "queue", label: t("次に再生に入れる") }], q.catMischief))}`)}`;
@@ -219,14 +257,16 @@ export function initSettings(el: HTMLElement, h: SettingsHooks) {
 export function renderSettings() {
   if (!root) return;
   const body = root.querySelector(".set-body"), scroll = body?.scrollTop ?? 0;
-  const content = { room: roomTab, cats: () => catsTab(hooks), sound: () => soundTab(hooks), other: () => otherTab(hooks) }[tab]();
+  if (tab === "modules" && document.body.classList.contains("mobile")) tab = "room"; // スマホ版にはモジュールがない
+  if (tab !== "modules") hooks.modules.focus(undefined);
+  const content = { room: roomTab, modules: () => modulesTab(hooks), cats: () => catsTab(hooks), sound: () => soundTab(hooks), other: () => otherTab(hooks) }[tab]();
   root.innerHTML = `
   <div class="set">
     <header class="set-head">
       <h2>${esc(t("設定"))}</h2>
       <a href="#home" class="set-close" aria-label="${esc(t("閉じる"))}" title="${esc(t("閉じる"))} (Esc)">×</a>
     </header>
-    <nav class="set-tabs" role="tablist" aria-label="${esc(t("設定"))}">${TABS.map(x => `<button type="button" role="tab" data-tab="${x.id}" aria-selected="${x.id === tab}">${esc(t(x.label))}</button>`).join("")}</nav>
+    <nav class="set-tabs" role="tablist" aria-label="${esc(t("設定"))}">${TABS.filter(x => x.id !== "modules" || !document.body.classList.contains("mobile")).map(x => `<button type="button" role="tab" data-tab="${x.id}" aria-selected="${x.id === tab}">${esc(t(x.label))}</button>`).join("")}</nav>
     <div class="set-body" role="tabpanel">${content}</div>
   </div>`;
   root.querySelector(".set-body")!.scrollTop = scroll;
@@ -235,6 +275,22 @@ export function renderSettings() {
     const n = root?.querySelector("#set-storage");
     if (n && e.usage !== undefined) n.textContent = `${t("このブラウザで Kona が使っている容量")}: ${mb(e.usage)}${e.quota ? ` / ${mb(e.quota)}` : ""}`;
   }).catch(() => {});
+}
+
+/** 設定ページの「モジュール」タブで、そのモジュールの設定を開く（ホームの札から） */
+export function openModuleSettings(id: string) {
+  tab = "modules"; openMod = id;
+  if (location.hash !== "#settings") location.hash = "#settings"; // 開くと描かれる
+  else renderSettings();
+  hooks.modules.focus(id);
+  revealOpenMod(true);
+}
+function revealOpenMod(focusName: boolean) {
+  requestAnimationFrame(() => {
+    const li = root?.querySelector<HTMLElement>(".set-mod.open");
+    li?.scrollIntoView({ block: "nearest" });
+    if (focusName) li?.querySelector<HTMLInputElement>("#sm-title")?.focus({ preventScroll: true });
+  });
 }
 
 // ---------- 確かめるダイアログ（取り消せない操作の前に） ----------
@@ -347,7 +403,25 @@ function wire(el: HTMLElement) {
     again();
   };
 
+  // モジュール
+  on("[data-mod] > .set-mod-head", "click", b => {
+    const id = b.closest<HTMLElement>("[data-mod]")!.dataset.mod!;
+    openMod = openMod === id ? undefined : id;
+    h.modules.focus(openMod, true);
+    again();
+  });
+  const form = el.querySelector<HTMLElement>(".set-mod-body");
+  if (form && openMod) h.modules.wire(form, openMod, again);
+  on("[data-add-mod]", "click", b => {
+    openMod = h.modules.add(b.dataset.addMod!);
+    again();
+    h.modules.focus(openMod, true);
+    revealOpenMod(true);
+  });
+
   // 猫
+  on("#set-wand", "click", () => { h.play.toggleWand(); again(); });
+  on("#set-pick", "click", () => h.play.pick());
   on<HTMLInputElement>("#set-cats-hidden", "change", c => setPrefs({ catsHidden: c.checked }));
   on("#set-cat-add", "click", () => { h.addCat(); again(); });
   on("[data-cat] .set-cat-bye", "click", b => { h.removeCat(Number(b.closest<HTMLElement>("[data-cat]")!.dataset.cat)); again(); });

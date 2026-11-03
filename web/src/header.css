@@ -55,8 +55,8 @@ body:not([data-state="ready"]) .top::before { display: none; }
   background: linear-gradient(172deg, color-mix(in srgb, var(--ink) 11%, transparent) 50%, color-mix(in srgb, var(--ink) 6%, transparent) 50%);
 }
 
-/* モジュールを足す「＋」: ホームを開いているときだけ、タブと窓のボタンのあいだに。いつも薄く面を見せて、押せるものだと分かるように */
-body:not([data-view="home"]) .top .add-mod { display: none; }
-.top .add-mod::before { opacity: .45; }
-.top .add-mod:hover::before, .top .add-mod:focus-visible::before, body:has(#add-menu) .top .add-mod::before { opacity: 1; }
-.top .add-mod svg { width: 13px; height: 13px; }
+/* 写真を撮る: 左の KONA のすぐ横に、小さく薄く。触れたときだけはっきり見せる */
+.top #to-photo { width: 26px; height: 26px; margin-left: -8px; opacity: .6; transition: opacity .15s; }
+.top #to-photo svg { width: 13px; height: 13px; }
+.top #to-photo:hover, .top #to-photo:focus-visible { opacity: 1; }
+.top #to-photo:hover svg, .top #to-photo:focus-visible svg { fill: var(--ink); }

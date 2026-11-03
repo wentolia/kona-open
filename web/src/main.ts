@@ -1,8 +1,8 @@
 import "./style.css";
 import "./first-run"; // はじめて開いたときの部屋（ほかの設定を読む前に）
 import { initTheme } from "./theme";
-import { initSettings, renderSettings } from "./settings";
-import { prefs } from "./prefs";
+import { initSettings, renderSettings, openModuleSettings } from "./settings";
+import { prefs, reduceMotion } from "./prefs";
 import { libGroup, setLibGroup, groupKey, groupAlbums, type LibGroup } from "./libgroup";
 import { initShortcuts } from "./shortcuts";
 import { t, t as tr, translateStatic } from "./i18n";
@@ -65,7 +65,7 @@ const saveMods = () => saveLayout(modules);
 const home = loadHome(modules);
 const shelfById = (id: string) => modules.find((m): m is ShelfDef => m.id === id && isShelf(m));
 const kept = new Map<string, HTMLElement>(); // 描き直しても作り直さないモジュール（再生中など）
-let editing: { id: string; anchor: HTMLElement } | undefined; // 設定を開いているモジュール
+let editing: { id: string } | undefined; // 設定ページで設定を開いているモジュール
 const queue: string[] = [];       // 次に再生するアルバム
 const player = new Player();
 initNoise(player);
@@ -635,7 +635,6 @@ function face(a: Album, label: string, rowId: string) {
 
 // 曲目パネル: 棚の上か下（広い方）に浮かべて表示する。棚の並びは動かさない
 function openPop(rowId: string, a: Album, anchor: HTMLElement) {
-  if (editing) closeModuleMenu();
   pop = { rowId, key: a.key, anchor };
   enrichTracks(a).then(renderPop);
   renderPop();
@@ -871,7 +870,6 @@ function renderShelves() {
     pop.anchor = (row && visibleSpine(row, pop.key)) ?? visibleSpine(document, pop.key) ?? pop.anchor;
     renderPop();
   }
-  if (editing) renderModuleMenu();
   renderMobile();
 }
 
@@ -923,8 +921,7 @@ function moduleEl(d: ModuleDef) {
       <div class="mod-body"></div>`;
     $(".mod-title", sec).onclick = e => {
       if (justDragged) return;
-      const t = e.currentTarget as HTMLElement;
-      if (editing?.id === d.id) closeModuleMenu(); else openModuleMenu(d, t);
+      openModuleSettings(d.id);
     };
     wireModuleDrag(sec, d);
     if (!isShelf(d)) kept.set(d.id, sec); // 再生中・EQ・波形などは描き直しても作り直さない
@@ -932,7 +929,6 @@ function moduleEl(d: ModuleDef) {
   if (isShelf(d)) { sec.dataset.kind = d.kind; sec.dataset.sort = d.kind === "search" ? d.sort ?? prefs().libSort : ""; }
   sec.className = `mod mod-${d.type}` + (isShelf(d) && accepts(d) ? " mod-accepts" : "") + (editing?.id === d.id ? " mod-open" : "");
   $(".mod-title", sec).textContent = d.title;
-  if (editing?.id === d.id) editing.anchor = $(".mod-title", sec);
   const body = $(".mod-body", sec);
   if (isShelf(d)) shelfBody(body, d);
   else if (d.type === "player") { if (fresh) { body.innerHTML = `<div class="center" id="center"></div>`; queueMicrotask(renderCenter); } }
@@ -967,67 +963,31 @@ function shelfBody(body: HTMLElement, d: ShelfDef) {
   if (accepts(d)) wireAlbumDrop(row, d);
 }
 
-// モジュールを足す: ヘッダーの「＋」から種類を選ぶ（メニューはボタンのすぐ下に開く）
-function openAddMenu(anchor: HTMLElement) {
-  closeAddMenu();
-  const el = document.createElement("div");
-  el.id = "add-menu"; el.className = "pop-menu"; el.setAttribute("role", "menu");
-  el.innerHTML = MODULES.map(m => {
-    const taken = m.single && modules.some(x => x.type === m.type);
-    return `<button role="menuitem" data-type="${m.type}"${m.ready && !taken ? "" : " disabled"}><b>${t(m.label)}</b></button>`;
-  }).join("") + `<hr><button role="menuitem" data-cat="pick"${albums.length ? "" : " disabled"}><b>ランダムで1枚</b></button><button role="menuitem" data-cat="wand"${coats.length ? "" : " disabled"}><b>${wandOn() ? "猫じゃらしをしまう" : "猫じゃらしで遊ぶ"}</b></button><button role="menuitem" data-cat="add"><b>${t("猫を呼ぶ")}</b></button><button role="menuitem" data-cat="remove"${coats.length ? "" : " disabled"}><b>${t("猫を帰す")}</b></button>`;
-  el.onclick = e => {
-    const cat = (e.target as HTMLElement).closest<HTMLElement>("[data-cat]:not([disabled])")?.dataset.cat;
-    if (cat === "wand") { closeAddMenu(); toggleWand(); return; } // しまうときは Esc でも
-    if (cat === "pick") {
-      // 猫がいれば 1 枚くわえてきてもらう。いなければそのまま流す
-      closeAddMenu();
-      if (!catPicksAlbum()) { const a = albums[Math.floor(Math.random() * albums.length)]; if (a) play(a); }
-      return;
-    }
-    if (cat) { if (cat === "add") { coats.push(randomCoat()); } else coats.pop(); placeCats(true); closeAddMenu(); return; }
-    const type = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-type]:not([disabled])")?.dataset.type as ModuleType | undefined;
-    if (!type) return;
-    closeAddMenu();
-    const info = moduleInfo(type);
-    const d: ModuleDef = type === "shelf"
-      ? { id: newId(), type, kind: "search", query: "", title: "新しい棚", w: 1 / 2, height: info.height }
-      : { id: newId(), type, title: tr(info.label), w: 1, height: info.height };
-    modules.push(d); addModule(home, d.id, info.height); saveMods(); saveHome(home); renderShelves();
-    const t = document.querySelector<HTMLElement>(`.mod[data-id="${d.id}"] .mod-title`);
-    if (t) { t.scrollIntoView({ block: "nearest" }); openModuleMenu(d, t); }
-  };
-  document.body.append(el);
-  const r = anchor.getBoundingClientRect();
-  const z = parseFloat(getComputedStyle(el).zoom) || 1; // 文字の大きさ（zoom）の分だけ位置を割り戻す
-  el.style.right = `${Math.max(16, innerWidth - r.right) / z}px`;
-  el.style.top = `${(r.bottom + 6) / z}px`;
-  el.style.maxHeight = `${Math.max(160, innerHeight - r.bottom - 22) / z}px`; el.style.overflowY = "auto";
-}
-const closeAddMenu = () => document.getElementById("add-menu")?.remove();
-addEventListener("pointerdown", e => { if (!(e.target as HTMLElement).closest("#add-menu, .add-mod")) closeAddMenu(); });
+// ---------- モジュールの追加と設定: どちらも設定ページの「モジュール」タブで ----------
+// ホームの札を押すと、そのモジュールの設定を開く。開いている間、ホームのそのモジュールは札を出したままにする
 
-// モジュールの設定: 名前を押すと、そのすぐ下に小さく開く。位置・幅・高さはモジュールを直接動かして変える
-function openModuleMenu(d: ModuleDef, anchor: HTMLElement) {
-  closePop();
-  editing = { id: d.id, anchor };
-  renderModuleMenu();
+/** ホームに並んでいる順（段 → 列 → 縦積み） */
+const homeOrder = () => home.rows.flatMap(r => r.cols.flatMap(c => c.stack.map(k => modules.find(m => m.id === k.id)))).filter((d): d is ModuleDef => !!d);
+
+function focusModule(id: string | undefined, scroll = false) {
+  editing = id && modules.some(m => m.id === id) ? { id } : undefined;
   document.querySelectorAll(".mod-open").forEach(el => el.classList.remove("mod-open"));
-  anchor.closest(".mod")?.classList.add("mod-open");
-  $<HTMLInputElement>("#sm-title")?.focus();
+  if (!editing) return;
+  const sec = document.querySelector<HTMLElement>(`.mod[data-id="${CSS.escape(editing.id)}"]`);
+  sec?.classList.add("mod-open");
+  if (scroll) sec?.scrollIntoView({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" });
 }
 
-function closeModuleMenu() {
-  editing = undefined;
-  document.getElementById("module-menu")?.remove();
-  document.querySelectorAll(".mod-open").forEach(el => el.classList.remove("mod-open"));
+function addModuleOf(type: ModuleType): string {
+  const info = moduleInfo(type);
+  const d: ModuleDef = type === "shelf"
+    ? { id: newId(), type, kind: "search", query: "", title: "新しい棚", w: 1 / 2, height: info.height }
+    : { id: newId(), type, title: tr(info.label), w: 1, height: info.height };
+  modules.push(d); addModule(home, d.id, info.height); saveMods(); saveHome(home); renderShelves();
+  return d.id;
 }
 
-function renderModuleMenu() {
-  const d = editing && modules.find(m => m.id === editing!.id);
-  if (!editing || !d || !editing.anchor.isConnected) { closeModuleMenu(); return; }
-  let el = document.getElementById("module-menu");
-  if (!el) { el = document.createElement("div"); el.id = "module-menu"; el.className = "module-menu"; document.body.append(el); }
+function moduleFormHTML(d: ModuleDef) {
   const opt = (v: string, label: string, sel: boolean) => `<option value="${esc(v)}"${sel ? " selected" : ""}>${esc(label)}</option>`;
   const shelfFields = () => {
     if (!isShelf(d)) return "";
@@ -1040,7 +1000,7 @@ function renderModuleMenu() {
       <p class="sm-note">tag:名前 だけの棚には、アルバムを落としてタグをつけられます</p>
       <label>並び順<select id="sm-sort">${SORTS.map(o => opt(o.key, o.label, o.key === (d.sort ?? prefs().libSort))).join("")}</select></label>` : ""}`;
   };
-  el.innerHTML = `
+  return `
     <label>名前<input id="sm-title" value="${esc(d.title)}"></label>
     ${shelfFields()}
     ${d.type === "window" ? `<label>景色<select id="sm-scene">${WINDOW_SCENES.map(s => opt(s.key, s.label, s.key === windowScene())).join("")}</select></label>` : ""}
@@ -1049,15 +1009,19 @@ function renderModuleMenu() {
       <label>形<select id="sm-spec-style">${opt("bars", "バー", sp.style === "bars")}${opt("wave", "波", sp.style === "wave")}</select></label>
       <label>向き<select id="sm-spec-dir">${(sp.shape === "circle" ? [["out", "外側"], ["in", "内側"], ["both", "両側"]] : [["out", "上"], ["in", "下"], ["both", "上下"]]).map(([v, l]) => opt(v, l, sp.dir === v)).join("")}</select></label>
       ${sp.shape === "circle" ? `<label>円の大きさ<input id="sm-spec-size" type="range" min="30" max="100" step="1" value="${Math.round(sp.size * 100)}"></label>` : ""}`)(spectrumPrefs()) : ""}
-    <div class="sm-actions"><button class="sm-delete">ホームから外す</button><button class="sm-done">閉じる</button></div>`;
-  const save = () => { saveMods(); renderShelves(); renderModuleMenu(); };
+    <div class="sm-actions"><button type="button" class="sm-delete">ホームから外す</button></div>`;
+}
+
+function wireModuleForm(el: HTMLElement, d: ModuleDef, again: () => void) {
+  const save = () => { saveMods(); renderShelves(); again(); };
   const fallback = () => isShelf(d) ? kindLabel(d.kind) : moduleInfo(d.type).label;
-  $<HTMLInputElement>("#sm-title", el).oninput = e => {
-    d.title = (e.target as HTMLInputElement).value;
-    const t = editing?.anchor; if (t) t.textContent = d.title;
+  const title = $<HTMLInputElement>("#sm-title", el);
+  title.oninput = () => {
+    d.title = title.value;
+    const t = document.querySelector(`.mod[data-id="${CSS.escape(d.id)}"] .mod-title`); if (t) t.textContent = d.title;
   };
-  $<HTMLInputElement>("#sm-title", el).onchange = e => { d.title = (e.target as HTMLInputElement).value.trim() || fallback(); save(); };
-  $<HTMLInputElement>("#sm-title", el).onkeydown = e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); };
+  title.onchange = () => { d.title = title.value.trim() || fallback(); save(); };
+  title.onkeydown = e => { if (e.key === "Enter") title.blur(); };
   if (isShelf(d)) {
     $<HTMLSelectElement>("#sm-kind", el).onchange = e => {
       d.kind = (e.target as HTMLSelectElement).value as ShelfKind;
@@ -1065,38 +1029,31 @@ function renderModuleMenu() {
       if (KINDS.some(k => k.label === d.title) || d.title === "新しい棚") d.title = kindLabel(d.kind);
       save();
     };
-    const mq = $<HTMLInputElement>("#sm-query", el);
+    const mq = el.querySelector<HTMLInputElement>("#sm-query");
     if (mq) mq.oninput = () => {
       const inline = document.getElementById(`q-${d.id}`) as HTMLInputElement | null;
       if (inline) { inline.value = mq.value; inline.dispatchEvent(new Event("input")); }
+      else { d.query = mq.value; saveMods(); renderShelves(); }
     };
-    const be = $<HTMLInputElement>("#sm-folder-gaps", el);
+    const be = el.querySelector<HTMLInputElement>("#sm-folder-gaps");
     if (be) be.onchange = () => { d.folderGaps = be.checked || undefined; save(); };
-    const ms = $<HTMLSelectElement>("#sm-sort", el);
+    const ms = el.querySelector<HTMLSelectElement>("#sm-sort");
     if (ms) ms.onchange = () => { d.sort = ms.value as SortKey; save(); };
   }
   for (const key of ["shape", "style", "dir"] as const) {
     const sel = el.querySelector<HTMLSelectElement>(`#sm-spec-${key}`);
-    if (sel) sel.onchange = () => { setSpectrumPrefs({ [key]: sel.value } as Partial<SpectrumPrefs>); if (key === "shape") renderModuleMenu(); };
+    if (sel) sel.onchange = () => { setSpectrumPrefs({ [key]: sel.value } as Partial<SpectrumPrefs>); if (key === "shape") again(); };
   }
   const specSize = el.querySelector<HTMLInputElement>("#sm-spec-size");
   if (specSize) specSize.oninput = () => setSpectrumPrefs({ size: Number(specSize.value) / 100 });
   const sceneSel = el.querySelector<HTMLSelectElement>("#sm-scene");
   if (sceneSel) sceneSel.onchange = () => setWindowScene(sceneSel.value);
   el.querySelectorAll<HTMLInputElement>("[data-obj]").forEach(cb => cb.onchange = () => setObjectShown(cb.dataset.obj!, cb.checked));
-  $(".sm-delete", el).onclick = () => { modules = modules.filter(m => m !== d); removeModule(home, d.id); kept.delete(d.id); closeModuleMenu(); saveMods(); saveHome(home); renderShelves(); };
-  $(".sm-done", el).onclick = closeModuleMenu;
-  const r = editing.anchor.getBoundingClientRect();
-  el.style.left = `${Math.max(16, Math.min(r.left - 8, innerWidth - el.offsetWidth - 16))}px`;
-  el.style.top = `${Math.max(16, Math.min(r.bottom + 6, innerHeight - el.offsetHeight - 16))}px`;
+  $(".sm-delete", el).onclick = () => {
+    modules = modules.filter(m => m !== d); removeModule(home, d.id); kept.delete(d.id);
+    focusModule(undefined); saveMods(); saveHome(home); renderShelves(); again();
+  };
 }
-
-addEventListener("pointerdown", e => {
-  if (!editing) return;
-  if ((e.target as HTMLElement).closest("#module-menu, .mod-title")) return;
-  closeModuleMenu();
-});
-addEventListener("keydown", e => { if (e.key === "Escape" && editing) closeModuleMenu(); });
 
 // 右端で幅、下端で高さを自由に変える（幅はよく使う比率の近くでだけ軽く吸い付く）
 // 境目をドラッグして大きさを変える: 列の間 → 幅、重ねたモジュールの間 → 高さの配分、段の下 → 段の高さ
@@ -1164,7 +1121,7 @@ function wireModuleDrag(sec: HTMLElement, d: ModuleDef) {
     const move = (ev: PointerEvent) => {
       if (!dragging) {
         if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
-        dragging = true; closeModuleMenu(); closePop();
+        dragging = true; closePop();
         sec.classList.add("mod-dragging"); document.body.classList.add("arranging");
         document.body.append(hint, ghost);
       }
@@ -1405,8 +1362,6 @@ function renderLibrary() {
 
 function renderHomeFrame() {
   $("#view-home").innerHTML = `<div class="home"><div class="grid"></div></div>`;
-  const add = $<HTMLButtonElement>("#add-mod"); // ヘッダーの「＋」
-  add.onclick = () => document.getElementById("add-menu") ? closeAddMenu() : openAddMenu(add);
   wireSplits($(".grid"));
 }
 
@@ -1706,6 +1661,20 @@ setCatHooks({
 // ---------- 設定ページ ----------
 initSettings($("#view-settings"), {
   player,
+  modules: {
+    list: () => homeOrder().map(d => ({ id: d.id, title: d.title, label: tr(isShelf(d) ? kindLabel(d.kind) : moduleInfo(d.type).label) })),
+    addable: () => MODULES.map(m => ({ type: m.type, label: tr(m.label), disabled: !m.ready || (!!m.single && modules.some(x => x.type === m.type)) })),
+    add: type => addModuleOf(type as ModuleType),
+    form: id => { const d = modules.find(m => m.id === id); return d ? moduleFormHTML(d) : ""; },
+    wire: (el, id, again) => { const d = modules.find(m => m.id === id); if (d) wireModuleForm(el, d, again); },
+    focus: (id, scroll) => focusModule(id, scroll),
+  },
+  play: {
+    canPick: () => albums.length > 0,
+    pick: () => { if (!catPicksAlbum()) { const a = albums[Math.floor(Math.random() * albums.length)]; if (a) play(a); } },
+    wandOn: () => wandOn(),
+    toggleWand: () => { toggleWand(); },
+  },
   cats: () => coats,
   addCat: () => { coats.push(randomCoat()); placeCats(true); },
   removeCat: i => { coats.splice(i, 1); placeCats(true); },
@@ -1750,16 +1719,27 @@ document.addEventListener("kona:prefs", e => {
 translateStatic();
 
 // ---------- ルーティング ----------
+// ホームとライブラリを行き来するときは、いったん薄く消してから現れる（パッと切り替わらない）
+const FADE_MS = 180;
+let fading = 0;
+const shownMain = () => $("#view-library").hidden ? "home" : "library";
 function route() {
   const view = location.hash === "#library" ? "library" : location.hash === "#settings" ? "settings" : "home";
+  for (const v of ["home", "library", "settings"]) { const a = $(`#tab-${v}`); if (v === view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); }
+  clearTimeout(fading);
+  const swap = document.body.dataset.state === "ready" && !reduceMotion() && (view === "library") !== (shownMain() === "library");
+  if (!swap) { document.body.classList.remove("view-out"); showView(view); return; }
+  document.body.classList.add("view-out");
+  fading = window.setTimeout(() => { showView(view); requestAnimationFrame(() => document.body.classList.remove("view-out")); }, FADE_MS);
+}
+function showView(view: string) {
   document.body.dataset.view = view;
+  if (view !== "settings") focusModule(undefined);
   const wasSettings = !$("#view-settings").hidden;
   for (const v of ["home", "library", "settings"]) {
     // 設定は部屋の右に開く: 部屋は見えたままにして、変えたものをその場で確かめられるようにする
     $(`#view-${v}`).hidden = v !== view && !(v === "home" && view === "settings");
-    $(`#tab-${v}`).toggleAttribute("aria-current", false);
   }
-  $(`#tab-${view}`).setAttribute("aria-current", "page");
   if (view === "settings") renderSettings();
   // 部屋の幅が変わるので、猫などの配置を測り直させる
   if (wasSettings !== (view === "settings")) dispatchEvent(new Event("resize"));

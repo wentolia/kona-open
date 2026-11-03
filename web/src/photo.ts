@@ -126,10 +126,10 @@ async function shoot(hideArt: boolean): Promise<HTMLCanvasElement> {
       features: { restoreScrollPosition: true, copyScrollbar: false },
       fetchFn: imageAsDataUrl,
       // 写さないもの: 撮影の画面・メニュー・お知らせ
-      filter: n => !(n instanceof Element) || !n.matches(".photo, .photo-flash, .pop-menu, .toast, #add-menu, #module-menu"),
+      filter: n => !(n instanceof Element) || !n.matches(".photo, .photo-flash, .pop-menu, .toast"),
       onCloneNode: async root => {
         if (!(root instanceof Element)) return;
-        root.querySelectorAll<HTMLElement>(".add-mod").forEach(e => { e.style.visibility = "hidden"; });
+        root.querySelectorAll<HTMLElement>("#to-photo").forEach(e => { e.style.visibility = "hidden"; });
         // 写真にスクロールバーは要らない（位置はそのまま写す）
         [root, ...root.querySelectorAll("*")].forEach(e => { if (e instanceof HTMLElement) e.style.scrollbarWidth = "none"; });
         if (!hideArt) return;

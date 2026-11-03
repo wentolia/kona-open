@@ -34,6 +34,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 
 main { flex: 1; min-height: 0; display: flex; }
 .view { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+/* ホームとライブラリの行き来: いったん薄く消えて（.18s）、ゆっくり現れる（.26s） */
+main, .np-footer { transition: opacity .26s ease; }
+body.view-out :is(main, .np-footer) { opacity: 0; transition-duration: .18s; }
 
 /* ---------- shelf primitives ---------- */
 .case {
@@ -208,23 +211,18 @@ body.arranging, body.arranging * { cursor: grabbing !important; user-select: non
 .mod-search::placeholder { color: var(--muted); }
 .mod-search:hover, .mod-search:focus { border-bottom-color: var(--muted); outline: none; }
 
-/* 棚の設定: 棚の名前のすぐ下に浮かぶ */
-.module-menu {
-  position: fixed; z-index: 60; width: min(280px, calc(100vw - 32px)); display: grid; gap: 10px; padding: 12px;
-  background: var(--panel); border: 1.5px solid var(--line); border-radius: 6px; box-shadow: 0 16px 40px rgba(0,0,0,.28);
-  font-size: 11px; color: var(--muted); animation: pull .14s ease-out;
-}
-.module-menu label { display: grid; gap: 3px; }
-.module-menu label.sm-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); cursor: pointer; }
-.module-menu label.sm-check input { margin: 0; width: auto; flex: none; padding: 0; accent-color: var(--accent); }
-.module-menu .sm-note { margin: -2px 0 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
-.module-menu input, .module-menu select { font: inherit; font-size: 13px; color: var(--ink); background: var(--bg); border: 1px solid var(--soft); border-radius: 4px; padding: 5px 7px; width: 100%; }
-.module-menu input[type="range"] { padding: 0; border: 0; background: none; accent-color: var(--accent); }
+/* モジュールの設定の欄（設定ページの「モジュール」タブの中） */
+.sm-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; font-size: 11px; color: var(--muted); }
+.sm-form label { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
+.sm-form label.sm-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); cursor: pointer; }
+.sm-form label.sm-check input { margin: 0; width: auto; flex: none; padding: 0; accent-color: var(--accent); }
+.sm-form .sm-note { overflow-wrap: anywhere; margin: -2px 0 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.sm-form input, .sm-form select { box-sizing: border-box; min-width: 0; font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 5px 7px; width: 100%; }
+.sm-form input[type="range"] { padding: 0; border: 0; background: none; accent-color: var(--accent); }
 .sm-hint { margin: 0; line-height: 1.5; }
 .sm-actions { display: flex; justify-content: space-between; gap: 6px; }
 .sm-actions button { font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--soft); }
 .sm-delete { color: var(--danger); }
-.sm-done { background: var(--ink); color: var(--bg); }
 
 /* スキンの切り替え */
 .pop-menu {
@@ -709,8 +707,8 @@ body { background: radial-gradient(120% 80% at 50% 45%, color-mix(in srgb, var(-
 .dist-bar b:first-child { visibility: hidden; }
 .dist-bar em { position: absolute; top: 50%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 .dist-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-.module-menu fieldset.sm-objects { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
-.module-menu fieldset.sm-objects legend { padding: 0; margin-bottom: 4px; font-size: 11px; color: var(--muted); }
+.sm-form fieldset.sm-objects { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+.sm-form fieldset.sm-objects legend { padding: 0; margin-bottom: 4px; font-size: 11px; color: var(--muted); }
 
 /* 曲・アルバムが変わったときの差し替え: 薄く消えて、ゆっくり現れる */
 .swap-out { opacity: 0 !important; transition: opacity .2s ease; }
