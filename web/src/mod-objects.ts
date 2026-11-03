@@ -34,11 +34,12 @@ export const OBJECTS = [
 ] as const;
 const CANDLE_MIN = 30;
 // placed: 置き場所を棚ごとに持つようになってから true（以前の hide は、そのときに一度だけ棚へ移す）
-type Saved = { lamp: boolean; hide: string[]; placed?: boolean; candle?: number; water?: number };
+// size: 小物ごとの大きさ（1 が標準。0.5〜1.5）
+type Saved = { lamp: boolean; hide: string[]; placed?: boolean; size?: Record<string, number>; candle?: number; water?: number };
 const load = (): Saved => {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || "{}");
-    return { lamp: !!v.lamp, hide: Array.isArray(v.hide) ? v.hide : [], ...(v.placed ? { placed: true } : {}), ...(typeof v.candle === "number" ? { candle: v.candle } : {}), ...(typeof v.water === "number" ? { water: v.water } : {}) };
+    return { lamp: !!v.lamp, hide: Array.isArray(v.hide) ? v.hide : [], ...(v.placed ? { placed: true } : {}), ...(v.size && typeof v.size === "object" ? { size: v.size } : {}), ...(typeof v.candle === "number" ? { candle: v.candle } : {}), ...(typeof v.water === "number" ? { water: v.water } : {}) };
   } catch { return { lamp: false, hide: [] }; }
 };
 const save = (s: Saved) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* 保存できなくても動く */ } };
@@ -837,7 +838,28 @@ export function placeObjects(box: HTMLElement, keys: readonly string[]) {
   const want = keys.filter(k => els.has(k) && objectAvailable(k));
   for (const el of [...box.children]) if (!want.includes((el as SVGElement).dataset.goods ?? "")) stash!.firstElementChild!.append(el);
   want.forEach((k, i) => { const el = els.get(k)!; if (box.children[i] !== el) box.insertBefore(el, box.children[i] ?? null); });
-  // 並べる幅から大きさを決める（w は高さ 100 に対する幅）
-  box.style.setProperty("--units", String(Math.max(60, want.reduce((n, k) => n + (OBJECTS.find(o => o.key === k)?.w ?? 50) + 14, 0))));
+  fit(box);
   box.hidden = !want.length;
+}
+
+export const SIZE_MIN = 0.5, SIZE_MAX = 1.5;
+/** 小物の大きさ（1 が標準） */
+export const objectSize = (key: string) => { const v = load().size?.[key]; return typeof v === "number" ? Math.max(SIZE_MIN, Math.min(SIZE_MAX, v)) : 1; };
+/** 小物の大きさを変える。置いてある棚の並びもその場で合わせ直す（描き直さないので、つまみを動かしている間も途切れない） */
+export function setObjectSize(key: string, v: number) {
+  const size = { ...load().size };
+  if (Math.abs(v - 1) < 0.001) delete size[key]; else size[key] = Math.max(SIZE_MIN, Math.min(SIZE_MAX, v));
+  patch({ size });
+  const box = els.get(key)?.parentElement;
+  if (box?.classList.contains("goods")) fit(box);
+}
+// 小物ごとの大きさ（--s）と、並べる幅（--units: 高さ 100 に対する幅の合計）から、棚に収まる大きさを決める
+function fit(box: HTMLElement) {
+  let units = 0;
+  for (const el of box.children) {
+    const k = (el as SVGElement).dataset.goods ?? "", s = objectSize(k);
+    (el as SVGElement).style.setProperty("--s", String(s));
+    units += (OBJECTS.find(o => o.key === k)?.w ?? 50) * s + 14;
+  }
+  box.style.setProperty("--units", String(Math.max(60, units)));
 }
