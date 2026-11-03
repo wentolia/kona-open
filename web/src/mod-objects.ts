@@ -14,7 +14,8 @@
 //    押すと水を替える。替えずに日が経つと少しずつうなだれる
 //  夏の夜に灯りを点けていると、小さな虫が寄ってくる
 
-import { ITEMS } from "./items";
+import { ITEMS, itemOf } from "./items";
+import { t as tr } from "./i18n";
 import { startLive } from "./items/live";
 import "./mod-objects.css";
 import { ctx, everyFrame, esc, fmt, onDocument, stored } from "./modctx";
@@ -23,7 +24,7 @@ import { reduceMotion } from "./prefs";
 import { awards } from "./awards";
 import { chimeOn, chimeHour } from "./mod-clock";
 import { regionAllows } from "./region";
-import { presentAllows } from "./presents";
+import { presentAllows, itemTag } from "./presents";
 
 const KEY = "kona.objects";
 let uid = 0;
@@ -844,12 +845,20 @@ export function objectArt(key: string): SVGSVGElement | undefined {
 /** 置ける小物か（賞状は届いてから立つ） */
 export const objectAvailable = (key: string) => (key !== "award" || awards().length > 0) && regionAllows(key) && presentAllows(key);
 
+/** 届いた品の札をカーソルに出す（<title>） */
+function tagObject(k: string, el: Element) {
+  const tag = itemTag(k), d = itemOf(k);
+  if (!tag || !d) return;
+  let ti = el.querySelector(":scope > title");
+  if (!ti) { ti = document.createElementNS("http://www.w3.org/2000/svg", "title"); el.prepend(ti); }
+  ti.textContent = `${tr(d.label)} · ${tag}`;
+}
 /** その棚に置く小物を、並べた順に立てる。ほかの棚にあったものはこちらへ移る */
 export function placeObjects(box: HTMLElement, keys: readonly string[]) {
   mountObjects();
   const want = keys.filter(k => els.has(k) && objectAvailable(k));
   for (const el of [...box.children]) if (!want.includes((el as SVGElement).dataset.goods ?? "")) stash!.firstElementChild!.append(el);
-  want.forEach((k, i) => { const el = els.get(k)!; if (box.children[i] !== el) box.insertBefore(el, box.children[i] ?? null); });
+  want.forEach((k, i) => { const el = els.get(k)!; if (box.children[i] !== el) box.insertBefore(el, box.children[i] ?? null); tagObject(k, el); });
   fit(box);
   box.hidden = !want.length;
 }

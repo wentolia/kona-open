@@ -24,7 +24,7 @@ import pkg from "../package.json";
 import { esc } from "./dom";
 import { regionAllows, regionalOn, setRegionalOn, hereLand, hereProgress, locate, locateStatus, landName, nextOf, gotList, regionalItems, GIFT_SEC } from "./region";
 import { itemOf } from "./items";
-import { catCap, ownedAccs, presentAllows, presentStats } from "./presents";
+import { catCap, ownedAccs, presentAllows, presentStats, ACHIEVEMENTS, achieved } from "./presents";
 
 export interface KeptAlbum { key: string; title: string; bytes: number; forget(): Promise<void> }
 export interface ModItem { id: string; title: string; label: string }
@@ -165,11 +165,15 @@ function putBlock(h: SettingsHooks) {
 
 // プレゼント: 聴いていると包みが届く（presents.ts）。包みはホームの床に置かれ、押すと開く
 function presentBlock() {
-  const p = presentStats();
+  const p = presentStats(), done = new Map(achieved().map(a => [a.id, a.d]));
   return `
     <p class="set-note">${t("音楽を 30 分聴くごとに、その日はじめて聴いたときに、包みがひとつ届きます（1 日 5 つまで）。包みはホームの床に置かれ、押すと開きます")}</p>
     <div class="set-row"><span>${t("今日届いた包み")} ${p.today} / ${p.cap}${p.today < p.cap ? ` · ${t("次まで")} ${t("あと")} ${p.left} ${t("分")}` : ""}</span></div>
-    <span class="set-sub">${t("届いた品")} ${p.owned} / ${p.all} · ${t("アクセサリー")} ${p.accs} / ${p.accAll} · ${t("飼える猫")} ${p.cats} / ${p.catMax} ${t("匹")}</span>`;
+    <span class="set-sub">${t("届いた品")} ${p.owned} / ${p.all} · ${t("アクセサリー")} ${p.accs} / ${p.accAll} · ${t("飼える猫")} ${p.cats} / ${p.catMax} ${t("匹")}</span>
+    ${fold("ach-list", `${t("実績の一覧")} ${done.size} / ${Object.keys(ACHIEVEMENTS).length}`, `<ul class="set-ach">${Object.entries(ACHIEVEMENTS).map(([id, a]) => {
+      const d = done.get(id), it = itemOf(a.item);
+      return `<li class="${d ? "done" : ""}"><b>${d ? "✓ " : ""}${esc(t(a.label))}</b><span>${esc(t(a.how))}</span><span class="set-ach-item">${it ? esc(t(it.label)) : ""}${d ? ` · ${esc(d.slice(5).replace("-", "/"))}` : ""}</span></li>`;
+    }).join("")}</ul>`)}`;
 }
 
 // ご当地の品: いる土地で聴くと、その土地の品が届く（region.ts）。届いた品は「置くもの」に出る

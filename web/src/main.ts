@@ -18,7 +18,7 @@ import { mountSingle, mountTwin, unwatchRow, folderGap, installWheel } from "./p
 import { mountModule } from "./modules";
 import { setModuleContext, fadeSwap } from "./modctx";
 import { setLiveSource } from "./items/live";
-import { setCats, randomCoat, isCoat, setCatsMusic, restyleCat, setCatHooks, catPicksAlbum, toggleWand, wandOn, type Coat } from "./cat";
+import { setCats, randomCoat, isCoat, setCatsMusic, restyleCat, setCatHooks, catPicksAlbum, anyCatAsleep, toggleWand, wandOn, type Coat } from "./cat";
 import { initNoise, roomTail } from "./noise";
 import { ritual, isPulled } from "./ritual";
 import { wakeCatHost, placeWakeCat, catAwake } from "./wakecat";
@@ -30,9 +30,9 @@ import { initShelfMarks } from "./shelf-marks";
 import "./room-light.css";
 import "./header.css";
 import { paintHeaderIcons, headerIcon } from "./header-icons";
-import { presentTick, seedPresents, catCap, achieve, ownedAccs } from "./presents";
+import { presentTick, seedPresents, catCap, achieve, ownedAccs, ACHIEVEMENTS } from "./presents";
 import { mountPresents } from "./presents-ui";
-import { mountThings, placedThings, toggleThing, setThing, THING_OF_MODULE } from "./room-things";
+import { mountThings, placedThings, placedAll, toggleThing, setThing, THING_OF_MODULE } from "./room-things";
 import { roomSurface, setRoomSurface } from "./room-surface";
 import { placeObjects, legacyShown, markPlaced, objectAvailable, objectSize, OBJECTS } from "./mod-objects";
 import { initSizeKnob } from "./size-knob";
@@ -42,7 +42,8 @@ import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeD
 import { isDriveEntry, isKept, keepAlbum, forgetAlbum, driveConfig, driveToken, walkDrive, type DriveEntry } from "./drive";
 import { initMobile, renderMobile, mobileActive } from "./mobile";
 import { initSpotifyUI, openSpotify, spotifyConfigured, resumeSpotify, forgetSpotifyOpen } from "./spotify-ui";
-import { initParty, openParty, partySupported, partyVisit, partyIn } from "./party";
+import { initParty, openParty, partySupported, partyVisit, partyIn, partySize } from "./party";
+import { achTick } from "./achievements";
 import { regionalTick, locate, gotOf, landName } from "./region";
 import { itemOf } from "./items";
 import { type Drop, loadHome, saveHome, place, removeModule, addModule, MIN_W as MIN_COL, MIN_H as MIN_STACK } from "./layout";
@@ -1779,10 +1780,17 @@ setInterval(() => {
   regionalTick(player.playing, partyVisit());
   // プレゼント（presents.ts）: 音が出ているときだけ数える
   presentTick(player.playing, !player.isMuted, player.album?.title);
-  const pr = partyIn();
-  if (pr === "guest") achieve("party-join");
-  if (pr === "host") achieve("party-host");
+  // 実績（achievements.ts）
+  achTick({
+    playing: player.playing, audible: !player.isMuted, album: player.album, index: player.index, duration: player.duration,
+    library: albums.length, pets: coats.length, catAsleep: anyCatAsleep(), party: partyIn(), partySize: partySize(),
+    placed: [...placedAll(), ...modules.flatMap(m => m.goods ?? [])].map(k => { const d = itemOf(k); return { key: k, at: d?.at ?? "shelf", cat: d?.cat ?? "" }; }),
+  });
 }, 1000);
+document.addEventListener("kona:achieve", e => {
+  const id = (e as CustomEvent<string>).detail, a = ACHIEVEMENTS[id];
+  if (a) toast(`${t("実績")}「${t(a.label)}」 · ${t("包みが届きました")}`);
+});
 
 // ご当地の品（region.ts）: オンなら開いたときに土地を調べる（1 日 1 回まで）。品が届いたら知らせる
 locate();
@@ -1850,6 +1858,7 @@ setInterval(() => {
   if (stray && now > strayUntil) { stray = undefined; placeCats(true); strayAt = now + (6 + Math.random() * 14) * 60_000; return; }
   if (!stray && now > strayAt && !document.hidden && !prefs().catsHidden) {
     stray = { ...randomCoat(), stray: true };
+    if (!mobileActive()) achieve("stray");
     strayUntil = now + (8 + Math.random() * 17) * 60_000;
     placeCats(true);
   }

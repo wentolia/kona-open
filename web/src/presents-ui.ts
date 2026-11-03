@@ -80,7 +80,7 @@ function reveal(p: Present) {
   const name = p.c.t === "item" ? t(itemOf(p.c.key)?.label ?? p.c.key) : p.c.t === "acc" ? t(accOf(p.c.key)?.label ?? p.c.key) : "";
   const title = p.c.t === "cat" ? t("飼える猫がもう 1 匹ふえました") : `「${esc(name)}」${t("が届きました")}`;
   const d = new Date(p.d), when = `${d.getMonth() + 1}/${d.getDate()}`;
-  const why = p.k === "ach" ? `${t("実績")}「${esc(t(ACHIEVEMENTS[p.ach ?? ""]?.label ?? ""))}」`
+  const why = p.from ? `${esc(p.from)}${t("さんから")} · ${when}` : p.k === "ach" ? `${t("実績")}「${esc(t(ACHIEVEMENTS[p.ach ?? ""]?.label ?? ""))}」`
     : p.al ? `${when} · 「${esc(p.al)}」${t("を聴いていたとき")}` : when;
   const where = p.c.t === "item" ? t("設定の「部屋」→「置くもの」から置けます") : p.c.t === "acc" ? t("飼い猫の名札か、設定の「猫」からつけられます") : t("通りすがりの猫を飼い猫にできます");
   const el = document.createElement("div");
