@@ -66,6 +66,10 @@ export function applyLook(look: SnapLook): () => void {
   };
 }
 export interface SnapRow { h: number; cols: { w: number; cells: SnapMod[] }[] }
+/** ホストのホームの寸法（CSS px）。w/h: 見えている面の幅・高さ、gx/gw: 棚の並ぶ面（grid）の左の余白と幅、n: スマホ幅の組み方か。
+ *  参加者は、この寸法でホームを組み、自分の画面に合わせて縮めて見せる（画面の大きさが違っても、棚・猫・置物の並びがホストと同じになる） */
+export interface SnapSize { w: number; h: number; gx: number; gw: number; n: boolean }
+export const NARROW = "(max-width: 720px)";   // style.css のスマホ幅の組み方と同じ境目
 export interface SnapTrack { no: number; t: string; d: number }
 
 
@@ -94,9 +98,10 @@ export function resetIds() { ids = new Map(); byId = new Map(); thumbs.clear(); 
 
 const flexOf = (el: HTMLElement) => Math.max(.01, parseFloat(el.style.flex) || 1);
 /** 画面に出ているホームから、形と棚の中身を読む */
-export function snapshotHome(): { rows: SnapRow[]; albums: SnapAlbum[] } | undefined {
+export function snapshotHome(): { rows: SnapRow[]; albums: SnapAlbum[]; size?: SnapSize } | undefined {
   const grid = document.querySelector<HTMLElement>("#view-home .grid");
   if (!grid) return undefined;
+  const size = sizeOf(grid);
   const byKey = (k: string) => ctx().byKey(k);
   const used = new Set<Album>();
   const rows: SnapRow[] = [...grid.querySelectorAll<HTMLElement>(":scope > .lrow")].slice(0, MAX_ROWS).map(r => ({
@@ -132,7 +137,16 @@ export function snapshotHome(): { rows: SnapRow[]; albums: SnapAlbum[] } | undef
   const now = ctx().player.album;
   if (ok(now)) used.add(now);
   const albums = [...used].slice(0, MAX_ALBUMS).map(snapAlbum);
-  return { rows, albums };
+  return { rows, albums, size };
+}
+/** ホストのホームの寸法（隠れているときは undefined） */
+export function sizeOf(grid = document.querySelector<HTMLElement>("#view-home .grid")): SnapSize | undefined {
+  const home = grid?.closest<HTMLElement>(".home");
+  if (!grid || !home || !home.clientWidth || !grid.offsetWidth) return undefined;
+  const cs = getComputedStyle(home);
+  const h = home.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+  const gx = grid.getBoundingClientRect().left - home.getBoundingClientRect().left - (parseFloat(cs.paddingLeft) || 0);
+  return { w: Math.round(home.clientWidth), h: Math.round(Math.max(150, h)), gx: Math.round(Math.max(0, gx)), gw: Math.round(grid.offsetWidth), n: matchMedia(NARROW).matches };
 }
 /** 送るアルバムの札（棚の背表紙をホストと同じ高さ・幅にするための数も付ける） */
 export const snapAlbum = (a: Album): SnapAlbum => ({ id: idOf(a), t: a.title.slice(0, 200), a: (a.artist ?? "").slice(0, 200), c: ctx().colorOf(a), n: a.tracks.length, y: a.year, hs: hashOf(a.key) % 600, r: a.ratio });
@@ -225,6 +239,14 @@ export function cleanRows(x: unknown): SnapRow[] | undefined {
   }
   return rows;
 }
+export function cleanSize(x: unknown): SnapSize | undefined {
+  const o = x as Record<string, unknown> | undefined;
+  const ok = (v: unknown, a: number, b: number) => typeof v === "number" && Number.isFinite(v) && v >= a && v <= b;
+  if (!o || typeof o !== "object" || !ok(o.w, 200, 8000) || !ok(o.h, 150, 8000) || !ok(o.gx, 0, 400) || !ok(o.gw, 100, 8000)) return undefined;
+  const w = Math.round(o.w as number), gx = Math.round(o.gx as number), gw = Math.round(Math.min(o.gw as number, w - gx));
+  if (gw < 100) return undefined;
+  return { w, h: Math.round(o.h as number), gx, gw, n: o.n === true };
+}
 export function cleanTracks(x: unknown): SnapTrack[] | undefined {
   if (!Array.isArray(x) || x.length > 300) return undefined;
   return x.map(t => ({ no: num((t as SnapTrack)?.no, 0, 9999), t: str((t as SnapTrack)?.t, 200), d: num((t as SnapTrack)?.d, 0, 1e5) }));
@@ -242,12 +264,12 @@ export interface HomeSource {
   /** 再生中のアルバムを、写しの番号にする（ホストのプレイヤーはフォルダの key を持つので） */
   idOf?(a: Album): string | undefined;
 }
-export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts: { cover(id: string): void; open(id: string): void; src: HomeSource }): HomeView {
+export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts: { cover(id: string): void; open(id: string): void; src: HomeSource; size?: SnapSize }): HomeView {
   const home = document.createElement("div");
   home.className = "home pr-home";
   const grid = document.createElement("div");
   grid.className = "grid";
-  home.append(grid);
+  const unfit = opts.size ? fitHome(home, grid, opts.size) : (home.append(grid), () => {});
   const covers = new Map<string, string>();
   let borrowed = false;
   const faces = new Map<string, HTMLElement[]>();   // ジャケットを待っている面陳・札
@@ -389,7 +411,7 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
     el: home,
     // 写しを捨てるとき: 棚の窓の見張りと、飾りのモジュールが document に付けた聞き耳を外す（残すと写しが丸ごと解放されない）
     dispose() {
-      unwatchIn(home); releaseIn(home); home.remove(); faces.clear();
+      unfit(); unwatchIn(home); releaseIn(home); home.remove(); faces.clear();
       // 借りていた小物を、自分のホームの棚へ戻す
       if (borrowed) document.dispatchEvent(new Event("kona:objects"));
     },
@@ -402,6 +424,33 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
     // 再生中のジャケットは、再生の写しに渡すために頼んでおく
     setNow(id) { if (id && !covers.has(id)) opts.cover(id); },
   };
+}
+
+/** ホストの寸法で組んで、参加者の画面に収まるように縮めて見せる（大きくはしない）。
+ *  横はホストの幅のまま（はみ出す分は左右に余白）、縦は画面の下まで壁を伸ばす（床はいつも画面の下）。ホストより長いホームは縦に流す。
+ *  縮めても DOM の大きさ（offsetWidth など）はホストと同じなので、棚の窓・モジュールの組み方・猫の足場の並びがそろう */
+function fitHome(home: HTMLElement, grid: HTMLElement, z: SnapSize): () => void {
+  home.classList.add("pr-scaled", z.n ? "pr-narrow" : "pr-wide");
+  const fit = document.createElement("div"); fit.className = "pr-fit";
+  const box = document.createElement("div"); box.className = "pr-box";
+  box.style.width = `${z.w}px`;
+  grid.style.width = `${z.gw}px`; grid.style.marginLeft = `${z.gx}px`; grid.style.marginRight = "0";
+  box.append(grid); fit.append(box); home.append(fit);
+  let k = 0, gh = 0;
+  const lay = () => {
+    const W = home.clientWidth, H = home.clientHeight;
+    if (!W || !H) return;
+    const s = Math.min(1, W / z.w, H / z.h);
+    const minH = Math.max(z.h, Math.floor(H / s));
+    if (s !== k) { k = s; box.style.transform = s === 1 ? "" : `scale(${s})`; home.style.setProperty("--pr-k", String(s)); }
+    if (grid.style.minHeight !== `${minH}px`) grid.style.minHeight = `${minH}px`;
+    const h = grid.offsetHeight;
+    if (h !== gh || fit.style.width !== `${z.w * s}px`) { gh = h; fit.style.width = `${z.w * s}px`; fit.style.height = `${h * s}px`; }
+  };
+  const ro = new ResizeObserver(() => lay());
+  ro.observe(home); ro.observe(grid);
+  requestAnimationFrame(lay);
+  return () => ro.disconnect();
 }
 
 /** 再生中: ホームの「再生中」モジュールと同じ形（ジャケット・アルバム・曲名・進み具合・操作・曲目）。
@@ -484,10 +533,10 @@ function mountNowCard(body: HTMLElement, player: Player, opts: { open(id: string
 
 /** 区切りの上に小物を立てる（ホストのホームと同じ。足もとはアルバムの背と同じ高さ） */
 function floatGoods(line: HTMLElement) {
-  const L = line.getBoundingClientRect();
+  const L = line.getBoundingClientRect(), k = line.offsetWidth ? L.width / line.offsetWidth || 1 : 1;   // 写しを縮めて見せているときの倍率
   line.querySelectorAll<SVGSVGElement>(".goods-float > svg").forEach(svg => {
     const r = line.querySelector<HTMLElement>(`.goods-slot[data-slot="${svg.dataset.goods}"]`)?.getBoundingClientRect();
     svg.style.visibility = r?.width ? "" : "hidden";
-    if (r?.width) { svg.style.left = `${(r.left - L.left).toFixed(1)}px`; svg.style.bottom = `${Math.max(0, L.bottom - r.bottom).toFixed(1)}px`; }
+    if (r?.width) { svg.style.left = `${((r.left - L.left) / k).toFixed(1)}px`; svg.style.bottom = `${Math.max(0, (L.bottom - r.bottom) / k).toFixed(1)}px`; }
   });
 }

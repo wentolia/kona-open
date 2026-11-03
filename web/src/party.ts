@@ -14,7 +14,7 @@ import { ctx, esc } from "./modctx";
 import { Mailbox, b64, isRoomKey, newRoomKey, unb64, type Letter } from "./party-relay";
 import { Room, startSpot, cleanCoat, cleanName, cleanText, editorHtml, isEmote, isPerms, myCat, wireEditor, type Perms, type Req, type RoomCat } from "./party-room";
 import { allTags, currentSet, setLabel, type AlbumSet } from "./tags";
-import { albumOf, cleanAlbum, setShareSet, shareSet, cleanRows, cleanTracks, cleanLook, snapLook, findAlbums, idFor, isThumb, nowId, resetIds, safeColor, snapshotHome, snapAlbum, thumbOf, tracksOf, type HomeSource, type SnapAlbum, type SnapLook, type SnapRow, type SnapTrack } from "./party-home";
+import { albumOf, cleanAlbum, cleanSize, sizeOf, setShareSet, shareSet, cleanRows, cleanTracks, cleanLook, snapLook, findAlbums, idFor, isThumb, nowId, resetIds, safeColor, snapshotHome, snapAlbum, thumbOf, tracksOf, type HomeSource, type SnapAlbum, type SnapLook, type SnapRow, type SnapSize, type SnapTrack } from "./party-home";
 import { HostVoice, GuestVoice } from "./party-voice";
 import { MirrorPlayer, MirrorHistory, type NowState } from "./party-mirror";
 import { currentPeaks } from "./modules";
@@ -53,7 +53,7 @@ type Msg =
   | { t: "say"; id?: string; text: string; to: string[]; req?: Req }
   // ホームの写し・リクエスト（参加者が頼み、ホストが権限を確かめて応える）
   | { t: "want"; w: "home" | "cover" | "tracks" | "find"; id?: string; q?: string }
-  | { t: "home"; rows: SnapRow[]; albums: SnapAlbum[]; look?: SnapLook }
+  | { t: "home"; rows: SnapRow[]; albums: SnapAlbum[]; look?: SnapLook; size?: SnapSize }
   | { t: "albums"; albums: SnapAlbum[] }
   | { t: "cover"; id: string; url: string }
   | { t: "tracks"; id: string; tracks: SnapTrack[] }
@@ -146,7 +146,7 @@ function asMsg(x: unknown): Msg | undefined {
     case "home": {
       const rows = cleanRows(m.rows);
       if (!rows || !Array.isArray(m.albums) || m.albums.length > 300) return undefined;
-      return { t: "home", rows, albums: m.albums.map(cleanAlbum).filter((a): a is SnapAlbum => !!a), look: cleanLook(m.look) };
+      return { t: "home", rows, albums: m.albums.map(cleanAlbum).filter((a): a is SnapAlbum => !!a), look: cleanLook(m.look), size: cleanSize(m.size) };
     }
     case "albums": return Array.isArray(m.albums) && m.albums.length <= 300 ? { t: "albums", albums: m.albums.map(cleanAlbum).filter((a): a is SnapAlbum => !!a) } : undefined;
     case "found": return Array.isArray(m.list) && m.list.length <= 20 ? { t: "found", list: m.list.map(cleanAlbum).filter((a): a is SnapAlbum => !!a) } : undefined;
@@ -183,6 +183,7 @@ let endTip: "" | "lan" | "turn" = "";  // 参加者: つながらなかったと
 let guestStep: "name" | "knock" | "connect" | "in" = "name";
 let knockTimer = 0, waitTimer = 0, stateTimer = 0;
 // 再生の写し
+let sizeKey = "";                  // ホスト: 最後に確かめたホームの寸法
 let npQueued = 0, ticks = 0, peaksKey = "", lastPeaks: Msg | undefined;
 let hostLook: SnapLook | undefined;   // 参加者: ホストのホームの見た目の設定
 let mirror: MirrorPlayer | undefined, mhist: MirrorHistory | undefined;   // 参加者: ホストの再生の写し
@@ -317,7 +318,7 @@ function host() {
   role = "host"; ended = ""; hostName = myName();
   // 音の取り出し口は、押したその場で作る（AudioContext は操作の直後でないと動かないことがある）
   ctx().player.partyTrack();
-  me = "h"; seq = 0;
+  me = "h"; seq = 0; sizeKey = "";
   room = makeRoom(true);
   room.cats.set("h", { id: "h", name: cleanName(hostName), coat: myCat(), ...startSpot(), emote: "sit" });
   room.setPerms(ALL);
@@ -331,6 +332,10 @@ function host() {
   stateTimer = window.setInterval(() => {
     broadcast(snapshot()); sendNow();
     if (++ticks % 10 === 0) for (const p of peers) if (p.inRoom) sendHist(p);
+    // ホストの画面の大きさが変わったら、写しを組み直してもらう（参加者はホストの寸法で組んで縮めて見せるので）
+    const z = sizeOf(), zk = z ? `${z.w}x${z.h}x${z.gx}x${z.gw}x${z.n}` : "";
+    if (zk && sizeKey && zk !== sizeKey) for (const p of peers) if (p.inRoom) sendHome(p);
+    if (zk) sizeKey = zk;
   }, 3000);
   // 話している人を、名札の印で知らせる（変わったときだけ送る）
   talkTimer = window.setInterval(() => {
@@ -465,7 +470,7 @@ function deliver(m: Extract<Msg, { t: "say" }>) {
 function sendHome(peer: Peer) {
   const h = snapshotHome();
   if (!h) return;
-  send(peer, { t: "home", rows: h.rows, albums: h.albums.slice(0, 300), look: snapLook() });
+  send(peer, { t: "home", rows: h.rows, albums: h.albums.slice(0, 300), look: snapLook(), size: h.size });
   for (let i = 300; i < h.albums.length; i += 300) send(peer, { t: "albums", albums: h.albums.slice(i, i + 300) });
 }
 /** ホスト: 参加者から届いた部屋のこと。送り主の猫の id を付け、権限を確かめてから映し、中継する */
@@ -541,7 +546,7 @@ function guestRoom(m: Msg) {
   else if (m.t === "emote" && m.id && m.id !== me) room.emote(m.id, m.e);
   else if (m.t === "look" && m.id && m.id !== me) room.look(m.id, m.x !== undefined ? [m.x, m.y!] : undefined);
   else if (m.t === "say" && m.id) room.said({ from: m.id, text: m.text, to: m.to, at: Date.now(), req: m.req });
-  else if (m.t === "home") { hostLook = m.look; room.setHome(m.rows, m.albums, m.look); }
+  else if (m.t === "home") { hostLook = m.look; room.setHome(m.rows, m.albums, m.look, m.size); }
   else if (m.t === "albums") room.addAlbums(m.albums);
   else if (m.t === "cover") { room.setCover(m.id, m.url); mirror?.setCover(m.id, m.url); }
   else if (m.t === "np") {

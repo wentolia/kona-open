@@ -1192,8 +1192,8 @@ export function setCats(grid: HTMLElement, coats: Coat[], animate = false): void
 
 // 見えている範囲（grid の座標）
 function view(c: Cat) {
-  const g = c.grid.getBoundingClientRect(), sc = c.grid.closest(".home")?.getBoundingClientRect();
-  return { top: Math.max(0, (sc?.top ?? 0) - g.top), bottom: Math.min(g.height, (sc?.bottom ?? innerHeight) - g.top), w: g.width };
+  const g = frameOf(c.grid), sc = c.grid.closest(".home")?.getBoundingClientRect();
+  return { top: Math.max(0, ((sc?.top ?? 0) - g.top) / g.k), bottom: Math.min(g.height, ((sc?.bottom ?? innerHeight) - g.top) / g.k), w: g.width };
 }
 
 function enter(c: Cat) {
@@ -1296,7 +1296,7 @@ function addCat(grid: HTMLElement, coat: Coat, stage?: Cat["stage"], size = 1): 
   };
   // 撫でる: 押したまま動かすと、撫でた場所と向きで反応が変わる（動かさずに押すだけなら、軽くなでたことにする）
   let stroke: { pts: [number, number][]; done: boolean } | undefined, stroked = false;
-  const gp = (e: PointerEvent): [number, number] => { const g = c.grid.getBoundingClientRect(); return [e.clientX - g.left, e.clientY - g.top]; };
+  const gp = (e: PointerEvent): [number, number] => { const g = frameOf(c.grid); return [(e.clientX - g.left) / g.k, (e.clientY - g.top) / g.k]; };
   const onStrokeMove = (e: PointerEvent) => {
     if (!stroke || stroke.done) return;
     stroke.pts.push(gp(e));
@@ -1620,7 +1620,7 @@ function openCard(c: Cat) {
       return `<button type="button" class="cat-adopt"${full ? " disabled" : ""}>飼い猫にする</button>${full ? `<p class="cat-full">いまは ${r!.cap} 匹まで飼えます</p>` : ""}`; })()
     : hooks?.accs ? `<p><span>アクセサリー</span><select class="cat-acc-pick" aria-label="アクセサリー"><option value="">なし</option>${hooks.accs().map(a => `<option value="${esc(a.key)}"${a.key === C.acc ? " selected" : ""}>${esc(a.label)}</option>`).join("")}</select></p>` : ""}`;
   // 猫の頭の上あたりに出す（画面からはみ出さないように）
-  const g = c.grid.getBoundingClientRect();
+  const g = frameOf(c.grid);
   c.layer.append(el);
   const w = el.offsetWidth, h = el.offsetHeight;
   el.style.left = `${clamp(c.x - w / 2, 8, g.width - w - 8)}px`;
@@ -2451,11 +2451,16 @@ export interface Puppet {
   remove(): void;
 }
 const ONE_SHOT: Partial<Record<Emote, number>> = { stretch: 3, yawn: 2 };
+/** 画面上の箱と、その中の座標（CSS px）への倍率。パーティーの部屋の写しは縮めて見せる（transform）ので、画面の px を k で割って猫の座標にする */
+function frameOf(el: HTMLElement) {
+  const r = el.getBoundingClientRect(), k = el.offsetWidth ? r.width / el.offsetWidth || 1 : 1;
+  return { left: r.left, top: r.top, bottom: r.bottom, width: r.width / k, height: r.height / k, k };
+}
 function pupPlats(room: HTMLElement): Plat[] {
-  const g = room.getBoundingClientRect(), out: Plat[] = [];
+  const g = frameOf(room), out: Plat[] = [];
   for (const e of room.querySelectorAll<HTMLElement>("[data-cat-plat]")) {
     const r = e.getBoundingClientRect();
-    out.push({ el: e, kind: "deck", y: r.top - g.top + Number(e.dataset.sink ?? 0), x0: r.left - g.left + 2, x1: r.right - g.left - 2, pull: 1 });
+    out.push({ el: e, kind: "deck", y: (r.top - g.top) / g.k + Number(e.dataset.sink ?? 0), x0: (r.left - g.left) / g.k + 2, x1: (r.right - g.left) / g.k - 2, pull: 1 });
   }
   out.push({ el: room, kind: "floor", y: g.height - 24, x0: 0, x1: g.width, pull: 1 });
   return out;
@@ -2538,7 +2543,7 @@ export function puppetCat(room: HTMLElement, coat: Coat, at: { plat: number; fx:
     },
     look(p) {
       if (!p) { c.mouse = undefined; return; }
-      const g = c.grid.getBoundingClientRect();
+      const g = frameOf(c.grid);
       c.mouse = [p[0] * g.width, p[1] * g.height];
     },
     say(text, secret = false) {
