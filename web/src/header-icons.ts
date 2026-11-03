@@ -82,19 +82,13 @@ const open = () => `
 /** スマホのメニュー: 小石が 3 つ */
 const more = () => [ [6.5, OCHRE], [16, ROSE], [25.5, SAGE] ].map(([x, p]) => puff(p as typeof SAGE, ngon(x as number, 16, 4.4, 6), [(x as number) - 1, 15])).join("");
 
-/** Kona のしるし: 猫の耳が生えたレコード。盤は面を割った 12 角、溝が 2 本、まん中にレーベル、上に真鍮の目 */
-export const logo = () => {
-  const D = tone("#5a524b");
-  const ring = (r: number, o: number) => `<polygon points="${ngon(16, 18, r, 12, Math.PI / 12).map(p => p.map(v => v.toFixed(2)).join(",")).join(" ")}" style="fill:none;stroke:#000;stroke-opacity:${o};stroke-width:.4"/>`;
-  return `
-  ${poly(D.hi, [[5.2, 12], [7.2, 1.8], [13, 7]])}${poly(ROSE.lo, [[7.2, 9.6], [8, 5], [11, 7.6]])}
-  ${poly(D.lo, [[26.8, 12], [24.8, 1.8], [19, 7]])}${poly(ROSE.deep, [[24.8, 9.6], [24, 5], [21, 7.6]])}
-  ${puff(D, ngon(16, 18, 12.5, 12, Math.PI / 12), [12.5, 14.5])}
-  ${ring(10.8, .32)}${ring(9, .26)}${ring(7.3, .2)}
-  ${poly(BRASS.hi, [[9.4, 12.6], [11.6, 11.2], [13.4, 12.4], [11.4, 13.5]])}${poly(BRASS.mid, [[18.6, 12.4], [20.4, 11.2], [22.6, 12.6], [20.6, 13.5]])}
-  ${puff(OCHRE, ngon(16, 19, 4.6, 8, Math.PI / 8), [14.8, 17.8])}
-  ${poly(D.deep, ngon(16, 19, .9, 6))}`;
-};
+/** Kona のしるし: 座る猫。三角の体に耳つきの頭、しっぽ。面は 8 枚、琥珀 1 色の濃淡だけ（単色にしても形が残る） */
+const AMBER = { hi: "#e6bb6e", mid: "#d3a55a", lo: "#a87d3c", deep: "#7a5828" };
+export const logo = () => `<g transform="translate(16 16) scale(.31) translate(-46 -46)">
+  ${poly(AMBER.hi, [[48, 8], [52, -2], [60, 12]])}${poly(AMBER.lo, [[76, 8], [72, -2], [64, 12]])}
+  ${poly(AMBER.hi, [[48, 8], [60, 12], [62, 34], [46, 28]])}${poly(AMBER.lo, [[76, 8], [60, 12], [62, 34], [78, 28]])}
+  ${poly(AMBER.hi, [[46, 28], [62, 34], [28, 94]])}${poly(AMBER.mid, [[62, 34], [52, 94], [28, 94]])}
+  ${poly(AMBER.lo, [[62, 34], [78, 28], [82, 94], [52, 94]])}${poly(AMBER.deep, [[28, 94], [10, 84], [12, 72], [30, 86]])}</g>`;
 
 export const HEADER_ICON = { home, library, settings, photo, mini, pip, invite, open, more, logo };
 export type HeaderIcon = keyof typeof HEADER_ICON;
