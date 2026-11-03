@@ -339,6 +339,8 @@ function aboutSection() {
 }
 
 let root: HTMLElement | undefined;
+/** 部屋を編集しているか（設定を「部屋」のタブで開いている）。このときだけ、ホームの品に大きさのつまみとしまうボタンを出す */
+export const roomEditing = () => !!root && !root.hidden && tab === "room" && !onMobile();
 let hooks: SettingsHooks;
 
 export function initSettings(el: HTMLElement, h: SettingsHooks) {

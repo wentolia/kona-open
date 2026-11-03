@@ -1,4 +1,5 @@
-// ホームで直接さわる: 棚の小物と床の家具にカーソルを乗せると、右上の角につまみが出る。
+// ホームで直接さわる: 設定を「部屋」のタブで開いている間（部屋の編集中）だけ、棚の小物と床の家具にカーソルを乗せると、右上の角につまみが出る。
+// ふだんは出さない（聴いているときの邪魔になるので）。
 // つまみを右上へ引くと大きく、左下へ押すと小さくなる（50〜150%。ダブルクリックで 100% に戻す）。
 // 床の家具は左右と奥行き（上下）に、壁のものは上下左右にドラッグして置き場所を変えられる。ダブルクリックで左右を反転。
 // 左上の角には「しまう」ボタンが出る。動かしている間は画面の上に受け皿が出て、そこ（か設定の上）で放すとしまう（stow.ts）。
@@ -6,6 +7,7 @@
 import "./size-knob.css";
 import { objectSize, setObjectSize, SIZE_MIN, SIZE_MAX } from "./mod-objects";
 import { thingSize, thingOf, setThing, flipThing, canFlip, defOf, THING_MIN, THING_MAX } from "./room-things";
+import { roomEditing } from "./settings";
 import { stowObject, stowThing, showTray, overTray, BOX_SVG } from "./stow";
 import { t as tr } from "./i18n";
 import { clamp } from "./dom";
@@ -67,7 +69,7 @@ export function initSizeKnob() {
 
   document.addEventListener("pointerover", e => {
     if (busy || (e as PointerEvent).pointerType === "touch") return;
-    const t = targetOf(e.target);
+    const t = roomEditing() ? targetOf(e.target) : undefined;
     if (t) { clearTimeout(hideT); show(t); }
     else if (e.target !== knob && !(e.target as Element)?.closest?.(".stow-btn")) { clearTimeout(hideT); hideT = window.setTimeout(hide, 500); }
   });
