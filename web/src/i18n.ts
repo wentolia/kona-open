@@ -39,6 +39,8 @@ const EN: Record<string, string> = {
   // 設定ページ
   "色": "Color", "その他": "Other", "もっと見る": "More", "文字と言語": "Text and language", "ライブラリの細かな設定": "More library settings",
   "音の色（イコライザー）": "Tone (equalizer)", "棚板に暮らした跡を残す": "Let the shelves wear", "見た目": "Look", "部屋": "Room", "音": "Sound", "猫": "Cats", "データ": "Data", "キーボード": "Keyboard", "Kona について": "About Kona",
+  "モジュール": "Modules", "ホームのモジュール": "Modules on home", "モジュールを足す": "Add a module", "遊ぶ": "Play",
+  "猫じゃらしで遊ぶ": "Play with a cat wand", "猫じゃらしをしまう": "Put the wand away", "ランダムで1枚": "Pick one at random", "新しい棚": "New shelf",
   "テーマカラー": "Theme color", "いつも同じ": "Always the same", "時刻で移ろう": "Shift with the time of day",
   "朝": "Morning", "昼": "Day", "夕": "Evening", "夜": "Night", "移り変わり": "Transition", "すぐ": "Instant",
   "15 分": "15 min", "1 時間": "1 hour", "2 時間": "2 hours", "自分で選ぶ": "Custom", "自分で選ぶ色": "Custom colors", "地": "Base",
