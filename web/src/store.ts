@@ -66,7 +66,7 @@ const saveLog = () => { try { localStorage.setItem(LOG_KEY, JSON.stringify(log.s
 
 export function playLog(): readonly PlayEvent[] { return log; }
 
-/** 再生を記録する。場所は後から付ける（位置の取得は時間がかかるため） */
+/** 再生を記録する（アルバムと日時だけ） */
 export function logPlay(albumKey: string): PlayEvent {
   const e: PlayEvent = { k: albumKey, t: Date.now() };
   log.push(e); saveLog();

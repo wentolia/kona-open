@@ -1,5 +1,5 @@
 // 設定（#settings）: 部屋の右に開く細い板。部屋はそのまま見えているので、変えたものはその場で部屋に映る（スマホでは全画面）。
-// 部屋・猫・音・その他の 4 つのタブに分け、よく触るものを上に、残りは「もっと見る」に畳む。説明文はなるべく置かない。
+// 部屋・モジュール・猫・音・その他の 5 つのタブに分け（スマホ版は部屋・音・その他の 3 つ）、よく触るものを上に、残りは「もっと見る」に畳む。説明文はなるべく置かない。
 
 import "./settings.css";
 import { PALETTES, CUSTOM, themePrefs, setThemePrefs, paletteColors, toHex, type ThemePrefs } from "./theme";
@@ -15,7 +15,6 @@ import { BANDS, BUILTIN_PRESETS, userPresets, savePreset, deletePreset, presetMa
 import { BREEDS, type Coat } from "./cat";
 import { nameOf } from "./cat-coat";
 import { ACTIONS, keyFor, keyLabel } from "./shortcuts";
-import { SORTS } from "./shelves";
 import { t } from "./i18n";
 import type { Player, Normalize } from "./player";
 import { spotifySettingsHTML, wireSpotifySettings } from "./spotify-ui";
@@ -86,6 +85,9 @@ function swatch(key: string, label: string, cur: boolean, p: ThemePrefs) {
 }
 const allPalettes = () => [...PALETTES.map(p => ({ key: p.key, label: t(p.label) })), { key: CUSTOM, label: t("自分で選ぶ") }];
 
+/** スマホ版: 棚の一覧だけで、部屋（壁・床・置くもの）・モジュール・猫はない */
+const onMobile = () => document.body.classList.contains("mobile");
+
 // ---------- 5 つのタブ: 部屋・モジュール・猫・音・その他。よく触るものを上に、残りは「もっと見る」に畳む ----------
 type Tab = "room" | "modules" | "cats" | "sound" | "other";
 const TABS: { id: Tab; label: string }[] = [{ id: "room", label: "部屋" }, { id: "modules", label: "モジュール" }, { id: "cats", label: "猫" }, { id: "sound", label: "音" }, { id: "other", label: "その他" }];
@@ -124,6 +126,10 @@ function themeBlock() {
 
 function roomTab() {
   const q = prefs(), r = roomSurface();
+  // スマホ版には部屋がないので、色と棚の素材だけ
+  if (onMobile()) return `
+    ${sec(t("色"), themeBlock())}
+    ${sec(t("棚"), tiles("skin", SHELF_SKINS, shelfSkin(), "set-skin"))}`;
   return `
     ${sec(t("色"), themeBlock())}
     ${sec(t("棚"), tiles("skin", SHELF_SKINS, shelfSkin(), "set-skin"))}
@@ -135,7 +141,6 @@ function roomTab() {
     ${fold("room-more", t("もっと見る"), `
       <div class="set-checks">
         ${check("set-marks", q.marks, t("棚板に暮らした跡を残す"))}
-        ${check("set-chime", chimeOn(), t("時計が正時に鐘を鳴らす"))}
       </div>`)}`;
 }
 
@@ -151,6 +156,7 @@ function putBlock(h: SettingsHooks) {
     <p class="set-note">${t("ホームの棚・床・壁へドラッグして置く（家具はいくつでも）。ここへ戻すとしまう。ダブルクリックで左右を反転")}</p>
     <div class="set-puts-head">${t("棚に置く")}</div>
     <div class="set-puts">${OBJECTS.filter(o => objectAvailable(o.key)).map(o => tile(`obj:${o.key}`, t(o.label.replace(/（.*）/, "")), h.goods.shelfOf(o.key), "")).join("")}</div>
+    <div class="set-checks">${check("set-chime", chimeOn(), t("時計が正時に鐘を鳴らす"))}</div>
     <div class="set-puts-head">${t("床に置く")}</div>
     <div class="set-puts">${things("floor")}</div>
     <div class="set-puts-head">${t("壁に掛ける")}</div>
@@ -200,13 +206,13 @@ function soundTab(h: SettingsHooks) {
     ${sec(t("出力先"), `<select id="set-sink" aria-label="${esc(t("出力先"))}"${p.canChooseSink ? "" : " disabled"}><option value="">${t("既定の出力")}</option></select>`)}
     ${sec(t("イコライザー"), `
       ${check("set-eq-on", eq.on, t("イコライザーを使う"))}
-      <ul class="set-presets">${BUILTIN_PRESETS.map(x => preset(x.name, x.gains, false)).join("")}${userPresets().map(x => preset(x.name, x.gains, true)).join("")}</ul>`)}
+      <ul class="set-presets">${BUILTIN_PRESETS.map(x => preset(x.name, x.gains, false)).join("")}${userPresets().map(x => preset(x.name, x.gains, true)).join("")}</ul>
+      ${eq.on && !cur ? `<form class="set-row set-save" id="set-save-preset"><span>${t("いまの形を残す")}</span><input id="set-preset-name" maxlength="24" placeholder="${esc(t("名前"))}" autocomplete="off"><button class="set-btn">${t("残す")}</button></form>` : ""}`)}
     ${sec(t("曲のつなぎ"), seg("crossfade", [{ v: "0", label: t("ギャップレス") }, { v: "3", label: "3 " + t("秒") }, { v: "6", label: "6 " + t("秒") }, { v: "10", label: "10 " + t("秒") }], String(q.crossfade)))}
     ${fold("sound-more", t("もっと見る"), `
       <span class="set-sub">${t("重ねる音")}</span>
       <div class="set-noise">${NOISES.map(n => `<label class="set-noise-row"><span>${esc(t(n.label))}</span><input type="range" min="0" max="100" step="1" data-noise="${n.key}" value="${Math.round(noiseLevel(n.key) * 100)}" aria-label="${esc(t(n.label))}"></label>`).join("")}</div>
-      ${row(t("音量の正規化"), seg("normalize", [{ v: "off", label: t("しない") }, { v: "track", label: t("曲ごと") }, { v: "album", label: t("アルバムごと") }], p.normalize))}
-      <form class="set-row set-save" id="set-save-preset"><span>${t("イコライザーのいまの形を残す")}</span><input id="set-preset-name" maxlength="24" placeholder="${esc(t("名前"))}" autocomplete="off"><button class="set-btn">${t("残す")}</button></form>`)}`;
+      ${row(t("音量の正規化"), seg("normalize", [{ v: "off", label: t("しない") }, { v: "track", label: t("曲ごと") }, { v: "album", label: t("アルバムごと") }], p.normalize))}`)}`;
 }
 /** 出力先の一覧は端末に尋ねてから入れる */
 async function fillSinks(el: HTMLElement, p: Player) {
@@ -251,7 +257,6 @@ function catsTab(h: SettingsHooks) {
     ${sec(t("遊ぶ"), `
       <div class="set-row set-btns">
         <button type="button" class="set-btn" id="set-wand"${cats.length ? "" : " disabled"} aria-pressed="${h.play.wandOn()}">${h.play.wandOn() ? t("猫じゃらしをしまう") : t("猫じゃらしで遊ぶ")}</button>
-        <button type="button" class="set-btn" id="set-pick"${h.play.canPick() ? "" : " disabled"}>${t("ランダムで1枚")}</button>
       </div>`)}
     ${fold("cats-more", t("もっと見る"), `
       ${check("set-zoomies", q.catZoomies, t("夜中にときどき駆け回る（夜の運動会）"))}
@@ -268,17 +273,17 @@ function otherTab(h: SettingsHooks) {
       <div class="set-row set-btns">
         <button type="button" class="set-btn" id="set-rescan"${s.canRescan ? "" : " disabled"}>${t("読み直す")}</button>
         <button type="button" class="set-btn" id="set-open">${t("別のフォルダを開く")}</button>
+        <button type="button" class="set-btn" id="set-pick"${h.play.canPick() ? "" : " disabled"}>${t("ランダムで1枚")}</button>
       </div>
-      ${row(t("並び順"), `<select id="set-sort">${SORTS.map(o => opt(o.key, t(o.label), o.key === q.libSort)).join("")}</select>`)}
-      ${row(t("括り方"), seg("group", [{ v: "folder", label: t("フォルダ") }, { v: "artist", label: t("アーティスト") }], q.libGroup))}`)}
-    ${sec(t("文字と言語"), `
+      ${onMobile() ? row(t("括り方"), seg("group", [{ v: "folder", label: t("フォルダ") }, { v: "artist", label: t("アーティスト") }], q.libGroup)) : ""}`)}
+    ${sec(t("表示と言語"), `
       ${row(t("文字の大きさ"), seg("font-scale", [{ v: ".9", label: t("小") }, { v: "1", label: t("標準") }, { v: "1.15", label: t("大") }, { v: "1.3", label: t("特大") }], String(q.fontScale)))}
       ${row(t("書体"), seg("font", [{ v: "gothic", label: t("ゴシック") }, { v: "mincho", label: t("明朝") }], q.font))}
+      ${row(t("動き"), seg("motion", [{ v: "system", label: t("端末の設定に従う") }, { v: "reduce", label: t("減らす") }], q.motion))}
       ${row(t("言語"), seg("lang", [{ v: "ja", label: "日本語" }, { v: "en", label: "English" }], q.lang))}`)}
     ${fold("lib-more", t("ライブラリの細かな設定"), `
       ${row(t("ジャケットがないとき"), seg("blank", [{ v: "title", label: t("色と題名") }, { v: "initial", label: t("頭文字") }, { v: "plain", label: t("色だけ") }], q.blankArt))}
       ${check("set-autoscan", q.autoRescan, t("ほかのアプリから戻ってきたら、フォルダの変化を反映する"))}
-      ${row(t("動き"), seg("motion", [{ v: "system", label: t("端末の設定に従う") }, { v: "reduce", label: t("減らす") }], q.motion))}
       ${kept.length ? `
         <span class="set-sub">${t("端末に残したアルバム")} · ${kept.length} ${t("枚")} · ${mb(total)}</span>
         <ul class="set-kept">${kept.sort((a, b) => b.bytes - a.bytes).map(a => `<li><span>${esc(a.title)}</span><i>${mb(a.bytes)}</i><button type="button" class="set-btn" data-forget="${esc(a.key)}">${t("端末から消す")}</button></li>`).join("")}</ul>` : ""}
@@ -316,12 +321,14 @@ function aboutSection() {
       <dt>${t("版")}</dt><dd>${esc(pkg.version)}</dd>
       <dt>${t("ライセンス")}</dt><dd>MIT（${t("無保証")}）</dd>
       <dt>${t("ソース")}</dt><dd><a href="https://github.com/wentolia/kona-open" target="_blank" rel="noopener">github.com/wentolia/kona-open</a></dd>
+      <dt>${t("決まりごと")}</dt><dd><a href="https://github.com/wentolia/kona-open/blob/HEAD/web/docs/privacy.md" target="_blank" rel="noopener">${t("プライバシーと利用条件")}</a> · <a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener">${t("使っているソフトウェアのライセンス")}</a></dd>
     </dl>
     <ul class="set-privacy">
       <li>${t("サーバーはなく、アクセス解析もしません。設定・記録・取り込んだ曲は、このブラウザの中にだけ置きます。")}</li>
-      <li>${t("通信するのは Google Drive を使うときの Google の API、Spotify を使うときの Spotify だけです。")}</li>
+      <li>${t("通信するのは Google Drive を使うときの Google の API、Spotify を使うときの Spotify、リスニングパーティーを使うときの公開の Nostr リレー（暗号化した接続情報だけ）と Google の STUN（IP アドレスが届きます）だけです。このページを置いている GitHub Pages も、開いた人の IP アドレスを記録します。")}</li>
       <li>${t("Google Drive は読み取りだけで、サインインはこのタブの中だけ（約 1 時間）有効です。")}</li>
       <li>${t("聴いた場所は記録しません。位置情報は「ご当地の品」をオンにしたときだけ 1 日 1 回使い、端末の中で都道府県・国に置き換えます。座標は保存も送信もしません。")}</li>
+      <li>${t("リスニングパーティーでは、つながったホストと参加者の間でお互いの IP アドレスが見えます。通話のマイクは本人が入れたときだけ開き、Kona は録音しません。")}</li>
     </ul>`;
 }
 
@@ -339,7 +346,7 @@ export function initSettings(el: HTMLElement, h: SettingsHooks) {
 export function renderSettings() {
   if (!root) return;
   const body = root.querySelector(".set-body"), scroll = body?.scrollTop ?? 0;
-  if (tab === "modules" && document.body.classList.contains("mobile")) tab = "room"; // スマホ版にはモジュールがない
+  if ((tab === "modules" || tab === "cats") && onMobile()) tab = "room"; // スマホ版にはモジュールも猫もない
   if (tab !== "modules") hooks.modules.focus(undefined);
   document.body.classList.toggle("mod-picking", tab === "modules"); // ホームのモジュールを押すと選べる
   const content = { room: roomTab, modules: () => modulesTab(hooks), cats: () => catsTab(hooks), sound: () => soundTab(hooks), other: () => otherTab(hooks) }[tab]();
@@ -349,7 +356,7 @@ export function renderSettings() {
       <h2>${esc(t("設定"))}</h2>
       <a href="#home" class="set-close" aria-label="${esc(t("閉じる"))}" title="${esc(t("閉じる"))} (Esc)">×</a>
     </header>
-    <nav class="set-tabs" role="tablist" aria-label="${esc(t("設定"))}">${TABS.filter(x => x.id !== "modules" || !document.body.classList.contains("mobile")).map(x => `<button type="button" role="tab" data-tab="${x.id}" aria-selected="${x.id === tab}">${esc(t(x.label))}</button>`).join("")}</nav>
+    <nav class="set-tabs" role="tablist" aria-label="${esc(t("設定"))}">${TABS.filter(x => !onMobile() || (x.id !== "modules" && x.id !== "cats")).map(x => `<button type="button" role="tab" data-tab="${x.id}" aria-selected="${x.id === tab}">${esc(t(x.label))}</button>`).join("")}</nav>
     <div class="set-body" role="tabpanel">${content}</div>
   </div>`;
   root.querySelector(".set-body")!.scrollTop = scroll;
@@ -398,7 +405,7 @@ function confirmDialog(title: string, text: string, ok: string): Promise<boolean
 }
 
 async function clearRecords() {
-  if (!await confirmDialog(t("聴いた記録を消す"), t("再生回数・最後に聴いた日・聴いた記録と場所・聴いた距離を消します。元に戻せません。"), t("消す"))) return;
+  if (!await confirmDialog(t("聴いた記録を消す"), t("再生回数・最後に聴いた日・聴いた記録・聴いた距離を消します。元に戻せません。"), t("消す"))) return;
   for (const k of ["kona.history", "kona.log", "kona.listened", "kona.awards"]) { try { localStorage.removeItem(k); } catch { /* ignore */ } }
   hooks.toast(t("聴いた記録を消しました。画面を開き直します"));
   setTimeout(() => location.reload(), 1000);
@@ -531,7 +538,6 @@ function wire(el: HTMLElement) {
     await h.forgetSource();
   });
   on<HTMLInputElement>("#set-autoscan", "change", c => setPrefs({ autoRescan: c.checked }));
-  on<HTMLSelectElement>("#set-sort", "change", s => { setPrefs({ libSort: s.value as Prefs["libSort"] }); h.redraw(); });
   on("#set-drive-out", "click", () => { h.driveSignOut(); again(); });
   on("#set-drive-open", "click", () => openDrive());
   on("#set-drive-forget", "click", () => { driveSignOut(); saveDriveConfig(undefined); again(); });

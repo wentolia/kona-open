@@ -95,8 +95,6 @@ export class Player {
   private unlocked = false;
   private listeners = new Set<Listener>();
   onAlbumEnd?: () => void;
-  /** アルバムをくり返す前に聞く。false ならくり返さずに止める（スリープタイマー「アルバムの終わり」） */
-  onAlbumLoop?: () => boolean;
   private playMode = loadMode();
   private pre?: GainNode;                       // 2 つの再生器が合流するところ
   private order: number[] = [];                // シャッフルの曲順（曲の番号の並び）
@@ -572,7 +570,7 @@ export class Player {
     if (this.playMode === "track") { this.load(this.index); return; }
     const ni = this.nextIndex();
     if (ni !== undefined) { this.load(ni); return; }
-    if (this.playMode === "album" && this.onAlbumLoop?.() !== false) { this.load(this.firstIndex()); return; }
+    if (this.playMode === "album") { this.load(this.firstIndex()); return; }
     this.endAlbum();
   }
   private endAlbum() {

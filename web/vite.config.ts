@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from "vite";
 import { fileURLToPath } from "node:url";
+import { readFileSync, readdirSync } from "node:fs";
 import { viteSingleFile } from "vite-plugin-singlefile";
 
 // 公開するビルドの守り:
@@ -31,12 +32,32 @@ const harden = (): Plugin => ({
   },
 });
 
+// 使っているソフトウェアのライセンス: 配る JS と書体に入る依存（package-lock.json の dev でないもの）の
+// 著作権表示とライセンス本文を、THIRD_PARTY_NOTICES.txt としてビルドに同梱する（MIT・BSD・OFL の表示の義務）
+const notices = (): Plugin => ({
+  name: "kona-notices",
+  generateBundle() {
+    const lock = JSON.parse(readFileSync(new URL("./package-lock.json", import.meta.url), "utf8")) as { packages: Record<string, { version?: string; license?: string; dev?: boolean }> };
+    const parts = Object.entries(lock.packages)
+      .filter(([k, v]) => k.startsWith("node_modules/") && !v.dev)
+      .map(([k, v]) => {
+        const name = k.slice("node_modules/".length), dir = new URL(`./${k}/`, import.meta.url);
+        const file = readdirSync(dir).find(f => /^(licen[cs]e|copying)(\.(md|txt))?$/i.test(f));
+        const text = file ? readFileSync(new URL(file, dir), "utf8").trim() : `License: ${v.license ?? "unknown"}`;
+        return `${name} ${v.version ?? ""} (${v.license ?? "unknown"})\n${"-".repeat(72)}\n${text}`;
+      })
+      .sort();
+    const head = "Kona は次のソフトウェアと書体を使っています。それぞれの著作権表示とライセンスを載せます。\nKona uses the following software and fonts. Their copyright notices and licenses follow.\n";
+    this.emitFile({ type: "asset", fileName: "THIRD_PARTY_NOTICES.txt", source: [head, ...parts].join("\n\n" + "=".repeat(72) + "\n\n") + "\n" });
+  },
+});
+
 // `--mode single` で1ファイルのHTMLに固める（プレビュー共有用。こちらは CDN の書体のまま）
 export default defineConfig(({ mode, command }) => {
   const single = mode === "single" || mode === "mock"; // mock: スマホ版のモック（サンプルのアルバム入り）
   return {
     base: "./",
-    plugins: single ? [viteSingleFile()] : command === "build" ? [harden()] : [],
+    plugins: single ? [viteSingleFile()] : command === "build" ? [harden(), notices()] : [],
     resolve: single ? { alias: [{ find: /^\.\/fonts$/, replacement: fileURLToPath(new URL("./src/fonts-cdn.ts", import.meta.url)) }] } : undefined,
     build: mode === "mock"
       ? { outDir: "dist-mock", rollupOptions: { input: "mock-mobile.html" } }

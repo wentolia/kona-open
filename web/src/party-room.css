@@ -93,6 +93,7 @@
 .pr-perm-who { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px 8px; margin: 0; display: grid; gap: 4px; }
 .pr-perm-who legend { font-size: 12px; padding: 0 4px; }
 .pr-perm-who label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; font-size: 12px; }
+.pr-perm-who .pr-kick { justify-self: end; font-size: 12px; padding: 2px 10px; margin-top: 2px; }
 .pr-perm-who select { font: inherit; font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; }
 
 /* 再生の写し: 再生中（ジャケット・曲名・進み具合・曲目）。参加者は見るだけ */

@@ -148,6 +148,8 @@ export interface RoomOpts {
   /** ホストだけ: 権限を変える（guest を省くと部屋の既定。val が undefined なら既定に戻す） */
   perm?(perm: keyof Perms, val: boolean | undefined, guest?: string): void;
   permsOf?(): { defaults: Perms; guests: Map<string, Partial<Perms>> };
+  /** ホストだけ: その人を退出させる */
+  kick?(id: string): void;
   /** ホストだけ: リクエストに応える */
   play?(id: string, i?: number): void;
   volume?: { get(): number; set(v: number): void };
@@ -565,9 +567,13 @@ export class Room {
       ${others.length ? others.map(c => `<fieldset class="pr-perm-who"><legend>${esc(c.name || "名無し")}</legend>${PERMS.map(([k, label]) => {
         const v = guests.get(c.id)?.[k];
         return `<label><span>${esc(label.replace(/（.*）/, ""))}</span><select data-who="${esc(c.id)}" data-perm="${k}"><option value=""${v === undefined ? " selected" : ""}>既定（${defaults[k] ? "可" : "不可"}）</option><option value="1"${v === true ? " selected" : ""}>可</option><option value="0"${v === false ? " selected" : ""}>不可</option></select></label>`;
-      }).join("")}</fieldset>`).join("") : `<p class="dlg-note">まだだれも入っていません。</p>`}
+      }).join("")}<button type="button" class="btn pr-kick" data-kick="${esc(c.id)}">退出させる</button></fieldset>`).join("") : `<p class="dlg-note">まだだれも入っていません。</p>`}
       <p class="dlg-note">入った人には、棚の並び・アルバムの題名とジャケット・曲目が見えます（フォルダの場所は送りません）。</p>`;
     body.querySelectorAll<HTMLInputElement>("[data-def]").forEach(i => i.onchange = () => { this.o.perm?.(i.dataset.def as keyof Perms, i.checked); this.drawPerms(); });
+    body.querySelectorAll<HTMLButtonElement>("[data-kick]").forEach(b => b.onclick = () => {
+      if (b.dataset.armed) { this.o.kick?.(b.dataset.kick!); return; }
+      b.dataset.armed = "1"; b.textContent = "もう一度押すと退出";   // 押しまちがえ防止（確認のダイアログは出さない）
+    });
     body.querySelectorAll<HTMLSelectElement>("[data-who]").forEach(s => s.onchange = () => this.o.perm?.(s.dataset.perm as keyof Perms, s.value === "" ? undefined : s.value === "1", s.dataset.who));
   }
   private nameOf(id: string) { return this.cats.get(id)?.name || "名無し"; }
