@@ -88,6 +88,7 @@ initMobile({
   art: a => a.cover ? `<img class="art" alt="" src="${a.cover}">` : `<div class="art-blank" style="background:${a.color}">${esc(a.title)}</div>`,
   openSource: () => toast("モックでは開けません"),
   driveName: () => "Music",
+  driveConfigured: () => true,
   toast,
   status: () => `サンプル · ${albums.length} 枚`,
 }, undefined, { force: true });

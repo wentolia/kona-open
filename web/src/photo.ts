@@ -1,6 +1,6 @@
 // 写真: ホームの部屋をそのまま 1 枚の画像にする。猫に寄って撮ることもできる。
 // 撮った写真は端末の中だけで作り、保存・コピー・端末の共有（Web Share API）で外に出す。Kona からはどこにも送らない。
-// ジャケットは写真の中で平均色の無地に置き換えられる（既定でオン。覚えておく）。聴いた場所の地図はいつも写さない。
+// ジャケットは写真の中で平均色の無地に置き換えられる（既定でオン。覚えておく）。
 
 import { domToCanvas } from "modern-screenshot";
 import { holdCats } from "./cat";
@@ -125,8 +125,8 @@ async function shoot(hideArt: boolean): Promise<HTMLCanvasElement> {
       backgroundColor: getComputedStyle(document.body).backgroundColor,
       features: { restoreScrollPosition: true, copyScrollbar: false },
       fetchFn: imageAsDataUrl,
-      // 写さないもの: 撮影の画面・メニュー・お知らせ・地図（聴いた場所は写真に残さない）
-      filter: n => !(n instanceof Element) || !n.matches(".photo, .photo-flash, .pop-menu, .toast, #add-menu, #module-menu, .leaflet-pane, .leaflet-control-container"),
+      // 写さないもの: 撮影の画面・メニュー・お知らせ
+      filter: n => !(n instanceof Element) || !n.matches(".photo, .photo-flash, .pop-menu, .toast, #add-menu, #module-menu"),
       onCloneNode: async root => {
         if (!(root instanceof Element)) return;
         root.querySelectorAll<HTMLElement>(".add-mod").forEach(e => { e.style.visibility = "hidden"; });
@@ -190,8 +190,16 @@ function catRects(room: Rect): Rect[] {
 }
 
 // ---------- 画面 ----------
-export function initPhoto(opts: { toast: (text: string) => void }) {
-  toast = opts.toast;
+// 画像にするものはカメラのボタンひとつから: 部屋・猫（写真）と、レシート・証書を同じ並びの札で切り替える
+type Other = { label: string; available: () => boolean; open: () => void };
+let others: Record<"receipt" | "certificate", Other> | undefined;
+/** 部屋・猫のほかに切り替えられる札（いま開いているものは押された形） */
+const otherTabs = (cur?: string) => others ? Object.entries(others).filter(([, o]) => o.available())
+  .map(([k, o]) => `<button data-go="${k}" aria-pressed="${k === cur}">${esc(o.label)}</button>`).join("") : "";
+const go = (k: string) => { if (k === "photo") void takePhoto(); else others?.[k as keyof typeof others]?.open(); };
+
+export function initPhoto(opts: { toast: (text: string) => void; others?: typeof others }) {
+  toast = opts.toast; others = opts.others;
   const btn = document.getElementById("to-photo");
   if (btn) btn.onclick = () => { void takePhoto(); };
   addEventListener("keydown", e => { if (e.key === "Escape" && open) { e.preventDefault(); open.close(); } });
@@ -218,7 +226,7 @@ async function act(kind: string, blob: Blob, url: string, prefix: string, png: (
  *  hideToggle: 「ジャケットを隠す」を出す。hideKey / hideDefault で写真とは別に覚える（省くと写真と同じ設定）。
  *  locked: ジャケットを必ず隠す（省くと、Spotify のアルバムを並べているときは隠す）。choices: 何枚かから選ぶとき */
 export function showPicture(o: {
-  label: string; prefix: string; hideToggle?: boolean; hideKey?: string; hideDefault?: boolean; locked?: boolean; choices?: string[]; choice?: number;
+  label: string; prefix: string; tab?: "receipt" | "certificate"; hideToggle?: boolean; hideKey?: string; hideDefault?: boolean; locked?: boolean; choices?: string[]; choice?: number;
   draw: (q: { hideArt: boolean; choice: number }) => Promise<HTMLCanvasElement>;
 }) {
   if (open) return;
@@ -232,6 +240,7 @@ export function showPicture(o: {
   el.innerHTML = `<div class="photo-card">
     <div class="photo-pic" data-busy><img alt="${esc(o.label)}"></div>
     <div class="photo-bar">
+      ${o.tab ? `<div class="photo-frame" role="group" aria-label="構図"><button data-go="photo" aria-pressed="false">部屋</button>${otherTabs(o.tab)}</div>` : ""}
       ${o.choices && o.choices.length > 1 ? `<select class="photo-choice" aria-label="どれにするか">${o.choices.map((c, i) => `<option value="${i}"${i === choice ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>` : ""}
       ${o.hideToggle ? `<label class="photo-hide"${artLocked ? ' title="Spotify のジャケットは画像に写しません"' : ""}><input type="checkbox"${hideArt ? " checked" : ""}${artLocked ? " disabled" : ""}>ジャケットを隠す</label>` : ""}
       <span class="photo-gap"></span>
@@ -273,6 +282,8 @@ export function showPicture(o: {
   el.addEventListener("click", e => {
     const t = e.target as HTMLElement;
     if (t === el || t.closest(".photo-close")) return close();
+    const to = t.closest<HTMLButtonElement>("[data-go]")?.dataset.go;
+    if (to) { if (to !== o.tab) { close(); go(to); } return; }
     const kind = t.closest<HTMLButtonElement>("[data-act]")?.dataset.act;
     if (kind && blob) { const b = blob, c = canvas!; void act(kind, b, url, o.prefix, async () => b.type === "image/png" ? b : toBlob(c, "image/png")); }
   });
@@ -315,8 +326,8 @@ export async function takePhoto() {
   el.innerHTML = `<div class="photo-card">
     <div class="photo-pic" data-busy><img alt="撮った写真"></div>
     <div class="photo-bar">
-      <div class="photo-frame" role="group" aria-label="構図"${cats.length ? "" : " hidden"}>
-        <button data-frame="room" aria-pressed="true">部屋</button><button data-frame="cat" aria-pressed="false">猫</button>
+      <div class="photo-frame" role="group" aria-label="構図">
+        <button data-frame="room" aria-pressed="true">部屋</button>${cats.length ? `<button data-frame="cat" aria-pressed="false">猫</button>` : ""}${otherTabs()}
       </div>
       <label class="photo-hide"${artLocked ? ' title="Spotify のジャケットは写真に写しません"' : ""}><input type="checkbox"${hideArt ? " checked" : ""}${artLocked ? " disabled" : ""}>ジャケットを隠す</label>
       <span class="photo-gap"></span>
@@ -328,7 +339,7 @@ export async function takePhoto() {
   </div>`;
   document.body.append(el);
   const pic = el.querySelector<HTMLElement>(".photo-pic")!, img = pic.querySelector("img")!;
-  const catBtn = el.querySelector<HTMLButtonElement>('[data-frame="cat"]')!, shareBtn = el.querySelector<HTMLButtonElement>('[data-act="share"]')!;
+  const catBtn = el.querySelector<HTMLButtonElement>('[data-frame="cat"]'), shareBtn = el.querySelector<HTMLButtonElement>('[data-act="share"]')!;
   let blob: Blob | undefined, url = "", seq = 0;
 
   const close = () => {
@@ -361,13 +372,15 @@ export async function takePhoto() {
   const setFrame = (f: Frame) => {
     frame = f;
     el.querySelectorAll<HTMLButtonElement>("[data-frame]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.frame === f.kind)));
-    catBtn.textContent = f.kind === "cat" && cats.length > 1 ? `猫 ${f.i + 1}/${cats.length}` : "猫";
+    if (catBtn) catBtn.textContent = f.kind === "cat" && cats.length > 1 ? `猫 ${f.i + 1}/${cats.length}` : "猫";
     void render();
   };
 
   el.addEventListener("click", async e => {
     const t = e.target as HTMLElement;
     if (t === el || t.closest(".photo-close")) return close();
+    const to = t.closest<HTMLButtonElement>("[data-go]")?.dataset.go;
+    if (to) { close(); go(to); return; }
     const fb = t.closest<HTMLButtonElement>("[data-frame]");
     // 猫のボタンは押すたびに次の猫へ
     if (fb) return setFrame(fb.dataset.frame === "room" ? { kind: "room" } : { kind: "cat", i: frame.kind === "cat" ? (frame.i + 1) % cats.length : 0 });

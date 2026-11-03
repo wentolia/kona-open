@@ -32,7 +32,7 @@ Kona はサーバーを持ちません。Spotify の曲は、**あなたのブ�
 1. [Spotify for Developers のダッシュボード](https://developer.spotify.com/dashboard) を開き、Spotify のアカウントでログインします
 2. **Create app** を押します
    - App name / App description: 何でも（例: `Kona`）
-   - **Redirect URIs**: Kona を開いている URL を **そのまま** 入れます（例: `https://wentolia.github.io/kona/`）。末尾の `/` まで一致させます。Kona の **設定 → 詳細 → Spotify** に入れるべき文字列が出るので、それをコピーするのが確実です
+   - **Redirect URIs**: Kona を開いている URL を **そのまま** 入れます（例: `https://wentolia.github.io/kona-open/`）。末尾の `/` まで一致させます。Kona の **設定 → その他 → 読み込み元** に入れるべき文字列が出るので、それをコピーするのが確実です
    - **Which API/SDKs are you planning to use?**: **Web API** と **Web Playback SDK** にチェック
    - 利用規約（Developer Terms of Service / Design Guidelines）を読んで同意し、**Save**
 3. できたアプリの **Settings → Basic Information** に **Client ID**（32 文字の英数字）が出ます。Client secret は使いません
@@ -40,7 +40,7 @@ Kona はサーバーを持ちません。Spotify の曲は、**あなたのブ�
 
 ## 2. Kona に入れる
 
-1. Kona の **設定 → 詳細 → Spotify** を開きます
+1. Kona の **設定 → その他 → 読み込み元** を開きます
 2. Client ID を貼り付けて **保存してサインイン**
 3. Spotify の画面で許可します
 4. 保存したアルバムが棚に並びます
@@ -58,7 +58,7 @@ Kona はサーバーを持ちません。Spotify の曲は、**あなたのブ�
 
 ## やめるとき
 
-- **設定 → 詳細 → Spotify** の **サインアウト** で、このブラウザのトークンを消せます。**Client ID を消す** で設定ごと消せます
+- **設定 → その他 → 読み込み元** の **サインアウト** で、このブラウザのトークンを消せます。**Client ID を消す** で設定ごと消せます
 - 権限そのものを取り消すには、[Spotify のアカウントの「アプリ」](https://www.spotify.com/account/apps/) から外します
 - ダッシュボードでアプリを削除すれば、Client ID も使えなくなります
 

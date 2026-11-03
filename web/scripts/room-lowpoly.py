@@ -1,7 +1,7 @@
-# 部屋の壁・床・ラグ: 猫・棚板・上の帯と同じ「平らな多角形と数段の濃淡」で作る。
+# 部屋の壁と床: 猫・棚板・上の帯と同じ「平らな多角形と数段の濃淡」で作る。
 #   python3 scripts/room-lowpoly.py  → src/room-lowpoly.css を書き出す（手で直さない）
 # 壁は上の帯（header-lowpoly.py）と同じく不透明度だけのマスクにして、色は CSS 側でテーマ色から作る
-# （テーマや時刻で色が移っても形はそのまま）。床とラグは素材の色で塗る。乱数の種は固定（何度作っても同じ形）。
+# （テーマや時刻で色が移っても形はそのまま）。床は素材の色で塗る。乱数の種は固定（何度作っても同じ形）。
 import random, urllib.parse, os
 
 def url(svg):
@@ -133,64 +133,6 @@ FLOORS = {
                     {"skirt_hi": "#a3a7ab", "skirt": "#7d8186", "shadow": "rgba(0,0,0,.35)"}, kind="tiles"), "#2f3236"),
 }
 
-# ================= ラグ（色）: 奥が狭い台形に寝かせる =================
-def persp(x, y, W=200, H=40, k=.16):
-    """平らな図形（0..W × 0..H）を、奥（上）が少し狭い台形へ"""
-    s = 1 - k * (1 - y / H)
-    return (W / 2 + (x - W / 2) * s, y)
-
-def rug_round():
-    rnd = random.Random(41)
-    body, W, H, n = "", 200, 40, 18
-    cols = [("#b5573c", "#a64d35", "#c0623f"), ("#d9a35b", "#cf9852"), ("#7a3428", "#6e2f24")]
-    import math
-    for ring, (rx, ry) in enumerate([(98, 19), (78, 15), (40, 7.6)]):
-        ring_c = cols[ring % len(cols)]
-        P = [(100 + rx * math.cos(2 * math.pi * i / n), 20 + ry * math.sin(2 * math.pi * i / n)) for i in range(n)]
-        for i in range(n):
-            body += fill(rnd.choice(ring_c), [persp(*P[i]), persp(*P[(i + 1) % n]), persp(100, 20)])
-    return svg(W, H, body)
-
-def rug_kilim():
-    rnd = random.Random(43)
-    W, H = 200, 40
-    red, red2, cream, ind, ochre = "#9c3a2e", "#8e3429", "#e3d3b0", "#2f3f63", "#c99a45"
-    body = ""
-    for t in quad_tris(rnd, 0, 0, W, H, 8):
-        body += fill(rnd.choice([red, red2]), [persp(*p) for p in t])
-    for t in quad_tris(rnd, 8, 4, W - 8, H - 4, 6):
-        body += fill(rnd.choice([cream, "#d9c79f"]), [persp(*p) for p in t])
-    for t in quad_tris(rnd, 14, 8, W - 14, H - 8, 6):
-        body += fill(rnd.choice([red, red2]), [persp(*p) for p in t])
-    for i, cx in enumerate(range(34, 180, 33)):
-        c = [ind, ochre][i % 2]
-        body += fill(c, [persp(cx - 13, 20), persp(cx, 11), persp(cx + 13, 20), persp(cx, 29)])
-        body += fill(cream, [persp(cx - 5, 20), persp(cx, 16.5), persp(cx + 5, 20), persp(cx, 23.5)])
-    for x in range(4, W, 6):  # 房
-        body += fill(cream, [persp(x, H - .5), persp(x + 2, H - .5), (persp(x + 1, H)[0], H + 2)])
-    return svg(W, H + 2, body)
-
-def rug_fur():
-    """ムートン: ふちがぎざぎざの白い毛皮"""
-    rnd = random.Random(47)
-    import math
-    W, H, n = 200, 40, 30
-    cols = ["#e9e4da", "#ddd7cb", "#f2eee6", "#cfc8ba"]
-    body = ""
-    P = []
-    for i in range(n):
-        a = 2 * math.pi * i / n
-        r = 1 + (rnd.uniform(.04, .14) if i % 2 else -rnd.uniform(0, .06))
-        P.append((100 + 92 * r * math.cos(a), 20 + 18 * r * math.sin(a)))
-    inner = [(100 + 55 * math.cos(2 * math.pi * i / n * 2) + rnd.uniform(-4, 4), 20 + 10 * math.sin(2 * math.pi * i / n * 2) + rnd.uniform(-1, 1)) for i in range(n // 2)]
-    for i in range(n):
-        body += fill(rnd.choice(cols), [persp(*P[i]), persp(*P[(i + 1) % n]), persp(*inner[(i // 2) % len(inner)])])
-    for i in range(len(inner)):
-        body += fill(rnd.choice(cols), [persp(*inner[i]), persp(*inner[(i + 1) % len(inner)]), persp(100, 20)])
-    return svg(W, H, body)
-
-RUGS = {"round": rug_round(), "kilim": rug_kilim(), "fur": rug_fur()}
-
 def css():
     out = ["/* 生成ファイル: scripts/room-lowpoly.py で作る。手で直さない */"]
     for key, (fn) in {"plaster": wall_plaster, "planks": wall_planks, "brick": wall_brick}.items():
@@ -198,8 +140,6 @@ def css():
         out.append(f':root[data-wall="{key}"] {{ --wall-mask: {url(s)}; --wall-size: {w}px {h}px; }}')
     for key, ((s, w), base) in FLOORS.items():
         out.append(f':root[data-floor="{key}"] {{ --floor-bg: {url(s)} left top / {w}px 100% repeat-x, {base}; }}')
-    for key, s in RUGS.items():
-        out.append(f':root[data-rug="{key}"] {{ --rug: {url(s)}; }}')
     return "\n".join(out) + "\n"
 
 dst = os.path.join(os.path.dirname(__file__), "..", "src", "room-lowpoly.css")

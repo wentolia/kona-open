@@ -1,8 +1,10 @@
 // ホームに置くモジュールの定義（種類・名前・棚の中身の設定）。どこに置くか（段・列・高さ）は layout.ts
+import { setTag, cleanTag } from "./tags";
 
-export type ModuleType = "shelf" | "player" | "waveform" | "eq" | "clock" | "info" | "log" | "output" | "map" | "turntable" | "window" | "objects" | "distance" | "cattower" | "scratcher" | "catfood" | "spectrum" | "catbox";
-export type ShelfKind = "often" | "recent" | "queue" | "folder" | "artist" | "manual" | "search" | "mood" | "goods";
-export type SortKey = "title" | "artist" | "year" | "yearAsc" | "plays" | "last";
+export type ModuleType = "shelf" | "player" | "waveform" | "eq" | "clock" | "info" | "log" | "output" | "turntable" | "window" | "objects" | "distance" | "cattower" | "scratcher" | "catfood" | "spectrum" | "catbox";
+// 棚の中身は 3 種類だけ: 検索（検索語と並び順。よく聴く・最近聴いた・フォルダ・アーティスト・気分・タグもこれで表す）・次に再生・雑貨
+export type ShelfKind = "search" | "queue" | "goods";
+export type SortKey = "title" | "artist" | "year" | "yearAsc" | "plays" | "last" | "hue";
 
 export interface ModuleDef {
   id: string;
@@ -12,12 +14,9 @@ export interface ModuleDef {
   height: number;      // 新しい段に置くときの高さ（px）
   // 以下は棚のときだけ使う
   kind?: ShelfKind;
-  arg?: string;        // フォルダ名・アーティスト名
-  albums?: string[];   // 手動の棚に入れたアルバムのキー
   facePos?: number;    // ジャケットの表示欄の位置（棚の幅に対する比率 0 左端〜1 右端）
   query?: string;      // 検索の棚: 検索語
   sort?: SortKey;      // 検索の棚: 並び順
-  searchAlign?: "left" | "center"; // 検索の棚: 検索窓の位置（省略時は右寄せ）
   folderGaps?: boolean; // フォルダごとにまとめ、継ぎ目に隙間をあける
 }
 export type ShelfDef = ModuleDef & { type: "shelf"; kind: ShelfKind };
@@ -33,7 +32,6 @@ export const MODULES: ModuleInfo[] = [
   { type: "clock", label: "時計", minHeight: 110, height: 170, ready: true, single: true },
   { type: "info", label: "アルバムの情報", minHeight: 140, height: 220, ready: true, single: true },
   { type: "log", label: "聴いた記録", minHeight: 120, height: 220, ready: true, single: true },
-  { type: "map", label: "聴いた場所", minHeight: 140, height: 260, ready: true, single: true },
   { type: "output", label: "出力", minHeight: 120, height: 170, ready: true, single: true },
   { type: "turntable", label: "レコードプレーヤー", minHeight: 120, height: 220, ready: true, single: true },
   { type: "window", label: "窓辺", minHeight: 90, height: 200, ready: true, single: true },
@@ -46,14 +44,8 @@ export const MODULES: ModuleInfo[] = [
 export const moduleInfo = (t: ModuleType) => MODULES.find(m => m.type === t)!;
 
 export const KINDS: { kind: ShelfKind; label: string }[] = [
-  { kind: "often", label: "よく聴く" },
-  { kind: "recent", label: "最近聴いた" },
+  { kind: "search", label: "アルバム（検索と並び順）" },
   { kind: "queue", label: "次に再生" },
-  { kind: "folder", label: "フォルダ" },
-  { kind: "artist", label: "アーティスト" },
-  { kind: "mood", label: "気分" },
-  { kind: "manual", label: "手動で集める" },
-  { kind: "search", label: "検索して並べる" },
   { kind: "goods", label: "雑貨" },
 ];
 export const kindLabel = (k: ShelfKind) => KINDS.find(x => x.kind === k)!.label;
@@ -65,6 +57,7 @@ export const SORTS: { key: SortKey; label: string }[] = [
   { key: "yearAsc", label: "年（古い順）" },
   { key: "plays", label: "再生回数" },
   { key: "last", label: "最近聴いた順" },
+  { key: "hue", label: "ジャケットの色の順" },
 ];
 
 // 幅は自由。ただし 1/4・1/3・1/2・2/3・3/4・全幅 の近く（±1.5%）では軽く吸い付く
@@ -77,23 +70,51 @@ export function snapRatio(raw: number): number {
 }
 export const ratioLabel = (w: number) => MAGNETS.find(([m]) => Math.abs(m - w) < 1e-6)?.[1] ?? `${Math.round(w * 100)}%`;
 
+/** 検索語がタグひとつだけ（tag:"…"）の棚は、そのタグの棚として扱う（落とすとタグがつき、外すとタグが外れる） */
+export function tagOfShelf(d: ModuleDef): string | undefined {
+  if (d.type !== "shelf" || d.kind !== "search") return undefined;
+  const m = (d.query ?? "").trim().match(/^(?:tag|t):(?:"([^"]+)"|(\S+))$/i);
+  return m ? m[1] ?? m[2] : undefined;
+}
 // ドロップでアルバムを追加できる棚
-export const accepts = (k: ShelfKind) => k === "queue" || k === "manual";
+export const accepts = (d: ModuleDef) => d.kind === "queue" || !!tagOfShelf(d);
+
+/** 検索語の中の値（空白を含むときは "…" で囲む） */
+export const quoteQ = (v: string) => /[\s"]/.test(v) ? `"${v.replace(/"/g, "")}"` : v;
+/** 以前の棚の種類を、検索と並び順に置き換える（手動で集めた棚は、棚の名前のタグをアルバムにつけて、そのタグの棚に） */
+type OldShelf = Omit<ModuleDef, "kind"> & { kind?: string; arg?: string; albums?: string[]; searchAlign?: string };
+function toSearch(m: OldShelf): ModuleDef {
+  const { arg, albums, searchAlign: _, ...rest } = m;
+  const s = (query: string, sort?: SortKey): ModuleDef => ({ ...rest, kind: "search", query, ...(sort ? { sort } : {}) });
+  switch (m.kind) {
+    case "often": return s("", "plays");
+    case "recent": return s("", "last");
+    case "folder": return s(arg ? `folder:${quoteQ(arg)}` : "");
+    case "artist": return s(arg ? `artist:${quoteQ(arg)}` : "");
+    case "mood": return s(`mood:${arg ?? "夜"}`, "hue");
+    case "manual": {
+      const tag = cleanTag(m.title || "お気に入り") || "お気に入り";
+      if (albums?.length) setTag(albums, tag, true);
+      return s(`tag:${quoteQ(tag)}`);
+    }
+    default: return rest as ModuleDef;
+  }
+}
 
 const KEY = "kona.layout", OLD_KEY = "kona.shelves";
 export const newId = () => Math.random().toString(36).slice(2, 9);
 
-const shelf = (kind: ShelfKind, title: string, w: number, extra: Partial<ModuleDef> = {}): ModuleDef =>
-  ({ id: newId(), type: "shelf", kind, title, w, height: 180, ...extra });
+const shelf = (title: string, w: number, extra: Partial<ModuleDef> = {}): ModuleDef =>
+  ({ id: newId(), type: "shelf", kind: "search", query: "", title, w, height: 180, ...extra });
 const player = (): ModuleDef => ({ id: newId(), type: "player", title: "再生中", w: 1, height: 220 });
 
 function defaults(): ModuleDef[] {
   return [
-    shelf("often", "よく聴く", 1),
+    shelf("よく聴く", 1, { sort: "plays" }),
     player(),
-    shelf("queue", "次に再生", 1),
-    shelf("recent", "最近聴いた", 1 / 2),
-    shelf("manual", "お気に入り", 1 / 2, { albums: [] }),
+    shelf("次に再生", 1, { kind: "queue", query: undefined }),
+    shelf("最近聴いた", 1 / 2, { sort: "last" }),
+    shelf("お気に入り", 1 / 2, { query: "tag:お気に入り" }),
   ];
 }
 
@@ -115,9 +136,11 @@ export function loadLayout(): ModuleDef[] {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? "null");
     // 廃止したモジュール（音の高さと大きさ・きょうの一枚・ジュークボックスなど）は読み飛ばす
-    if (Array.isArray(saved) && saved.length) return saved.map(fromLegacy).filter(m => MODULES.some(i => i.type === m.type));
+    // 古い種類の棚を置き換えたら、すぐに残す（手動の棚のタグを、開くたびにつけ直さないため）
+    const settle = (mods: ModuleDef[], before: unknown[]) => { if (JSON.stringify(mods) !== JSON.stringify(before)) saveLayout(mods); return mods; };
+    if (Array.isArray(saved) && saved.length) return settle(saved.map(fromLegacy).map(toSearch).filter(m => MODULES.some(i => i.type === m.type)), saved);
     const old = JSON.parse(localStorage.getItem(OLD_KEY) ?? "null");
-    if (Array.isArray(old) && old.length) return migrate(old);
+    if (Array.isArray(old) && old.length) return settle(migrate(old).map(toSearch), []);
   } catch { /* ignore */ }
   return defaults();
 }

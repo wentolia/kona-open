@@ -2,6 +2,7 @@
 // タッチ端末の狭い画面だけで使い、PC のホーム（モジュールのグリッド）とは別に描く。
 // データ（アルバム・再生・次に再生）は main.ts と共有し、ここでは表示と操作だけを持つ
 
+import { tagsOf, setTabsHTML, onSetTabClick } from "./tags";
 import "./mobile.css";
 import "./header.css";
 import { openParty, partySupported } from "./party";
@@ -10,7 +11,6 @@ import type { Player } from "./player";
 import { stat } from "./store";
 import { t } from "./i18n";
 import { libGroup, groupAlbums } from "./libgroup";
-import { SHELF_SKINS, shelfSkin, setShelfSkin } from "./shelf-skin";
 import { modeButtonHTML } from "./modeui";
 import { openReceipt } from "./receipt";
 import { $, esc, fmt } from "./dom";
@@ -25,6 +25,7 @@ export interface MobileCtx {
   art: (a: Album) => string;
   openSource: (kind: "local" | "drive") => void; // 読み込み元を開き直す（この端末のフォルダ / Google Drive）
   driveName: () => string | undefined;           // 前に開いた Drive のフォルダ名
+  driveConfigured: () => boolean;               // 設定で Drive のクライアントIDを入れたか
   keepState?: (a: Album) => "none" | "keeping" | "kept" | undefined; // Drive のアルバムを端末に残しているか（Drive でなければ undefined）
   toggleKeep?: (a: Album) => void;
   toast: (text: string, action?: string, run?: () => void) => void;
@@ -81,6 +82,7 @@ export function initMobile(c: MobileCtx, modeChanged?: () => void, opts: { force
       <label class="m-search">${ICON.search}<input type="search" placeholder="アルバム・アーティストを探す" aria-label="探す" enterkeyhint="search"></label>
       <button class="m-icon m-more" aria-label="メニュー">${ICON.more}</button>
     </header>
+    <nav class="m-sets sets" id="m-sets" aria-label="アルバムのセット" hidden></nav>
     <div class="m-shelves" id="m-shelves"></div>
     <div class="m-mini" id="m-mini" hidden></div>
     <div class="m-sheet-host" id="m-sheet" hidden></div>
@@ -88,6 +90,7 @@ export function initMobile(c: MobileCtx, modeChanged?: () => void, opts: { force
   document.body.append(root);
   const input = $<HTMLInputElement>(".m-search input", root);
   input.addEventListener("input", () => { query = input.value.trim(); renderShelves(); $("#m-shelves").scrollTop = 0; });
+  $("#m-sets", root).addEventListener("click", onSetTabClick);
   $(".m-more", root).onclick = e => openMenu(e.currentTarget as HTMLElement);
 
   apply();
@@ -111,6 +114,8 @@ function apply() {
 /** ライブラリや次に再生が変わったときに呼ぶ（スマホ画面でなければ何もしない） */
 export function renderMobile() {
   if (!ctx || !mobileActive()) return;
+  const sets = $("#m-sets"), html = setTabsHTML();
+  sets.innerHTML = html; sets.hidden = !html;
   renderShelves(); renderMini();
   if (sheet) renderSheet();
   if (nowOpen) renderNow();
@@ -121,7 +126,7 @@ interface MShelf { id: string; name: string; list: Album[]; face?: Album; faceLa
 
 function matches(a: Album, q: string) {
   const s = q.toLowerCase();
-  return [a.title, a.artist, a.dir, a.shelf, a.genre, a.year ? String(a.year) : ""].some(x => x?.toLowerCase().includes(s))
+  return [a.title, a.artist, a.dir, a.shelf, a.genre, a.year ? String(a.year) : "", ...tagsOf(a)].some(x => x?.toLowerCase().includes(s))
     || a.tracks.some(t => t.title.toLowerCase().includes(s));
 }
 
@@ -262,16 +267,14 @@ function toggleQueue(a: Album) {
 }
 
 // ---------- メニュー（フォルダを開き直すなど） ----------
-const skinLabel = () => SHELF_SKINS.find(k => k.key === shelfSkin())!.label;
 function openMenu(anchor: HTMLElement) {
   document.getElementById("m-menu")?.remove();
   const el = document.createElement("div");
   el.id = "m-menu"; el.className = "m-menu"; el.setAttribute("role", "menu");
   el.innerHTML = `<p class="m-menu-status">${esc(ctx.status())}</p>
     <button role="menuitem" data-act="local">この端末のフォルダを開く</button>
-    <button role="menuitem" data-act="drive">Google Drive から開く${ctx.driveName() ? `<span>${esc(ctx.driveName()!)}</span>` : ""}</button>
-    ${partySupported() ? `<button role="menuitem" data-act="party">リスニングパーティー<span>同じ曲をいっしょに聴く</span></button>` : ""}
-    <button role="menuitem" data-act="skin">棚の素材<span>${skinLabel()}</span></button>
+    ${ctx.driveConfigured() ? `<button role="menuitem" data-act="drive">Google Drive から開く${ctx.driveName() ? `<span>${esc(ctx.driveName()!)}</span>` : ""}</button>` : ""}
+    ${partySupported() ? `<button role="menuitem" data-act="party">リスニングパーティー<span>流している音をいっしょに聴く</span></button>` : ""}
     <button role="menuitem" data-act="settings">${t("設定")}</button>
     <button role="menuitem" data-act="pc">PC 向けの画面にする</button>`;
   document.body.append(el);
@@ -279,13 +282,6 @@ function openMenu(anchor: HTMLElement) {
   el.style.top = `${r.bottom + 6}px`;
   el.onclick = e => {
     const btn = (e.target as HTMLElement).closest<HTMLElement>("[data-act]"), act = btn?.dataset.act;
-    // 棚の素材は押すたびに次へ。メニューは開いたままにして見比べられるようにする
-    if (act === "skin") {
-      const i = SHELF_SKINS.findIndex(k => k.key === shelfSkin());
-      setShelfSkin(SHELF_SKINS[(i + 1) % SHELF_SKINS.length].key);
-      btn!.querySelector("span")!.textContent = skinLabel();
-      return;
-    }
     el.remove();
     if (act === "local" || act === "drive") ctx.openSource(act);
     if (act === "party") openParty();

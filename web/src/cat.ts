@@ -1,7 +1,6 @@
 import "./cat.css";
 import { reduceMotion, onMotionChange, prefs } from "./prefs";
 import { SILL, windowRain, roomLightOn } from "./mod-window";
-import { noiseLevel } from "./noise";
 import { markNap, markClaw } from "./shelf-marks";
 import { esc } from "./dom";
 import { type Shades, seeded, breedOf, nameOf, randomPersona, type Coat, type Persona, randomCoat } from "./cat-coat";
@@ -30,6 +29,9 @@ let music = false;      // 音楽が鳴っている（再生中モジュール�
 export function setCatsMusic(on: boolean) { music = on; }
 let held = false;       // 写真を撮っている間は、猫はその場でじっとしている
 export function holdCats(on: boolean) { held = on; }
+// リスニングパーティーの部屋では、届いた音の大きさを猫の耳にする（参加者は自分のプレイヤーを鳴らさないので）
+let partyEar: (() => number) | undefined;
+export function setPartyEar(fn?: () => number) { partyEar = fn; }
 
 // ---------- 曲を聴く ----------
 // 猫たちみんなで 1 つの耳。音の大きさの包絡線から拍（音の立ち上がり）を拾い、テンポと拍の位置を追う。
@@ -38,7 +40,7 @@ const ear = { lvl: 0, t: 0, last: 0, env: 0, slow: 0, long: 0, lastOn: -9, rate:
 function hearMusic(now: number) {
   if (now - ear.last < 8) return; // 1 フレームに 1 回
   const dt = Math.min(.1, (now - ear.last) / 1000); ear.last = now; ear.t += dt;
-  const level = ear.lvl = music ? hooks?.level?.() ?? 0 : 0;
+  const level = ear.lvl = partyEar ? partyEar() : music ? hooks?.level?.() ?? 0 : 0;
   const k = (tau: number) => 1 - Math.exp(-dt / tau);
   ear.env += (level - ear.env) * k(.04); ear.slow += (level - ear.slow) * k(.9); ear.long += (level - ear.long) * k(8);
   if (ear.env > ear.slow * 1.3 && ear.env > .015 && ear.t - ear.lastOn > .25) {
@@ -55,7 +57,7 @@ function hearMusic(now: number) {
 }
 /** 拍に合わせた振り（-1〜1）。拍のたびに左右へ振れ切る。拍が拾えていなければ 0 */
 function beatSwing(lag = 0): number {
-  if (ear.conf < .3 || !music) return 0;
+  if (ear.conf < .3 || !(music || partyEar)) return 0;
   const frac = Math.min(1, (ear.t - ear.lastOn) * ear.rate);
   return Math.cos(Math.PI * (ear.beats + smooth(frac)) - lag) * Math.min(1, ear.conf * 1.5);
 }
@@ -113,9 +115,57 @@ function toLocal(p: V, bob: number, tilt: number, sy: number): V {
 // 走るときは対角の脚がそろって出る速足（トロット）。歩幅を広げ、肉球を高く上げる
 const OFFSET_RUN: Record<Limb, number> = { fh: 0, nf: .06, nh: .5, ff: .56 };
 const DUTY_RUN = .44;
-const gaitOf = (run: boolean) => run ? { off: OFFSET_RUN, duty: DUTY_RUN, stride: STRIDE * 1.45, lift: 1.9 } : { off: OFFSET, duty: DUTY, stride: STRIDE, lift: 1 };
-function gaitPaw(k: Limb, phase: number, run = false): [V, number] {
-  const g = gaitOf(run);
+
+// ---------- 動きの個性 ----------
+// 骨格は同じでも、猫ごとに体の使い方が違う。性格と体格から、関節の振れ幅・速さ・間（ま）を決める。
+// 本物の猫の観察に、アニメーションの「らしさ」の原則（予備動作・溜め・追従と重なり・ゆっくり入ってゆっくり出る・誇張）を重ねる:
+//  - 大きく重い子: 歩幅が広く足取りはゆっくり。一歩ごとに肩と腰が沈み、体重が乗る。着地や座るときに深く沈む
+//  - 元気な子: 足の運びが速く、動きの切り替えがきびきびして、間が短い
+//  - 遊び好きな子: 足を高く上げて弾むように歩き、しっぽや頭が大きくしなって行き過ぎてから戻る
+//  - 眠たがりな子: 足を低く引きずるように運び、何をするにも一拍おいてから、ゆっくり動く
+//  - 好奇心の強い子: 歩きながらもあちこち見回し、頭が体に合わせて揺れる。落ち着いた子は頭を水平に保つ
+export interface Motion {
+  stride: number;  // 歩幅（倍率）
+  lift: number;    // 足を上げる高さ（倍率）
+  duty: number;    // 一歩のうち接地している割合
+  lat: number;     // 前脚の出るタイミングのずれ（歩き方の癖）
+  heave: number;   // 一歩ごとの体の上下と、肩・腰の前後の傾き（重さ）
+  steady: number;  // 歩くときに頭を水平に保つ強さ（0〜1）
+  snap: number;    // 動きの切り替えの速さ（ばねの硬さ、1/秒）
+  bounce: number;  // 行き過ぎて戻る量（0 でぴたりと止まる、大きいほどしなる）
+  hold: number;    // 間の長さ（倍率）: 動き出す前の溜め、止まってからの余韻
+  reach: number;   // 関節の振れ幅（倍率）: じゃれる・伸び・しっぽ
+  sink: number;    // 着地・座るときに沈む深さ（倍率）
+}
+export function motionOf(p: Persona, seed: string): Motion {
+  const r = seeded(seed + "motion"), heavy = clamp((p.size - .86) / .4, 0, 1);
+  return {
+    stride: (.9 + .22 * heavy + .1 * (p.speed - 1)) * (.96 + .08 * r()),
+    lift: clamp(.7 + .55 * p.playful + .25 * p.energy - .3 * p.sleepy + .1 * (r() - .5), .45, 1.5),
+    duty: clamp(.66 - .06 * p.energy + .04 * heavy, .56, .72),
+    lat: (r() - .5) * .08,
+    heave: .55 + .9 * heavy + .3 * (1 - p.energy),
+    steady: clamp(.85 - .45 * p.curious + .1 * (r() - .5), .3, .95),
+    snap: 4 + 6 * p.energy - 2.2 * p.sleepy,
+    bounce: clamp(.12 + .5 * p.playful - .15 * p.sleepy, .05, .6),
+    hold: clamp(.75 + .7 * p.sleepy + .35 * p.curious - .45 * p.energy, .5, 1.7),
+    reach: .82 + .3 * p.playful + .1 * p.energy,
+    sink: .8 + .55 * heavy + .2 * p.sleepy,
+  };
+}
+const BASE_MOTION: Motion = { stride: 1, lift: 1, duty: DUTY, lat: 0, heave: 1, steady: .7, snap: 6, bounce: .2, hold: 1, reach: 1, sink: 1 };
+/** 減衰するばね（行き過ぎて戻る）。x を goal へ。k は硬さ、b は行き過ぎの量 */
+function spring(st: { x: number; v: number }, goal: number, dt: number, k: number, b: number) {
+  const w = Math.min(60, k * 1.6), z = clamp(1 - b, .18, 1); // 固有角振動数と減衰比
+  const n = Math.max(1, Math.ceil(w * dt / .4)), h = dt / n; // 硬いばねは細かく刻んで、暴れないように
+  for (let i = 0; i < n; i++) { st.v += (-(w * w) * (st.x - goal) - 2 * z * w * st.v) * h; st.x += st.v * h; }
+  return st.x;
+}
+const gaitOf = (run: boolean, m: Motion = BASE_MOTION) => run
+  ? { off: OFFSET_RUN, duty: DUTY_RUN, stride: STRIDE * 1.45 * m.stride, lift: 1.9 * m.lift }
+  : { off: { ...OFFSET, ff: OFFSET.ff + m.lat, nf: OFFSET.nf + m.lat }, duty: m.duty, stride: STRIDE * m.stride, lift: m.lift };
+function gaitPaw(k: Limb, phase: number, run = false, m: Motion = BASE_MOTION): [V, number] {
+  const g = gaitOf(run, m);
   const p = ((phase + g.off[k]) % 1 + 1) % 1, r = REST[k];
   // 接地中に体が進むのは duty×歩幅。肉球はその分だけ後ろへ流れ、地面の上では滑らない
   const half = g.duty * g.stride / 2;
@@ -339,6 +389,13 @@ const TAIL: Record<Pose, [number, number]> = { stand: [-15, -18], sit: [-12, -2]
 
 
 interface Cat {
+  m: Motion;                   // 動きの個性
+  sp: { look: { x: number; v: number }; tail: { x: number; v: number }[]; ear: { x: number; v: number }; lean: { x: number; v: number } }; // 追従するばね
+  morph?: { t: number; down: boolean }; // 姿勢が変わった時刻と向き（座る・伏せるなら down）
+  settleT: number;
+  flee?: number;               // 逃げる相手（カーソル）の x。びくっとした直後に走り出す
+  fleeRoll: number;            // 最後に「逃げるか」を決めた時刻（同じ近づき方で何度も決めない）
+  waryT: number;               // この時刻まで、離れた所からカーソルの様子をうかがう             // 歩き終えて止まった時刻（体が少し前へ流れてから戻る）
   grid: HTMLElement; layer: HTMLElement; el: HTMLElement; flip: SVGGElement; body: SVGGElement; head: SVGGElement;
   neck: SVGPolygonElement[];
   legs: Map<string, SVGGElement>; limbs: Map<Limb, SVGGElement>; gw: number; tails: Map<string, SVGGElement>; zs: HTMLElement[];
@@ -376,7 +433,7 @@ interface Cat {
   cont?: () => void;           // あいさつのあとに続けること
   hunger: number;              // お腹の空き具合（0〜1）。0.75 を超えるとごはんへ行く
   gs: { mode: number; from: number; until: number }; // 自分の毛づくろいの段取り（0: 前脚を舐める 1: 顔を洗う 2: 肩を舐める）
-  stage?: { sleep: number };
+  stage?: { sleep: number; pup?: Pup };
   napAcc?: number;             // 棚板で眠った秒数（跡を残すためにためておく）   // 起動画面の猫: ホームの外で、決まった段取り（眠る → あくび → 起きる）だけをする
 }
 let pointerAt = 0;             // カーソルが最後に動いた時刻
@@ -392,6 +449,7 @@ const cats: Cat[] = [];
 
 function measure(c: Cat): Plat[] {
   const g = c.grid.getBoundingClientRect();
+  if (c.stage?.pup) return pupPlats(c.grid);
   if (c.stage) return [{ el: c.grid, kind: "floor", y: g.height - 4, x0: 0, x1: g.width, pull: 1 }]; // 起動画面: 床だけ
   const out: Plat[] = [];
   // 棚板の厚みは棚の素材で変わる（--board）
@@ -450,6 +508,12 @@ function refresh(c: Cat) {
     if (d) { c.dest = d; c.to[1] = d.y; }
     return;
   }
+  if (!c.cur && c.stage?.pup) {
+    const pp = c.stage.pup, p = c.plats[clamp(pp.plat, 0, c.plats.length - 1)] ?? c.plats[c.plats.length - 1];
+    c.cur = p; c.x = clamp(p.x0 + pp.fx * (p.x1 - p.x0), lo(p), hi(p)); c.y = p.y;
+    pupRest(c);
+    return;
+  }
   if (!c.cur && c.stage) {
     // 起動画面: 真ん中で丸くなって眠っている（もう起きている時間なら座っている）
     const p = c.plats[0];
@@ -466,6 +530,13 @@ function refresh(c: Cat) {
     return;
   }
   const same = c.plats.find(p => samePlat(p, c.cur));
+  // 部屋の猫: 画面の大きさが変わっても、同じ足場の同じ割合の所にいる（落ちない）
+  if (same && c.stage?.pup) {
+    c.cur = same; c.y = same.y;
+    const want = clamp(same.x0 + c.stage.pup.fx * (same.x1 - same.x0), lo(same), hi(same));
+    if (c.state === "walk") c.to[0] = clamp(c.to[0], lo(same), hi(same)); else c.x = want;
+    return;
+  }
   if (same && Math.abs(same.y - c.y) < 30 && c.x >= same.x0 && c.x <= same.x1) {
     c.cur = same; c.y = same.y; c.x = clamp(c.x, lo(same), hi(same));
     if (c.state === "walk") c.to[0] = clamp(c.to[0], lo(same), hi(same));
@@ -529,14 +600,14 @@ function reach(c: Cat, p: Plat, x: number): number | undefined {
 }
 
 // 跳び移る先を、足場の好みと猫の好奇心で重みをつけて選ぶ。avoid の近くは避ける（追いかけっこで逃げるとき）
-function jumpTarget(c: Cat, avoid?: Cat): [Plat, number] | undefined {
+function jumpTarget(c: Cat, avoid?: number): [Plat, number] | undefined {
   const opts: [Plat, number, number][] = [];
   for (const p of c.plats) {
     const x = reach(c, p, rnd(lo(p), hi(p)));
     if (x === undefined) continue;
     let w = p.pull * (1 + c.p.curious * Math.abs(p.y - c.y) / REACH_Y);
     if (p.kind === "sill" && (new Date().getHours() < 6 || new Date().getHours() > 18)) w *= .6;
-    if (avoid && Math.abs(x - avoid.x) < 120) w *= .2;
+    if (avoid !== undefined && Math.abs(x - avoid) < 120) w *= .2;
     if (p.kind === "box" && occupied(c, p)) w *= .05; // 先客のいる箱には、まず入らない
     opts.push([p, x, w]);
   }
@@ -559,7 +630,11 @@ function go(c: Cat, s: State, dur?: number) {
   const k = s === "sleep" ? (.5 + c.p.sleepy * 1.1) / a * (1 + ear.calm) : s === "sit" || s === "lie" || s === "stand" ? (1.35 - .7 * clamp(c.p.energy * a, 0, 1)) / Math.sqrt(a) : 1;
   c.left = c.dur = dur ?? rnd(...D[s]) * k;
   const POSE: Partial<Record<State, Pose>> = { sit: "sit", purr: "sit", groom: "sit", selfgroom: "sit", annoyed: "sit", chatter: "sit", watch: "sit", lie: "lie", sleep: "lie", groomed: "lie" };
-  if (s !== "yawn" && s !== "flinch") c.pose = POSE[s] ?? "stand"; // あくび・びくっは今の姿勢のまま
+  const prevPose = c.pose;
+  if (s !== "yawn" && s !== "flinch") c.pose = POSE[s] ?? "stand";
+  // 姿勢が変わったら、体重が乗って沈む（座る・伏せる）か、伸び上がって少し行き過ぎる（立つ）
+  const RANK: Record<Pose, number> = { lie: 0, sit: 1, stand: 2 };
+  if (c.pose !== prevPose && s !== "jump" && s !== "fall" && s !== "held") c.morph = { t: c.t, down: RANK[c.pose] < RANK[prevPose] }; // あくび・びくっは今の姿勢のまま
   if (s === "yawn" && !c.stage) { if (caught.has(c)) caught.delete(c); else spreadYawn(c); }
   if (s === "selfgroom") c.gs = { mode: Math.random() < .6 ? 0 : 2, from: 0, until: rnd(1.4, 2.4) };
   c.el.dataset.pose = c.pose;
@@ -578,6 +653,7 @@ function next(c: Cat): void {
   if (c.chase) return chaseStep(c);
   if (c.fetch) return fetchStep(c);
   if (c.zoom) return zoomStep(c);
+  if (c.flee !== undefined && c.state === "flinch") return fleeRun(c);
   switch (c.state) {
     case "groom": return endGroom(c);
     case "groomed": {
@@ -712,6 +788,7 @@ function tick(c: Cat, now: number) {
   let air: number | undefined; // 跳んでいる間の進み具合（0〜1）
   let crouch = 0, launchU: number | undefined, wiggle = 0; // 溜めの深さ・踏み切りの進み・お尻振り
   let creep = false;           // 忍び寄りで前へ進んでいる
+  let gb = 0, gtl = 0;         // 歩きで生まれる体の上下・前後の傾き（頭はこれを打ち消して水平を保つ）
   let hang = 0;                // 抱っこ: 脇の下を支えられて、体が縦にぶら下がる（1 で真下）
   if (s === "held") {
     // 持ち上げると、胸を手で支えられて縦に伸び、後ろ脚としっぽが下へ垂れる。手の動きに少し遅れて揺れる
@@ -736,14 +813,21 @@ function tick(c: Cat, now: number) {
     }
     const d = c.to[0] - c.x;
     const ease = c.run ? Math.min(1, .5 + c.st / .3) : Math.min(1, .3 + c.st / .6) * Math.min(1, .35 + Math.abs(d) / 30);
-    const step = SPEED * c.p.speed * (.85 + .3 * c.p.energy) * (c.run ? RUN : 1) * ease * dt, mv = Math.min(step, Math.abs(d));
+    // 歩き出しの溜め: 一拍、腰へ体重を移してから前へ踏み出す（間の長い子ほどゆっくり）
+    const ant = c.run ? .05 : .16 * c.m.hold, pre = c.st < ant ? Math.sin(Math.PI * c.st / ant) : 0;
+    const step = SPEED * c.p.speed * (.85 + .3 * c.p.energy) * (c.run ? RUN : 1) * ease * (c.st < ant ? .12 : 1) * dt, mv = Math.min(step, Math.abs(d));
     c.x += Math.sign(d) * mv;
-    c.phase += mv / c.s / gaitOf(c.run).stride;
+    c.phase += mv / c.s / gaitOf(c.run, c.m).stride;
     c.gw = Math.min(1, c.gw + dt * 4);
-    // 背中はほとんど揺らさない（一歩に 2 回、ごくわずかに沈む）。走るときは少し弾む
-    bob = -(c.run ? .7 : .25) * (1 - Math.cos(4 * Math.PI * c.phase)) / 2;
+    // 一歩に 2 回、体重を受けた脚の上で体が沈む。前脚と後ろ脚が交互に体を支えるので、肩と腰がかわるがわる上下する。
+    // 重い子ほど大きく、走るとはっきり弾む
+    const H = c.m.heave * (c.run ? 1.5 : 1) * c.gw;
+    gb = -(c.run ? .7 : .25) * H * (1 - Math.cos(4 * Math.PI * c.phase)) / 2;
+    gtl = .8 * H * Math.sin(4 * Math.PI * c.phase + .9);
+    bob = gb; tilt += gtl - 2.4 * pre;
     if (Math.abs(d) <= step) {
       c.x = c.to[0];
+      c.settleT = c.t; c.sp.lean.v = (c.run ? 70 : 34) * (.6 + .4 * c.m.heave); // 止まっても体は少し前へ流れ、ばねのように戻る
       const after = c.after;
       if (after) { go(c, "stand", 1); after(); } else next(c);
     }
@@ -779,7 +863,7 @@ function tick(c: Cat, now: number) {
         c.cur = c.dest; c.y = c.dest!.y;
         if (!c.stage && c.cur?.kind === "shelf") markClaw(c.cur.el, c.grid.getBoundingClientRect().left + c.x); // 跳び乗った所に爪あと
         // 着地: 前脚から降りて、膝と肘で衝撃を吸い込み、ゆっくり戻る
-        c.landD = clamp(2.2 + drop / (28 * c.s), 2.2, 6.5); c.landT = .2 + Math.min(.22, drop / 900); c.land = c.landT;
+        c.landD = clamp(2.2 + drop / (28 * c.s), 2.2, 6.5) * c.m.sink; c.landT = (.2 + Math.min(.22, drop / 900)) * (.8 + .3 * c.m.sink); c.land = c.landT;
         go(c, "stand", c.run || after ? .12 : rnd(1.5, 3));
         if (after) after();
       }
@@ -821,6 +905,9 @@ function tick(c: Cat, now: number) {
     const u = 1 - c.land / c.landT, f = u < .22 ? smooth(u / .22) : 1 - smooth((u - .22) / .78);
     bob += c.landD * f; tilt += 5 * (1 - smooth(Math.min(1, u * 2.5))) * Math.min(1, c.landD / 3);
   }
+  // 止まったあとの余韻: 前へ流れた体がばねのように戻る（遊び好きな子は一度行き過ぎる）
+  const lean = spring(c.sp.lean, 0, dt, c.m.snap * 1.3, c.m.bounce);
+  if (c.pose === "stand" && s !== "walk" && Math.abs(lean) > .01) tilt += clamp(lean, -6, 6);
   // 伸び: 前半は前脚を前へ突き出し、胸を下げてお尻を高く（前伸び）。後半は体を前へ移して後ろ脚を片方ずつ後ろへ伸ばす
   const su = c.st / Math.max(.1, c.dur);
   const stF = c.state === "stretch" ? env(su, 0, .58) : 0, stH = c.state === "stretch" ? env(su, .5, 1) : 0;
@@ -835,13 +922,13 @@ function tick(c: Cat, now: number) {
   if (c.pose === "stand") {
     const ground = -bob;
     for (const [k, g] of c.limbs) {
-      const gt = gaitOf(c.run), [gp, sw] = gaitPaw(k, c.phase, c.run), r = REST[k];
+      const gt = gaitOf(c.run, c.m), [gp, sw] = gaitPaw(k, c.phase, c.run, c.m), r = REST[k];
       let paw: V = [r[0] + (gp[0] - r[0]) * c.gw, ground + gp[1] * c.gw], swing = sw * c.gw;
       const p = ((c.phase + gt.off[k]) % 1 + 1) % 1, push = c.gw * (p < gt.duty ? smooth(p / gt.duty) : 0);
       // じゃれる・ちょっかい: 前脚で相手をちょいちょいと叩く
       if ((s === "play" || s === "poke") && k[1] === "f") {
         const sp = Math.sin(c.st * (s === "poke" ? 7 : 6) + (k === "ff" ? Math.PI : 0));
-        if (sp > .2 && (s === "play" || k === "nf")) { const u = (sp - .2) / .8; paw = [r[0] + 3 + 4 * u, ground - 7 * u]; swing = .6 * u; }
+        if (sp > .2 && (s === "play" || k === "nf")) { const u = (sp - .2) / .8 * c.m.reach; paw = [r[0] + 3 + 4 * u, ground - 7 * u]; swing = .6 * u; }
       }
       if (s === "scratch" && k[1] === "f") {
         // 爪とぎ: 前脚を交互に前へ伸ばし、爪を立てて手前へ引く
@@ -881,7 +968,7 @@ function tick(c: Cat, now: number) {
   // じゃれ合いは、ときどき身を低くしてから小さく跳ねる
   if (s === "play") bob = -Math.max(0, Math.sin(c.st * 3.3 + c.x)) * 3;
   // 呼吸: 眠っているときはゆっくり大きく、喉を鳴らすときは細かく震える
-  if (c.state === "sleep") sy = 1 + .035 * Math.sin(c.t * 2 * Math.PI / 3.4);
+  if (c.state === "sleep") sy = 1 + .035 * c.m.sink * Math.sin(c.t * 2 * Math.PI / (3 * (.8 + .25 * c.m.sink))); // 大きな子ほどゆっくり深く
   else if (c.state === "lie") sy = 1 + .015 * Math.sin(c.t * 2 * Math.PI / 2.8);
   else if (c.state === "purr" || c.state === "groomed") sy = 1 + .008 * Math.sin(c.t * 55);
   // 夢: 眠っている間、ときどき体がピクッとし、しっぽの先が跳ねる
@@ -897,14 +984,25 @@ function tick(c: Cat, now: number) {
   sy += .025 * tw;
   // 毛並みに逆らって撫でられた: 背中の皮がさざ波のように震える
   if (s === "flinch") { const u = c.st / c.dur; sy += .03 * Math.sin(c.st * 46) * Math.max(0, 1 - u * 1.4); }
+  // 姿勢の切り替わり: 座る・伏せるときは体重が乗って一度沈み、立つときは伸び上がって少し行き過ぎてから落ち着く
+  if (c.morph) {
+    const u = (c.t - c.morph.t) / (.2 + .22 * c.m.hold);
+    if (u > 2) c.morph = undefined;
+    else {
+      const d = Math.exp(-2.6 * u) * Math.cos(Math.PI * (1.1 + c.m.bounce) * u);
+      if (c.morph.down) { sy *= 1 - .08 * c.m.sink * d; bob += 1.5 * c.m.sink * d; }
+      else { sy *= 1 + .05 * d; bob -= 1.1 * d; }
+    }
+  }
 
   // カーソルが近ければそちらを見る（後ろなら振り返る）
   const [hx, hy, hr] = HEAD[c.state === "sleep" ? "sleep" : c.pose];
   let want = 0, back = false;
   const tm = target(c);
+  const pupSw = c.stage?.pup?.emote === "groove" ? (beatSwing(c.p.curious * .3) || Math.cos(c.t * Math.PI * 2.2)) : 0; // 拍が拾えなければ、ゆったりした一定のリズム
   if (tm && (s === "stand" || s === "sit" || s === "lie" || s === "stalk" || s === "annoyed" || s === "flinch" || s === "purr")) {
     const fx = (tm[0] - (c.x + c.dir * (17 + hx) * c.s)) * c.dir, fy = tm[1] - (c.y + (-27 + hy) * c.s);
-    if (Math.hypot(fx, fy) < (wand ? 320 : 120)) {
+    if (c.stage?.pup || Math.hypot(fx, fy) < (wand ? 320 : 120)) {
       back = fx < -8;
       want = clamp(Math.atan2(fy, Math.abs(fx)) * 180 / Math.PI, -30, 25) * (back ? -1 : 1);
     }
@@ -933,15 +1031,21 @@ function tick(c: Cat, now: number) {
   if (s === "chatter") { want = -24 + 2 * Math.sin(c.st * 3); back = false; }
   if (s === "greet") { want = 6; back = false; } // 首を伸ばして鼻を寄せる
   if (s === "held") { want = clamp(-tilt * .7, -20, 46); back = false; } // 体は縦でも、頭はなるべく起こしてまわりを見る
-  if (s === "watch") { want = -13 + 3 * Math.sin(c.st * .7); back = false; } // 窓の外の見知らぬ猫を、じっと見上げる
+  if (s === "watch") { want = -13 + 3 * Math.sin(c.st * .7); back = false; }
+  if (c.t < c.waryT && (s === "sit" || s === "lie") && tm && !wand) { // 離れた所から、カーソルをじっと見る
+    const fx = (tm[0] - (c.x + c.dir * (17 + hx) * c.s)) * c.dir, fy = tm[1] - (c.y + (-27 + hy) * c.s);
+    back = fx < -8; want = clamp(Math.atan2(fy, Math.abs(fx)) * 180 / Math.PI, -30, 25) * (back ? -1 : 1);
+  }
   if (s === "eat") { want = 34 + 4 * Math.sin(c.st * 6); back = false; } // 器に頭を入れて、噛むたびに少し揺れる
   if (s === "scratch") { want = -6; back = false; }
   // 跳ぶ前は着地点をじっと見る
   if (s === "jump" && c.st < c.prep + LAUNCH) { const [x0, y0] = c.from, [x1, y1] = c.to; want = clamp(Math.atan2(y1 - y0, Math.abs(x1 - x0) + 20) * 180 / Math.PI * .6, -14, 16); back = false; }
   // 空中では体が傾いても、頭は少しだけ水平を保つ
   else if (air !== undefined) { want = clamp(-tilt * .25, -8, 8); back = false; }
-  if (back !== c.back) { c.back = back; c.look = 0; }
-  c.look += (want - c.look) * Math.min(1, dt * 5);
+  if (pupSw) want += 9 * pupSw; // リズムをとる: 拍に合わせて首を縦に振る
+  if (back !== c.back) { c.back = back; c.look = 0; c.sp.look.x = 0; c.sp.look.v = 0; }
+  // 頭の向き: ばねで追う。きびきびした子は素早く向き、遊び好きな子は少し行き過ぎてから戻る
+  c.look = spring(c.sp.look, want, dt, c.m.snap * .9, c.m.bounce * .6);
 
   // しっぽ: 根元・中ほど・先の 3 節を少しずつ遅らせて曲げ、波のようにしならせる
   const T = c.t;
@@ -960,16 +1064,31 @@ function tick(c: Cat, now: number) {
   const groove = ["stand", "sit", "lie", "purr", "groomed"].includes(s) ? (.45 + .8 * c.p.playful) * (.5 + .7 * ear.loud) * (1 + .6 * nowLike(c)) : 0;
   const bs = (lag: number) => beatSwing(lag + c.p.curious * .3) * groove;
   if (groove && beatSwing() !== 0 && c.pose === "stand") tj = [7 * bs(0), 9 * bs(.45), 13 * bs(.9)];
-  const tail = c.pose === "stand" ? tj[0]
+  tj = [tj[0] * c.m.reach, tj[1] * c.m.reach, tj[2] * c.m.reach];
+  let tailGoal = c.pose === "stand" ? tj[0]
     : s === "annoyed" ? -16 * Math.max(0, Math.sin(T * 7)) // 床にばたんばたんと打ちつける
     : s === "chatter" ? -5 * Math.max(0, Math.sin(T * 13))
     : s === "flinch" ? -12 * Math.max(0, Math.sin(T * 15)) // しっぽをぴしっと振る
-    : s === "watch" ? -4 - 5 * Math.max(0, Math.sin(T * 5.5)) // 先だけをいらいらと打つ
+    : s === "watch" || c.t < c.waryT ? -4 - 5 * Math.max(0, Math.sin(T * 5.5)) // 先だけをいらいらと打つ
     : groove && beatSwing() !== 0 ? (c.pose === "sit" ? -6 - 7 * bs(.6) : 6 * bs(.6)) // 座っていれば先を床から浮かせてトントン、寝そべっていれば先で拍をとる
     : s === "purr" ? Math.sin(T * 4) * 8 : s === "lie" ? Math.sin(T * .7) * 3 : s === "sleep" ? -14 * tw : 0;
+  // 部屋の猫のしぐさ: しっぽを振る（ご機嫌に大きく）・リズムをとる（拍に合わせてトントン）
+  const pe = c.stage?.pup?.emote;
+  if (pe === "wag" && s !== "walk") {
+    const w = Math.sin(T * 7.5) * c.m.reach;
+    tj = [16 * w, 18 * Math.sin(T * 7.5 - .7), 22 * Math.sin(T * 7.5 - 1.4)];
+    tailGoal = c.pose === "stand" ? tj[0] : 12 * w;
+  } else if (pupSw) {
+    tj = [9 * pupSw, 11 * Math.cos(c.t * Math.PI * 2.2 - .5), 15 * Math.cos(c.t * Math.PI * 2.2 - 1)];
+    tailGoal = c.pose === "stand" ? tj[0] : -6 - 8 * pupSw;
+  }
+  // しっぽは根元から先へ、少しずつ遅れて追いかける（先ほど柔らかく、行き過ぎて戻る）。体の動きにも引っぱられる
+  const tk = c.m.snap * 2.2, tb = c.m.bounce;
+  const tail = spring(c.sp.tail[0], tailGoal - gtl * .8, dt, tk, tb);
+  const tj1 = spring(c.sp.tail[1], tj[1], dt, tk * .8, tb + .1), tj2 = spring(c.sp.tail[2], tj[2], dt, tk * .62, tb + .18);
   if (c.pose === "stand") {
-    c.tj[0].setAttribute("transform", `rotate(${tj[1].toFixed(1)} -20.5 -22)`);
-    c.tj[1].setAttribute("transform", `rotate(${tj[2].toFixed(1)} -22.2 -29.7)`);
+    c.tj[0].setAttribute("transform", `rotate(${tj1.toFixed(1)} -20.5 -22)`);
+    c.tj[1].setAttribute("transform", `rotate(${tj2.toFixed(1)} -22.2 -29.7)`);
   }
 
   // 目: 起きている間は数秒ごとにまばたき。カーソルがそばで止まっていると、ゆっくりまばたきを返す
@@ -988,11 +1107,13 @@ function tick(c: Cat, now: number) {
   if (c.t > c.earNext) { c.earT = c.t; c.earWhich = Math.random() < .5 ? 0 : 1; c.earNext = c.t + rnd(3, 14); }
   const earGoal = s === "annoyed" || s === "flinch" || (c.pets.length >= c.patience && c.t - c.pets[c.pets.length - 1] < 4) ? -40
     : s === "watch" ? (c.p.social > .5 ? 8 : -22)
+    : c.t < c.waryT ? -22 // 離れて様子をうかがう間は、耳を横へ寝かせる（イカ耳）
     : c.zoom && (s === "walk" || s === "jump") ? -16 // 走り回る間は耳を横へ寝かせる
     : s === "held" ? (c.held && c.st > c.held.ok ? -30 : c.p.social > .6 ? 0 : -12) // 人なつこい子は耳を前へ、警戒する子は横へ寝かせる（イカ耳）
     : s === "stalk" || s === "chatter" || s === "greet" ? 7 : 0;
-  c.earBase += (earGoal - c.earBase) * Math.min(1, dt * 10);
-  const twitch = c.t - c.earT < .22 ? -24 * Math.sin(Math.PI * (c.t - c.earT) / .22) : 0;
+  c.earBase = spring(c.sp.ear, earGoal, dt, c.m.snap * 2, c.m.bounce * .5);
+  const twitch0 = c.m.reach; // 振れ幅の大きい子ほど、耳もよく動く
+  const twitch = c.t - c.earT < .22 ? -24 * twitch0 * Math.sin(Math.PI * (c.t - c.earT) / .22) : 0;
   c.ears.forEach((g, i) => g.setAttribute("transform", `rotate(${(c.earBase + (i === c.earWhich ? twitch : 0)).toFixed(1)} ${i ? "18.3 -31" : "14 -30.3"})`));
 
   // 口: あくび・伸びのついでのあくび・窓辺のクラッキング・舐めるときにだけ開く
@@ -1007,7 +1128,8 @@ function tick(c: Cat, now: number) {
   c.body.setAttribute("transform", `rotate(${tilt.toFixed(1)} 0 -12) translate(0 ${bob.toFixed(2)}) scale(1 ${sy.toFixed(3)})`);
   // 振り返るときは首の付け根（x=13）を軸に頭を裏返す。頭が胴から離れない
   const gr = s === "greet" ? Math.sin(Math.PI * clamp(c.st / c.dur, 0, 1)) : 0;
-  const htx = hx + 1 * c.gw + 2.6 * gr, hty = hy + 2.2 * c.gw + 1 * gr, ha = hr + c.look;
+  // 歩いている間、頭は体の上下と傾きを打ち消して水平を保つ（獲物を見る目がぶれない）。好奇心の強い子ほど頭も揺れる
+  const st0 = c.m.steady, htx = hx + 1 * c.gw + 2.6 * gr, hty = hy + 2.2 * c.gw + 1 * gr - gb * st0, ha = hr + c.look - gtl * st0;
   c.head.setAttribute("transform", `translate(${htx.toFixed(2)} ${hty.toFixed(2)}) rotate(${ha.toFixed(1)} 13 -21)${c.back ? " translate(26 0) scale(-1 1)" : ""}`);
   drawNeck(c, htx, hty, ha);
   for (const [k, g] of c.legs) g.setAttribute("transform", `rotate(${legA[k].toFixed(1)} ${PIVOT[k][0]} ${PIVOT[k][1]})`);
@@ -1099,6 +1221,8 @@ function addCat(grid: HTMLElement, coat: Coat, stage?: Cat["stage"], size = 1): 
   const el = layer.firstElementChild as HTMLElement;
   el.style.setProperty("--gloss", String(coat.gloss ?? 0));
   const c: Cat = {
+    m: motionOf(persona, nameOf(coat) + coat.hi), settleT: -9, fleeRoll: 0, waryT: -9,
+    sp: { look: { x: 0, v: 0 }, tail: [{ x: 0, v: 0 }, { x: 0, v: 0 }, { x: 0, v: 0 }], ear: { x: 0, v: 0 }, lean: { x: 0, v: 0 } },
     coat, grid, layer, el, flip: el.querySelector(".cat-flip")!, body: el.querySelector(".cat-body")!, head: el.querySelector(".cat-head")!,
     neck: [...el.querySelectorAll<SVGPolygonElement>(".cat-neck polygon")],
     legs: new Map([...el.querySelectorAll<SVGGElement>("[data-leg]")].map(g => [g.dataset.leg!, g])),
@@ -1116,10 +1240,18 @@ function addCat(grid: HTMLElement, coat: Coat, stage?: Cat["stage"], size = 1): 
     pets: [], patience: 2 + Math.floor(persona.social * 4 + Math.random() * 2), huntCool: rnd(3, 8), hunger: rnd(.1, .7), bond: new Map(), greeted: new Map(), gs: { mode: 0, from: 0, until: 2 },
     stage,
   };
+  let last: [number, number, number] | undefined; // 直前のカーソル位置と時刻（近づく速さを測る）
   const onMove = (e: PointerEvent) => {
-    const g = c.grid.getBoundingClientRect();
+    if (c.stage?.pup) return;   // 部屋の猫の目線は、その猫の飼い主のカーソル（Pup.look で入れる）
+    const g = c.grid.getBoundingClientRect(), now = performance.now();
     c.mouse = [e.clientX - g.left, e.clientY - g.top];
-    pointerAt = performance.now();
+    pointerAt = now;
+    if (last && now - last[2] > 8 && e.pointerType !== "touch") {
+      const dt = (now - last[2]) / 1000, cy = c.y - 14 * c.s;
+      const d0 = Math.hypot(last[0] - c.x, last[1] - cy), d1 = Math.hypot(c.mouse[0] - c.x, c.mouse[1] - cy);
+      maybeFlee(c, d1, (d0 - d1) / dt);
+    }
+    last = [c.mouse[0], c.mouse[1], now];
   };
   const onLeave = () => { c.mouse = undefined; };
   const onResize = () => { c.lastMeasure = 0; };
@@ -1148,7 +1280,9 @@ function addCat(grid: HTMLElement, coat: Coat, stage?: Cat["stage"], size = 1): 
   let holdT = 0;
   const onHoldMove = (e: PointerEvent) => { if (c.held) { const [x, y] = gp(e); c.held.px = x; c.held.py = y; } };
   const onHoldEnd = () => { removeEventListener("pointermove", onHoldMove); removeEventListener("pointerup", onHoldEnd); removeEventListener("pointercancel", onHoldEnd); if (c.state === "held") letGo(c); };
+  if (stage?.pup) el.classList.add("cat-pup", "named"); // 部屋の猫は撫でたり抱いたりしない。名札はいつも出す
   el.addEventListener("pointerdown", e => {
+    if (stage?.pup) return;
     if (e.button !== 0 || (e.target as Element).closest(".cat-tag")) return;
     e.preventDefault(); stroked = false;
     stroke = { pts: [gp(e)], done: false };
@@ -1164,16 +1298,17 @@ function addCat(grid: HTMLElement, coat: Coat, stage?: Cat["stage"], size = 1): 
   });
   addEventListener("pointerup", () => clearTimeout(holdT));
   el.addEventListener("click", e => {
+    if (stage?.pup) return;
     if ((e.target as Element).closest(".cat-tag")) { e.stopPropagation(); openCard(c); return; }
     if (stroked) { e.stopPropagation(); stroked = false; return; }
     onClick(e);
   });
   // 名札: しばらく乗せていると出て、離れてしばらくすると消える
   let tagT = 0;
-  el.addEventListener("pointerenter", () => { clearTimeout(tagT); tagT = window.setTimeout(() => el.classList.add("named"), 450); });
-  el.addEventListener("pointerleave", () => { clearTimeout(tagT); tagT = window.setTimeout(() => el.classList.remove("named"), 1500); });
+  if (!stage?.pup) el.addEventListener("pointerenter", () => { clearTimeout(tagT); tagT = window.setTimeout(() => el.classList.add("named"), 450); });
+  if (!stage?.pup) el.addEventListener("pointerleave", () => { clearTimeout(tagT); tagT = window.setTimeout(() => el.classList.remove("named"), 1500); });
   // ダブルクリック: 「1 枚選んで」と頼む（撫でた 2 回分は数えない）
-  el.addEventListener("dblclick", e => { e.stopPropagation(); c.pets.splice(-2); catPicksAlbum(c); });
+  if (!stage?.pup) el.addEventListener("dblclick", e => { e.stopPropagation(); c.pets.splice(-2); catPicksAlbum(c); });
   addEventListener("pointermove", onMove, { passive: true });
   document.documentElement.addEventListener("pointerleave", onLeave);
   addEventListener("resize", onResize);
@@ -1210,6 +1345,7 @@ export function stageCat(host: HTMLElement, coat: Coat, sleep: number, size = 1.
   c.layer.classList.add("cat-stage");
 }
 function stageNext(c: Cat) {
+  if (c.stage?.pup) return pupNext(c);
   switch (c.state) {
     case "sleep": c.woke = true; return go(c, "yawn", 2);       // あくびは寝ていた姿勢のまま
     case "yawn": return go(c, "lie", .7);                       // 目を開けて、ひと呼吸
@@ -1240,6 +1376,45 @@ function stalkOff(c: Cat) {
   const p = c.cur!, far = c.x - lo(p) > hi(p) - c.x ? lo(p) : hi(p);
   if (Math.abs(far - c.x) > 50) return walkTo(c, far, () => go(c, "selfgroom"));
   go(c, "selfgroom");
+}
+
+// ---------- カーソルから逃げる ----------
+/** 臆病さ: 人見知り（人なつこくない）で、遊び好きでない子ほど高い */
+const shyOf = (c: Cat) => clamp((1 - c.p.social) * .8 + (1 - c.p.playful) * .25 - .05, 0, 1);
+/** いま逃げたくなる度合い: 臆病さに、今日の気分と、撫ですぎ・怒った直後のいらだちを重ねる */
+function waryOf(c: Cat): number {
+  const day = seeded(new Date().toDateString() + nameOf(c.coat))();
+  const cross = c.pets.length >= c.patience && c.t - c.pets[c.pets.length - 1] < 20;
+  return clamp(Math.pow(shyOf(c), 1.4) * .85 + (day < .35 ? .25 : 0) + (cross ? .45 : 0) + (c.state === "annoyed" || c.state === "flinch" ? .35 : 0) + (c.t < c.waryT ? .3 : 0), 0, .95);
+}
+/** カーソルが勢いよく近づいてきたら、機嫌と性格しだいで逃げる。決めるのは近づくたびに 1 回だけ */
+function maybeFlee(c: Cat, dist: number, closing: number) {
+  const R = (55 + 55 * shyOf(c)) * Math.max(1, c.s);
+  if (dist > R || closing < 380 || c.t - c.fleeRoll < 2.5) return;
+  if (!c.cur || c.stage || c.reduced || c.chase || c.fetch || c.zoom || c.with || c.entering || c.leaving || c.flee !== undefined) return;
+  if (!["stand", "sit", "lie", "selfgroom", "yawn", "stretch", "watch", "annoyed"].includes(c.state) && !(c.state === "walk" && !c.run)) return;
+  c.fleeRoll = c.t;
+  if (Math.random() > waryOf(c) * clamp((closing - 300) / 900, .35, 1)) return;
+  release(c);
+  c.flee = c.mouse![0];
+  c.dir = c.mouse![0] < c.x ? 1 : -1; // まず背を向ける
+  go(c, "flinch", .08 + .1 * c.m.hold); // ほんの一瞬すくむ（溜め）。そこから一気に走る
+}
+function fleeRun(c: Cat) {
+  const from = c.flee!, p = c.cur!;
+  c.flee = undefined;
+  const settle = () => {
+    c.waryT = c.t + rnd(4, 9) * c.m.hold;
+    if (c.mouse) c.dir = c.mouse[0] < c.x ? -1 : 1; // 振り返って、カーソルの様子をうかがう
+    go(c, c.p.sleepy > .6 ? "lie" : "sit", rnd(4, 8));
+  };
+  const far = Math.abs(lo(p) - from) > Math.abs(hi(p) - from) ? lo(p) : hi(p);
+  const room = Math.abs(far - c.x);
+  const j = jumpTarget(c, from);
+  if (j && Math.abs(j[1] - from) > 120 && (room < 90 || Math.random() < .35 + .4 * c.p.curious)) { c.run = true; leap(c, j[0], j[1], settle); return; }
+  if (room > 24) return walkTo(c, far, settle, true);
+  if (j) { c.run = true; leap(c, j[0], j[1], settle); return; } // 追い詰められたら、どこへでも跳ぶ
+  settle();
 }
 
 // ---------- 猫の家具 ----------
@@ -1324,6 +1499,7 @@ const DOING: Partial<Record<State, string>> = {
 /** 今日の機嫌: 日ごとに決まる気分に、お腹の具合・撫ですぎ・眠気を重ねる */
 function moodOf(c: Cat): string {
   if (c.state === "annoyed" || c.pets.length >= c.patience) return "ちょっと不機嫌";
+  if (c.t < c.waryT) return "警戒中";
   if (c.hunger > .75) return "おなかぺこぺこ";
   const day = seeded(new Date().toDateString() + nameOf(c.coat))();
   if (c.state === "sleep" || ear.calm > .6 || day < .2 + c.p.sleepy * .15) return "ねむたい";
@@ -1544,7 +1720,7 @@ function chaseStep(c: Cat): void {
   if (ch.role === "runner") {
     const p = c.cur;
     if (Math.random() < .45) {
-      const j = jumpTarget(c, o);
+      const j = jumpTarget(c, o.x);
       if (j) { c.run = true; return leap(c, j[0], j[1], step); }
     }
     // 追っ手と反対側の端へ走る。端にいたら逆へ
@@ -1649,7 +1825,7 @@ function fetchStep(c: Cat): void {
     if (c.state === "sit" && c.st > .8) { f.carrying = true; c.carry.hidden = false; return fetchStep(c); } // くわえた
     // その背表紙が立っている棚へ（「よく聴く」の棚があればそこから）
     const spines = [...c.grid.querySelectorAll<HTMLElement>(`.mod-shelf .spine[data-key="${CSS.escape(f.key)}"]`)].filter(el => el.getBoundingClientRect().width > 0);
-    const sp = spines.find(el => el.closest<HTMLElement>(".mod")?.dataset.kind === "often") ?? spines[0];
+    const sp = spines.find(el => el.closest<HTMLElement>(".mod")?.dataset.sort === "plays") ?? spines[0];
     const mod = sp?.closest(".mod");
     const src = mod && c.plats.find(p => p.kind === "shelf" && p.el === mod);
     if (!sp || !src) { f.carrying = true; c.carry.hidden = false; return fetchStep(c); } // 見当たらなければ、どこからか持ってきた
@@ -1763,7 +1939,7 @@ let sun: Sun | undefined, sunEl: HTMLElement | undefined;
 function findSun(c: Cat): Sun | undefined {
   const sill = c.plats.find(p => p.kind === "sill");
   const now = new Date(), h = now.getHours() + now.getMinutes() / 60, sp = (h - 6) / 12;
-  if (!sill || sp <= .02 || sp >= .98 || windowRain() || noiseLevel("rain") > 0) return undefined;
+  if (!sill || sp <= .02 || sp >= .98 || windowRain()) return undefined;
   const k = Math.min(1, Math.sin(Math.PI * sp) * 2.2); // 朝夕は弱い
   const wx = (sill.x0 + sill.x1) / 2, wy = sill.y, ww = sill.x1 - sill.x0;
   const elev = Math.max(.12, Math.sin(Math.PI * sp)) * 58 * Math.PI / 180;
@@ -2126,4 +2302,119 @@ document.addEventListener("kona:bird", e => {
 export const catNames = () => cats.filter(c => !c.stage).map(c => nameOf(c.coat));
 export const debugCats = () => cats;
 export const debugEar = () => ear;
-export const debugDo = { zoom: (c: unknown) => zoomies(c as Cat), shine: (c: unknown, d: number) => shine(c as Cat, d), taste: () => ({ music, tasteAt, now: hooks?.nowPlaying?.(), label: hooks?.nowPlaying?.() ? hooks?.tasteOf?.(hooks.nowPlaying()!) : undefined }), goBox: (c: unknown) => goBox(c as Cat), goSun: (c: unknown) => goSun(c as Cat), stroke: (c: unknown, pts: [number, number][]) => strokeCat(c as Cat, pts), sun: () => { paintSun(); return sun; } };
+export const debugDo = { walk: (c: unknown, x: number) => { (c as Cat).state = "stand"; walkTo(c as Cat, x); }, go: (c: unknown, s: string) => go(c as Cat, s as State), zoom: (c: unknown) => zoomies(c as Cat), shine: (c: unknown, d: number) => shine(c as Cat, d), taste: () => ({ music, tasteAt, now: hooks?.nowPlaying?.(), label: hooks?.nowPlaying?.() ? hooks?.tasteOf?.(hooks.nowPlaying()!) : undefined }), goBox: (c: unknown) => goBox(c as Cat), goSun: (c: unknown) => goSun(c as Cat), stroke: (c: unknown, pts: [number, number][]) => strokeCat(c as Cat, pts), sun: () => { paintSun(); return sun; } };
+
+// ---------- リスニングパーティーの部屋の猫 ----------
+// 部屋に入った人の分身。自分では動き回らず、飼い主の操作（クリックした先へ歩く・しぐさ）だけをする。
+// 目線は飼い主のカーソル。足場は部屋の家具（[data-cat-plat]）と床。位置は「何番目の足場の、幅の何割の所」で
+// やり取りするので、画面の大きさが違う人どうしでも同じ所にいる
+export type Emote = "stand" | "sit" | "lie" | "sleep" | "wag" | "groove" | "groom" | "stretch" | "yawn";
+export const EMOTES: Emote[] = ["stand", "sit", "lie", "sleep", "wag", "groove", "groom", "stretch", "yawn"];
+interface Pup { plat: number; fx: number; emote: Emote; going: number }
+export interface Puppet {
+  /** plat 番目の足場の、幅の fx 割（0〜1）の所へ行く */
+  go(plat: number, fx: number): void;
+  emote(e: Emote): void;
+  /** 目線の先（部屋の中の割合 0〜1）。undefined なら前を見る */
+  look(p?: [number, number]): void;
+  /** 吹き出し（文字だけ。HTML としては読まない） */
+  say(text: string, secret?: boolean): void;
+  readonly where: { plat: number; fx: number; emote: Emote };
+  remove(): void;
+}
+const ONE_SHOT: Partial<Record<Emote, number>> = { stretch: 3, yawn: 2 };
+function pupPlats(room: HTMLElement): Plat[] {
+  const g = room.getBoundingClientRect(), out: Plat[] = [];
+  for (const e of room.querySelectorAll<HTMLElement>("[data-cat-plat]")) {
+    const r = e.getBoundingClientRect();
+    out.push({ el: e, kind: "deck", y: r.top - g.top + Number(e.dataset.sink ?? 0), x0: r.left - g.left + 2, x1: r.right - g.left - 2, pull: 1 });
+  }
+  out.push({ el: room, kind: "floor", y: g.height - 24, x0: 0, x1: g.width, pull: 1 });
+  return out;
+}
+function pupState(e: Emote): [State, number] {
+  const m: Record<Emote, State> = { stand: "stand", sit: "sit", lie: "lie", sleep: "sleep", wag: "sit", groove: "sit", groom: "selfgroom", stretch: "stretch", yawn: "yawn" };
+  return [m[e], ONE_SHOT[e] ?? 1e6];
+}
+function pupRest(c: Cat) { const [st, d] = pupState(c.stage!.pup!.emote); go(c, st, d); }
+function pupNext(c: Cat) {
+  const pp = c.stage!.pup!;
+  if (ONE_SHOT[pp.emote]) pp.emote = "sit"; // 伸び・あくびは一度だけ。終わったら座る
+  pupRest(c);
+}
+/** 足場をまたいで歩く: 跳び移れる足場をたどる道すじ（幅優先）を探し、一段ずつ歩いて跳ぶ */
+function pupPath(c: Cat, from: Plat, to: Plat): Plat[] {
+  const gap = (a: Plat, b: Plat) => Math.max(0, Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1));
+  const ok = (a: Plat, b: Plat) => !samePlat(a, b) && Math.abs(a.y - b.y) <= REACH_Y - 10 && gap(a, b) <= REACH_X - 20;
+  const prev = new Map<Plat, Plat>(), q = [from], seen = new Set([from]);
+  while (q.length) {
+    const a = q.shift()!;
+    if (samePlat(a, to)) { const path: Plat[] = []; for (let x: Plat | undefined = a; x && x !== from; x = prev.get(x)) path.unshift(x); return path; }
+    for (const b of c.plats) if (!seen.has(b) && ok(a, b)) { seen.add(b); prev.set(b, a); q.push(b); }
+  }
+  return [];
+}
+function pupGo(c: Cat, pi: number, fx: number) {
+  const pp = c.stage!.pup!, go_ = ++pp.going;
+  const p = c.plats[clamp(pi, 0, c.plats.length - 1)];
+  if (!p || !c.cur) return;
+  const live = () => pp.going === go_;
+  const x = clamp(p.x0 + fx * (p.x1 - p.x0), lo(p), hi(p));
+  const done = () => { if (live()) pupRest(c); };
+  // 遠ければ小走りで（部屋ではのんびり歩きすぎない）
+  const walk = (to: number, then: () => void) => walkTo(c, to, then, Math.abs(to - c.x) > 160);
+  const arrive = () => { if (!live()) return; Math.abs(x - c.x) < 2 ? done() : walk(x, done); };
+  const from = c.plats.find(q => samePlat(q, c.cur)) ?? c.cur;
+  const path = samePlat(from, p) ? [] : pupPath(c, from, p);
+  if (!samePlat(from, p) && !path.length) return done(); // 届かない所はあきらめて、その場で
+  const hop = (i: number) => {
+    if (!live()) return;
+    if (i >= path.length) return arrive();
+    const nx = path[i], last = i === path.length - 1;
+    // 跳ぶ先の着地点: 最後の段なら目当ての所、途中の段なら今の足場に近い所
+    const aim = last ? x : clamp(c.x, lo(nx), hi(nx));
+    const launchX = clamp(aim, lo(c.cur!), hi(c.cur!));
+    const jump = () => {
+      if (!live()) return;
+      const r = reach(c, nx, aim);
+      if (r === undefined) return done();
+      leap(c, nx, r, () => hop(i + 1));
+    };
+    if (reach(c, nx, aim) !== undefined) jump(); else walk(launchX, jump);
+  };
+  hop(0);
+}
+export function puppetCat(room: HTMLElement, coat: Coat, at: { plat: number; fx: number; emote: Emote }, size = 1): Puppet {
+  const pup: Pup = { plat: at.plat, fx: at.fx, emote: at.emote, going: 0 };
+  const c = addCat(room, coat, { sleep: 0, pup }, size);
+  c.layer.classList.add("cat-room");
+  let sayT = 0;
+  return {
+    go(plat, fx) {
+      pup.plat = plat; pup.fx = clamp(fx, 0, 1);
+      if (pup.emote !== "groove" && pup.emote !== "wag") pup.emote = "stand"; // 歩いて着いたら立ったまま（リズム・しっぽはそのまま続ける）
+      pupGo(c, plat, pup.fx);
+    },
+    emote(e) {
+      pup.emote = e;
+      if (c.state === "walk" || c.state === "jump" || c.state === "fall") return; // 着いてから
+      pupRest(c);
+    },
+    look(p) {
+      if (!p) { c.mouse = undefined; return; }
+      const g = c.grid.getBoundingClientRect();
+      c.mouse = [p[0] * g.width, p[1] * g.height];
+    },
+    say(text, secret = false) {
+      let b = c.el.querySelector<HTMLElement>(".cat-bubble");
+      if (!b) { b = document.createElement("span"); b.className = "cat-bubble"; c.el.append(b); }
+      b.textContent = text; b.classList.toggle("secret", secret); b.hidden = false;
+      clearTimeout(sayT);
+      sayT = window.setTimeout(() => { if (b) b.hidden = true; }, Math.min(12_000, 3500 + text.length * 120));
+    },
+    get where() {
+      return { plat: pup.plat, fx: pup.fx, emote: pup.emote };
+    },
+    remove() { clearTimeout(sayT); c.layer.remove(); },
+  };
+}

@@ -2,20 +2,20 @@
 // 部屋・猫・音・その他の 4 つのタブに分け、よく触るものを上に、残りは「もっと見る」に畳む。説明文はなるべく置かない。
 
 import "./settings.css";
-import { PALETTES, CUSTOM, FADES, themePrefs, setThemePrefs, paletteColors, colorsAt, toHex, type ThemePrefs } from "./theme";
-import { WINDOW_SCENES, windowScene, setWindowScene, windowRain, setWindowRain, roomLightOn, setRoomLight } from "./mod-window";
-import { OBJECTS, objectShown, setObjectShown } from "./mod-objects";
-import { mapRecording, setMapRecording } from "./mod-map";
+import { PALETTES, CUSTOM, themePrefs, setThemePrefs, paletteColors, toHex, type ThemePrefs } from "./theme";
+import { roomLightOn, setRoomLight } from "./mod-window";
 import { SHELF_SKINS, shelfSkin, setShelfSkin } from "./shelf-skin";
-import { WALLS, FLOORS, RUGS, roomSurface, setRoomSurface } from "./room-surface";
+import { WALLS, FLOORS, roomSurface, setRoomSurface } from "./room-surface";
 import { prefs, setPrefs, type Prefs } from "./prefs";
 import { BANDS, BUILTIN_PRESETS, userPresets, savePreset, deletePreset, presetMatching } from "./eq";
 import { BREEDS, type Coat } from "./cat";
-import { ACTIONS, keyFor, keyLabel, setKey, resetKeys, comboOf, setRecording } from "./shortcuts";
+import { ACTIONS, keyFor, keyLabel } from "./shortcuts";
 import { SORTS } from "./shelves";
 import { t } from "./i18n";
 import type { Player, Normalize } from "./player";
 import { spotifySettingsHTML, wireSpotifySettings } from "./spotify-ui";
+import { openDrive } from "./drive-ui";
+import { saveDriveConfig, signOut as driveSignOut } from "./drive";
 import pkg from "../package.json";
 import { esc } from "./dom";
 
@@ -50,28 +50,12 @@ const row = (label: string, body: string, cls = "") => `<div class="set-row${cls
 const mb = (n: number) => n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max(.1, n / 1e6).toFixed(1)} MB`;
 
 /** 色の見本: 地の色の上に灯りの色の点 */
-function swatch(key: string, label: string, cur: boolean, p: ThemePrefs, small = false) {
+function swatch(key: string, label: string, cur: boolean, p: ThemePrefs) {
   const c = paletteColors(key, p);
-  return `<button type="button" class="set-sw${small ? " small" : ""}" data-pal="${key}" aria-pressed="${cur}" title="${esc(label)}" aria-label="${esc(label)}"
-    style="--sw-bg:${toHex(c.bg)};--sw-ink:${toHex(c.ink)};--sw-acc:${toHex(c.accent)}"><i></i>${small ? "" : `<span>${esc(label)}</span>`}</button>`;
+  return `<button type="button" class="set-sw" data-pal="${key}" aria-pressed="${cur}" title="${esc(label)}" aria-label="${esc(label)}"
+    style="--sw-bg:${toHex(c.bg)};--sw-ink:${toHex(c.ink)};--sw-acc:${toHex(c.accent)}"><i></i><span>${esc(label)}</span></button>`;
 }
 const allPalettes = () => [...PALETTES.map(p => ({ key: p.key, label: t(p.label) })), { key: CUSTOM, label: t("自分で選ぶ") }];
-
-/** 1 日の色の移り変わり（地の色の帯と、その下の灯りの色の細い線）。いまの時刻に印 */
-function dayBar(p: ThemePrefs) {
-  const bg: string[] = [], acc: string[] = [];
-  for (let m = 0; m <= 1440; m += 10) {
-    const c = colorsAt(m % 1440, p), at = `${(m / 1440 * 100).toFixed(2)}%`;
-    bg.push(`${toHex(c.bg)} ${at}`); acc.push(`${toHex(c.accent)} ${at}`);
-  }
-  const d = new Date(), now = (d.getHours() * 60 + d.getMinutes()) / 1440 * 100;
-  return `<div class="set-day" aria-hidden="true">
-    <div class="set-day-bg" style="background:linear-gradient(to right, ${bg.join(",")})"></div>
-    <div class="set-day-acc" style="background:linear-gradient(to right, ${acc.join(",")})"></div>
-    <b style="left:${now.toFixed(2)}%"></b>
-    <div class="set-day-hours">${[0, 6, 12, 18, 24].map(h => `<span style="left:${h / 24 * 100}%">${h}</span>`).join("")}</div>
-  </div>`;
-}
 
 // ---------- 4 つのタブ: 部屋・猫・音・その他。よく触るものを上に、残りは「もっと見る」に畳む ----------
 type Tab = "room" | "cats" | "sound" | "other";
@@ -83,37 +67,25 @@ const opened = new Set<string>();
 const sec = (title: string, body: string) => `<section class="set-sec"><h3>${esc(title)}</h3>${body}</section>`;
 const fold = (id: string, title: string, body: string) =>
   `<details class="set-more" data-fold="${id}"${opened.has(id) ? " open" : ""}><summary>${esc(title)}</summary><div class="set-more-body">${body}</div></details>`;
-/** 見本つきの選択（棚・壁・床・ラグ） */
+/** 見本つきの選択（棚・壁・床） */
 const tiles = (name: string, items: readonly { key: string; label: string }[], cur: string, cls: string) =>
   `<div class="set-tiles" role="radiogroup" data-tiles="${name}">${items.map(i => `
     <button type="button" role="radio" class="set-tile" data-v="${esc(i.key)}" aria-checked="${i.key === cur}" title="${esc(t(i.label))}">
       <i class="${cls}" data-k="${esc(i.key)}"${name === "skin" ? ` style="${skinStyle(i.key)}"` : ""}></i><span>${esc(t(i.label))}</span></button>`).join("")}</div>`;
 
-/** 棚の素材の見本: 木の明・中・暗の 3 色（style.css / shelf-lowpoly.css の --wood と同じ値） */
+/** 棚の素材の見本: 木の明・中・暗の 3 色（shelf-lowpoly.css の --wood と同じ値） */
 const WOODS: Record<string, [string, string, string]> = {
-  walnut: ["#9a6e4c", "#6d4b33", "#3b281b"], oak: ["#ddc29c", "#b48c5c", "#85663f"], steel: ["#5d6268", "#2b2e32", "#141517"],
-  acrylic: ["#c3d4da", "#7f949c", "#4d5f66"], tansu: ["#b2703f", "#7d4426", "#43210f"], lowpoly: ["#d2a26c", "#9c6b43", "#55361f"],
+  lowpoly: ["#d2a26c", "#9c6b43", "#55361f"],
   "lowpoly-birch": ["#f1e6d0", "#d3c3a4", "#8f7b5c"], "lowpoly-ebony": ["#634a3a", "#3a2a22", "#171110"], "lowpoly-stone": ["#b4b8ba", "#7c8186", "#3b3f43"],
   "lowpoly-moss": ["#97805c", "#6c553b", "#2f2418"], "lowpoly-snow": ["#be9363", "#8f6440", "#3f2918"],
 };
-const skinStyle = (k: string) => { const [hi, mid, lo] = WOODS[k] ?? WOODS.walnut; return `--w-hi:${hi};--w:${mid};--w-lo:${lo}`; };
+const skinStyle = (k: string) => { const [hi, mid, lo] = WOODS[k] ?? WOODS.lowpoly; return `--w-hi:${hi};--w:${mid};--w-lo:${lo}`; };
 
 function themeBlock() {
   const p = themePrefs(), all = allPalettes();
-  const usesCustom = p.mode === "fixed" ? p.fixed === CUSTOM : p.slots.some(s => s.p === CUSTOM);
   return `
-    ${seg("theme-mode", [{ v: "fixed", label: t("いつも同じ") }, { v: "time", label: t("時刻で移ろう") }], p.mode)}
-    ${p.mode === "fixed"
-      ? `<div class="set-sws">${all.map(a => swatch(a.key, a.label, a.key === p.fixed, p)).join("")}</div>`
-      : `${dayBar(p)}<div class="set-slots">${p.slots.map((s, i) => `
-          <div class="set-slot" data-slot="${i}">
-            <b>${esc(t(s.label))}</b>
-            <input type="time" value="${s.at}" aria-label="${esc(t(s.label))}" step="300">
-            <div class="set-sws small">${all.map(a => swatch(a.key, a.label, a.key === s.p, p, true)).join("")}</div>
-          </div>`).join("")}
-        </div>
-        ${row(t("移り変わり"), seg("fade", FADES.map(f => ({ v: String(f.m), label: t(f.label) })), String(p.fade)))}`}
-    ${usesCustom ? `<div class="set-row">
+    <div class="set-sws">${all.map(a => swatch(a.key, a.label, a.key === p.fixed, p)).join("")}</div>
+    ${p.fixed === CUSTOM ? `<div class="set-row">
       <label class="set-color">${t("地")}<input type="color" data-custom="bg" value="${p.custom.bg}"></label>
       <label class="set-color">${t("灯り")}<input type="color" data-custom="accent" value="${p.custom.accent}"></label></div>` : ""}`;
 }
@@ -124,24 +96,13 @@ function roomTab() {
     ${sec(t("色"), themeBlock())}
     ${sec(t("棚"), tiles("skin", SHELF_SKINS, shelfSkin(), "set-skin"))}
     ${sec(t("壁"), tiles("wall", WALLS, r.wall, "set-wall"))}
-    ${sec(t("床"), tiles("floor", FLOORS, r.floor, "set-floor") + (r.floor !== "none" ? `<span class="set-sub">${t("ラグ")}</span>${tiles("rug", RUGS, r.rug, "set-rug")}` : ""))}
-    ${sec(t("窓の外"), `${chips("scene", WINDOW_SCENES.map(s => ({ v: s.key, label: t(s.label) })), windowScene())}${check("set-rain", windowRain(), t("雨を降らせる"))}`)}
+    ${sec(t("床"), tiles("floor", FLOORS, r.floor, "set-floor"))}
     ${fold("room-more", t("もっと見る"), `
-      ${row(t("天井の吊りもの"), seg("hanging", [{ v: "off", label: t("なし") }, { v: "mobile", label: t("モビール") }, { v: "lamp", label: t("吊りランプ") }, { v: "mirrorball", label: t("ミラーボール") }], q.hanging))}
-      ${row(t("香り"), seg("scent", [{ v: "off", label: t("なし") }, { v: "coffee", label: t("コーヒー") }, { v: "incense", label: t("お香") }], q.scent))}
       <div class="set-checks">
         ${check("set-roomlight", roomLightOn(), t("部屋の明かりも時刻で変える"))}
-        ${check("set-decor", q.decor, t("季節の飾り"))}
-        ${check("set-stars", q.stars, t("深夜の星空"))}
-        ${check("set-laundry", q.laundry, t("晴れた昼は窓の外に洗濯物"))}
-        ${check("set-umbrella", q.umbrella, t("雨の日は傘立て"))}
         ${check("set-marks", q.marks, t("棚板に暮らした跡を残す"))}
-      </div>
-      <span class="set-sub">${t("棚の上の小物")}</span>
-      <div class="set-checks">${OBJECTS.map(o => `<label class="set-check"><input type="checkbox" data-obj="${o.key}"${objectShown(o.key) ? " checked" : ""}>${esc(t(o.label))}</label>`).join("")}</div>`)}`;
+      </div>`)}`;
 }
-const chips = (name: string, items: { v: string; label: string }[], cur: string) =>
-  `<div class="set-chips" role="radiogroup" data-seg="${name}">${items.map(i => `<button type="button" role="radio" data-v="${esc(i.v)}" aria-checked="${i.v === cur}">${esc(i.label)}</button>`).join("")}</div>`;
 
 function soundTab(h: SettingsHooks) {
   const eq = h.player.eq, cur = eq.on ? presetMatching(eq.gains) : undefined, q = prefs();
@@ -176,7 +137,7 @@ function catsTab(h: SettingsHooks) {
       ${check("set-cats-hidden", q.catsHidden, t("猫を出さない"))}`)}
     ${fold("cats-more", t("もっと見る"), `
       ${check("set-zoomies", q.catZoomies, t("夜中にときどき駆け回る（夜の運動会）"))}
-      ${row(t("よく聴くアルバムをくわえてきたら"), seg("mischief", [{ v: "off", label: t("させない") }, { v: "queue", label: t("次に再生に入れる") }, { v: "play", label: t("そのまま再生する") }], q.catMischief))}`)}`;
+      ${row(t("よく聴くアルバムをくわえてきたら"), seg("mischief", [{ v: "off", label: t("させない") }, { v: "queue", label: t("次に再生に入れる") }], q.catMischief))}`)}`;
 }
 
 function otherTab(h: SettingsHooks) {
@@ -200,9 +161,6 @@ function otherTab(h: SettingsHooks) {
       ${row(t("ジャケットがないとき"), seg("blank", [{ v: "title", label: t("色と題名") }, { v: "initial", label: t("頭文字") }, { v: "plain", label: t("色だけ") }], q.blankArt))}
       ${check("set-autoscan", q.autoRescan, t("ほかのアプリから戻ってきたら、フォルダの変化を反映する"))}
       ${row(t("動き"), seg("motion", [{ v: "system", label: t("端末の設定に従う") }, { v: "reduce", label: t("減らす") }], q.motion))}
-      <span class="set-sub">Google Drive</span>
-      <div class="set-source"><b>${d.configured ? esc(d.folder ?? t("フォルダ未選択")) : t("使っていません")}</b><span>${d.configured ? (d.signedIn ? t("サインイン中") : t("サインインが切れています")) : ""}</span></div>
-      ${d.signedIn ? `<div class="set-row set-btns"><button type="button" class="set-btn" id="set-drive-out">${t("サインアウト")}</button></div>` : ""}
       ${kept.length ? `
         <span class="set-sub">${t("端末に残したアルバム")} · ${kept.length} ${t("枚")} · ${mb(total)}</span>
         <ul class="set-kept">${kept.sort((a, b) => b.bytes - a.bytes).map(a => `<li><span>${esc(a.title)}</span><i>${mb(a.bytes)}</i><button type="button" class="set-btn" data-forget="${esc(a.key)}">${t("端末から消す")}</button></li>`).join("")}</ul>` : ""}
@@ -214,15 +172,23 @@ function otherTab(h: SettingsHooks) {
         <button type="button" class="set-btn" data-export="1">${t("設定と聴いた記録を書き出す")}</button>
         <button type="button" class="set-btn" id="set-import">${t("設定を読み込む")}</button>
       </div>
-      ${check("set-map", mapRecording(), t("聴いた場所を記録する"))}
       <div class="set-row set-btns">
         <button type="button" class="set-btn danger" id="set-clear-log">${t("聴いた記録を消す")}</button>
         <button type="button" class="set-btn danger" id="set-reset">${t("すべて初期化する")}</button>
       </div>`)}
     ${fold("keys", t("キーボード"), `
-      <ul class="set-keys">${ACTIONS.map(a => `<li><span>${esc(t(a.label))}</span><button type="button" class="set-key" data-key="${a.id}">${esc(keyLabel(keyFor(a.id)))}</button></li>`).join("")}</ul>
-      <div class="set-row set-btns"><button type="button" class="set-btn" id="set-keys-reset">${t("既定に戻す")}</button></div>`)}
-    ${fold("spotify", "Spotify", spotifySettingsHTML(t))}
+      <ul class="set-keys">${ACTIONS.map(a => `<li><span>${esc(t(a.label))}</span><kbd class="set-key">${esc(keyLabel(keyFor(a.id)))}</kbd></li>`).join("")}</ul>`)}
+    ${fold("sources", t("読み込み元（Google Drive・Spotify）"), `
+      <p class="set-note">${t("この端末のフォルダのほかに、Google Drive と Spotify からも聴けます。どちらも、使う人が自分で作った ID を入れて使います（Kona にはサーバーも、誰かの ID もありません）。入れると、はじめの画面と「フォルダを開く」に出ます。")}</p>
+      <span class="set-sub">Google Drive</span>
+      <div class="set-source"><b>${d.configured ? esc(d.folder ?? t("フォルダ未選択")) : t("使っていません")}</b><span>${d.configured ? (d.signedIn ? t("サインイン中") : t("サインインが切れています")) : ""}</span></div>
+      <div class="set-row set-btns">
+        <button type="button" class="set-btn" id="set-drive-open">${d.configured ? t("フォルダを選ぶ") : t("クライアントIDを入れる")}</button>
+        ${d.signedIn ? `<button type="button" class="set-btn" id="set-drive-out">${t("サインアウト")}</button>` : ""}
+        ${d.configured ? `<button type="button" class="set-btn danger" id="set-drive-forget">${t("クライアントIDを消す")}</button>` : ""}
+      </div>
+      <span class="set-sub">Spotify</span>
+      ${spotifySettingsHTML(t)}`)}
     ${fold("about", t("Kona について"), aboutSection())}`;
 }
 
@@ -231,13 +197,13 @@ function aboutSection() {
     <dl class="set-about">
       <dt>${t("版")}</dt><dd>${esc(pkg.version)}</dd>
       <dt>${t("ライセンス")}</dt><dd>MIT（${t("無保証")}）</dd>
-      <dt>${t("ソース")}</dt><dd><a href="https://github.com/wentolia/kona" target="_blank" rel="noopener">github.com/wentolia/kona</a></dd>
+      <dt>${t("ソース")}</dt><dd><a href="https://github.com/wentolia/kona-open" target="_blank" rel="noopener">github.com/wentolia/kona-open</a></dd>
     </dl>
     <ul class="set-privacy">
       <li>${t("サーバーはなく、アクセス解析もしません。設定・記録・取り込んだ曲は、このブラウザの中にだけ置きます。")}</li>
-      <li>${t("通信するのは Google Drive を使うときの Google の API、Spotify を使うときの Spotify、地図を置いたときの地図の画像だけです。")}</li>
+      <li>${t("通信するのは Google Drive を使うときの Google の API、Spotify を使うときの Spotify だけです。")}</li>
       <li>${t("Google Drive は読み取りだけで、サインインはこのタブの中だけ（約 1 時間）有効です。")}</li>
-      <li>${t("聴いた場所は約 100 m の粗さに丸めて、この端末にだけ残します。")}</li>
+      <li>${t("聴いた場所は記録しません。位置情報は使いません。")}</li>
     </ul>`;
 }
 
@@ -328,7 +294,6 @@ function wire(el: HTMLElement) {
       case "skin": setShelfSkin(v); break;
       case "wall": setRoomSurface({ wall: v }); break;
       case "floor": setRoomSurface({ floor: v }); break;
-      case "rug": setRoomSurface({ rug: v }); break;
     }
     again();
   });
@@ -338,19 +303,14 @@ function wire(el: HTMLElement) {
     const v = (e.target as HTMLElement).closest<HTMLElement>("[data-v]")?.dataset.v;
     if (v === undefined) return;
     switch (g.dataset.seg) {
-      case "theme-mode": setThemePrefs({ mode: v as ThemePrefs["mode"] }); return again();
-      case "fade": setThemePrefs({ fade: Number(v) }); return again();
       case "font-scale": return setP({ fontScale: Number(v) });
       case "font": return setP({ font: v as Prefs["font"] });
       case "motion": return setP({ motion: v as Prefs["motion"] });
-      case "hanging": return setP({ hanging: v as Prefs["hanging"] });
-      case "scent": return setP({ scent: v as Prefs["scent"] });
       case "normalize": h.player.setNormalize(v as Normalize); return again();
       case "crossfade": return setP({ crossfade: Number(v) });
       case "mischief": return setP({ catMischief: v as Prefs["catMischief"] });
       case "group": return setP({ libGroup: v as Prefs["libGroup"] }); // 描き直しは本体が "kona:prefs" で
       case "blank": setP({ blankArt: v as Prefs["blankArt"] }); return h.redraw();
-      case "scene": setWindowScene(v); return again();
       case "lang":
         if (v === prefs().lang) return;
         setPrefs({ lang: v as Prefs["lang"] });
@@ -360,15 +320,7 @@ function wire(el: HTMLElement) {
 
   // テーマカラー
   el.querySelectorAll<HTMLElement>("[data-pal]").forEach(b => b.onclick = () => {
-    const key = b.dataset.pal!, slot = b.closest<HTMLElement>("[data-slot]"), p = themePrefs();
-    if (!slot) setThemePrefs({ fixed: key });
-    else setThemePrefs({ slots: p.slots.map((s, i) => i === Number(slot.dataset.slot) ? { ...s, p: key } : s) });
-    again();
-  });
-  on<HTMLInputElement>(".set-slot input[type=time]", "change", inp => {
-    if (!inp.value) return;
-    const i = Number(inp.closest<HTMLElement>("[data-slot]")!.dataset.slot);
-    setThemePrefs({ slots: themePrefs().slots.map((s, k) => k === i ? { ...s, at: inp.value } : s) });
+    setThemePrefs({ fixed: b.dataset.pal! });
     again();
   });
   // 色を選んでいる間は描き直さない（選ぶ窓が閉じてしまう）。部屋の色だけをその場で替え、決まったら見本も描き直す
@@ -377,13 +329,7 @@ function wire(el: HTMLElement) {
 
   // 見た目・部屋
   on<HTMLInputElement>("#set-roomlight", "change", c => setRoomLight(c.checked));
-  on<HTMLInputElement>("#set-decor", "change", c => setPrefs({ decor: c.checked }));
-  on<HTMLInputElement>("#set-stars", "change", c => setPrefs({ stars: c.checked }));
   on<HTMLInputElement>("#set-marks", "change", c => setPrefs({ marks: c.checked }));
-  on<HTMLInputElement>("#set-laundry", "change", c => setPrefs({ laundry: c.checked }));
-  on<HTMLInputElement>("#set-umbrella", "change", c => setPrefs({ umbrella: c.checked }));
-  on<HTMLInputElement>("#set-rain", "change", c => setWindowRain(c.checked));
-  on<HTMLInputElement>("[data-obj]", "change", c => setObjectShown(c.dataset.obj!, c.checked));
 
   // 音
   on("[data-preset]", "click", b => {
@@ -419,6 +365,8 @@ function wire(el: HTMLElement) {
   on<HTMLInputElement>("#set-autoscan", "change", c => setPrefs({ autoRescan: c.checked }));
   on<HTMLSelectElement>("#set-sort", "change", s => { setPrefs({ libSort: s.value as Prefs["libSort"] }); h.redraw(); });
   on("#set-drive-out", "click", () => { h.driveSignOut(); again(); });
+  on("#set-drive-open", "click", () => openDrive());
+  on("#set-drive-forget", "click", () => { driveSignOut(); saveDriveConfig(undefined); again(); });
   on("[data-forget]", "click", async b => {
     const a = h.keptAlbums().find(x => x.key === b.dataset.forget);
     if (!a) return;
@@ -430,25 +378,7 @@ function wire(el: HTMLElement) {
   // データ
   on("[data-export]", "click", b => h.exportSettings(b.dataset.export === "1"));
   on("#set-import", "click", () => h.importSettings());
-  on<HTMLInputElement>("#set-map", "change", c => setMapRecording(c.checked));
   on("#set-clear-log", "click", clearRecords);
   on("#set-reset", "click", resetAll);
 
-  // キーボード: 押したボタンが「キーを押してください」になり、次に押したキーを覚える（Esc でやめる、Backspace でなしに）
-  on<HTMLButtonElement>(".set-key", "click", b => {
-    const id = b.dataset.key!;
-    b.textContent = t("キーを押す…"); b.classList.add("rec"); setRecording(true);
-    const stop = () => { removeEventListener("keydown", onKey, true); b.removeEventListener("blur", stop); setRecording(false); again(); };
-    const onKey = (e: KeyboardEvent) => {
-      e.preventDefault(); e.stopPropagation();
-      if (e.key === "Escape") return stop();
-      if (e.key === "Backspace" || e.key === "Delete") { setKey(id, ""); return stop(); }
-      const c = comboOf(e);
-      if (!c) return;
-      setKey(id, c); stop();
-    };
-    addEventListener("keydown", onKey, true);
-    b.addEventListener("blur", stop);
-  });
-  on("#set-keys-reset", "click", () => { resetKeys(); again(); });
 }

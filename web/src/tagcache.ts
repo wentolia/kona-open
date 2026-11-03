@@ -8,6 +8,7 @@ export interface HeadCache {
   title: string; artist: string; year?: number; genre?: string;
   color?: string; ratio?: number;
   pic?: Blob;          // 埋め込みジャケット（フォルダの画像を使うときは持たない）
+  thumb?: Blob;        // フォルダの画像の小さな写し（許可を待つ間、覚えている棚に出す）
 }
 export interface TrackCache {
   path: string; title: string; no: number; disc: number;
@@ -57,6 +58,10 @@ export function getHead(key: string, sig: string): HeadCache | undefined {
 export function getTracks(key: string, sig: string): TracksCache | undefined {
   const t = mem.get(key)?.tracks;
   return t?.sig === sig ? t : undefined;
+}
+/** 覚えているアルバムをすべて（フォルダを読む許可を待つ間、棚に並べる） */
+export function cachedHeads(): { key: string; head: HeadCache; tracks?: TracksCache }[] {
+  return [...mem].flatMap(([key, r]) => r.head ? [{ key, head: r.head, tracks: r.tracks }] : []);
 }
 export function putHead(key: string, head: HeadCache) { update(key, { head }); }
 export function putTracks(key: string, tracks: TracksCache) { update(key, { tracks }); }

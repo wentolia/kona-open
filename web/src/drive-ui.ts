@@ -4,7 +4,7 @@ import type { Entry } from "./library";
 import { driveConfig, saveDriveConfig, redirectUri, driveToken, signIn, signOut, listFolders, walkDrive, DriveAuthError } from "./drive";
 import { esc } from "./dom";
 
-const GUIDE = "https://github.com/wentolia/kona/blob/main/web/docs/google-drive.md";
+const GUIDE = "https://github.com/wentolia/kona-open/blob/HEAD/web/docs/google-drive.md";
 const RESUME_KEY = "kona.drive.resume"; // 小窓が開けずにページごと移ったとき、戻ってから続きをする
 const CLIENT_RE = /^[\w-]+\.apps\.googleusercontent\.com$/;
 

@@ -3,7 +3,6 @@
 import { enrichTracks, type Album, type Track } from "./library";
 import { Eq } from "./eq";
 import { prefs } from "./prefs";
-import pitchSource from "../public/pitch-worklet.js?raw";
 
 type Listener = () => void;
 
@@ -28,17 +27,7 @@ interface Cue { album: Album; index: number }
 export type PlayMode = "normal" | "album" | "track" | "shuffle";
 export const PLAY_MODES: PlayMode[] = ["normal", "album", "track", "shuffle"];
 const MODE_KEY = "kona.mode";
-const SPEED_KEY = "kona.speed";
-/** 速さ（0.5〜2 倍、音程は変えない）とピッチ（±12 半音、速さは変えない）。別々に変えられる */
-export interface Speed { rate: number; pitch: number }
-export const RATE_MIN = 0.5, RATE_MAX = 2, PITCH_MAX = 12;
-function loadSpeed(): Speed {
-  try {
-    const s = JSON.parse(localStorage.getItem(SPEED_KEY) ?? "null");
-    if (s) return { rate: Math.min(RATE_MAX, Math.max(RATE_MIN, Number(s.rate) || 1)), pitch: Math.min(PITCH_MAX, Math.max(-PITCH_MAX, Math.round(Number(s.pitch) || 0))) };
-  } catch { /* ignore */ }
-  return { rate: 1, pitch: 0 };
-}
+try { localStorage.removeItem("kona.speed"); } catch { /* 速さとピッチは外した。前の設定を残さない */ }
 function loadMode(): PlayMode {
   try { const m = localStorage.getItem(MODE_KEY) as PlayMode; if (PLAY_MODES.includes(m)) return m; } catch { /* ignore */ }
   return "normal";
@@ -98,6 +87,8 @@ export class Player {
   private meterBuf = new Float32Array(2048);
   private spec?: AnalyserNode;  // スペクトラム用（左右をまとめた 1 本）
   private specBuf = new Float32Array(0);
+  private tapFrom?: AudioNode;  // リスニングパーティーで送る音の取り出し口（EQ のあと・音量の手前）
+  private tap?: MediaStreamAudioDestinationNode;
   private out = loadOutput();
   private vol = loadVolume();
   private muted = false;
@@ -107,11 +98,7 @@ export class Player {
   /** アルバムをくり返す前に聞く。false ならくり返さずに止める（スリープタイマー「アルバムの終わり」） */
   onAlbumLoop?: () => boolean;
   private playMode = loadMode();
-  private spd = loadSpeed();
-  private pre?: GainNode;                       // 2 つの再生器が合流するところ（ピッチを変えるときはここに挿す）
-  private eqIn?: AudioNode;
-  private shifter?: AudioWorkletNode;
-  private shifterLoad?: Promise<AudioWorkletNode | undefined>;
+  private pre?: GainNode;                       // 2 つの再生器が合流するところ
   private order: number[] = [];                // シャッフルの曲順（曲の番号の並び）
   private nextStart?: Cue;                     // シャッフル中に次のアルバムへ移るときの最初の曲（先読みと合わせる）
   /** アルバムを聴き終えたあとに切り替わる先（アルバムの境目も先読みするため） */
@@ -126,7 +113,6 @@ export class Player {
   onTrackError?: (album: Album, track: Track) => void;
 
   constructor() {
-    this.applyRate();
     for (const el of [this.audio, this.spare]) {
       el.preload = "auto";
       // 出来事は鳴っている方の再生器のものだけを拾う
@@ -164,7 +150,7 @@ export class Player {
     if (this.remote) return (this.remoteStarted && this.remote.duration) || this.track?.duration || 0;
     return Number.isFinite(this.audio.duration) ? this.audio.duration : 0;
   }
-  /** いまの曲が外のサービスで鳴っている（DRM のため EQ・波形・速さとピッチ・クロスフェードなどは効かない） */
+  /** いまの曲が外のサービスで鳴っている（DRM のため EQ・波形・クロスフェードなどは効かない） */
   get external(): boolean { return !!this.remote; }
 
   on(fn: Listener): () => void { this.listeners.add(fn); return () => this.listeners.delete(fn); }
@@ -180,16 +166,14 @@ export class Player {
     this.fader = this.ctx.createGain();
     // 元の音 → 正規化 → EQ → 音量 → フェード → 出力。メーターは音量の手前（EQ のあと）から取る
     // 2 つの再生器はそれぞれの正規化を通ってから EQ の手前で合流する
-    // 合流したところ（pre）から EQ へ。ピッチを変えるときは、その間に挿す
+    // 合流したところ（pre）から EQ へ
     this.pre = this.ctx.createGain();
-    this.eqIn = eq.input;
     this.pre.connect(eq.input);
     for (const el of [this.audio, this.spare]) {
       const norm = this.ctx.createGain(), xf = this.ctx.createGain();
       this.ctx.createMediaElementSource(el).connect(norm).connect(xf).connect(this.pre);
       this.norms.set(el, norm); this.xfs.set(el, xf);
     }
-    this.applyPitch();
     eq.output.connect(this.gain).connect(this.fader).connect(this.ctx.destination);
     // 環境音は音量とフェードの手前に足す（メーターや波形には入れない）
     this.noise = this.ctx.createGain(); this.noise.gain.value = 0;
@@ -201,6 +185,7 @@ export class Player {
     this.spec = this.ctx.createAnalyser(); this.spec.fftSize = 8192; this.spec.smoothingTimeConstant = .8;
     this.specBuf = new Float32Array(this.spec.frequencyBinCount);
     eq.output.connect(this.spec);
+    this.tapFrom = eq.output;
     if (this.out.sink) this.applySink();
     this.applyNorm();
   }
@@ -294,6 +279,17 @@ export class Player {
     return this.ctx && this.noise ? { ctx: this.ctx, input: this.noise } : undefined;
   }
 
+  /** リスニングパーティーで参加者に送る音（EQ のあと・音量の手前。環境音・鐘・猫の音は入れない）。
+   *  外のサービス（Spotify）の音は DRM のため入らない */
+  partyTrack(): MediaStreamTrack | undefined {
+    this.ensureGraph();
+    if (!this.ctx || !this.tapFrom) return undefined;
+    if (!this.tap) { this.tap = this.ctx.createMediaStreamDestination(); this.tapFrom.connect(this.tap); }
+    const t = this.tap.stream.getAudioTracks()[0];
+    if (t) t.contentHint = "music";
+    return t;
+  }
+
   // ---------- 出力 ----------
   get sampleRate(): number | undefined { return this.ctx?.sampleRate; }
   get sink(): string { return this.out.sink; }
@@ -333,52 +329,6 @@ export class Player {
     this.album = album;
     this.order = shuffled(album.tracks.length, index);
     await this.load(index);
-  }
-
-  // ---------- 速さとピッチ ----------
-  get speed(): Speed { return { ...this.spd }; }
-  setSpeed(next: Partial<Speed>) {
-    const s = { ...this.spd, ...next };
-    this.spd = { rate: Math.min(RATE_MAX, Math.max(RATE_MIN, s.rate)), pitch: Math.min(PITCH_MAX, Math.max(-PITCH_MAX, Math.round(s.pitch))) };
-    try { localStorage.setItem(SPEED_KEY, JSON.stringify(this.spd)); } catch { /* ignore */ }
-    this.applyRate(); this.applyPitch(); this.emit();
-  }
-  // 速さは再生器そのもので変える（音程を保つ）。曲を替えても戻らないよう、既定の速さにも入れる
-  private applyRate() {
-    for (const el of [this.audio, this.spare]) {
-      el.defaultPlaybackRate = this.spd.rate;
-      el.playbackRate = this.spd.rate;
-      el.preservesPitch = true;
-    }
-  }
-  // ピッチは、合流したあとに音程だけを変える処理（pitch-worklet.js）を挿す。0 のときは外して素通しにする
-  private async applyPitch() {
-    if (!this.ctx || !this.pre || !this.eqIn) return;
-    const pitch = this.spd.pitch;
-    const node = pitch ? await this.loadShifter() : undefined;
-    if (pitch !== this.spd.pitch) return; // 読み込みの間に変わった
-    this.pre.disconnect();
-    if (node) {
-      node.parameters.get("ratio")!.value = 2 ** (pitch / 12);
-      this.pre.connect(node);
-    } else this.pre.connect(this.eqIn);
-  }
-  private loadShifter(): Promise<AudioWorkletNode | undefined> {
-    const ctx = this.ctx!;
-    // 公開版は同じ場所のファイル（public/pitch-worklet.js。CSP の script-src 'self' に収まる）を読み、
-    // それが無い 1 ファイル版では、同じ中身を blob にして読む
-    const add = (url: string) => ctx.audioWorklet.addModule(url);
-    return this.shifterLoad ??= add(new URL("pitch-worklet.js", document.baseURI).href)
-      .catch(() => {
-        const url = URL.createObjectURL(new Blob([pitchSource], { type: "text/javascript" }));
-        return add(url).finally(() => URL.revokeObjectURL(url));
-      })
-      .then(() => {
-        this.shifter = new AudioWorkletNode(ctx, "kona-pitch", { outputChannelCount: [2] });
-        this.shifter.connect(this.eqIn!);
-        return this.shifter;
-      })
-      .catch(() => undefined);   // 使えないブラウザでは、ピッチは変えずに鳴らす
   }
 
   // ---------- 再生のしかた ----------

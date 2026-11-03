@@ -1,0 +1,94 @@
+/* リスニングパーティーの部屋（party-room.ts）。ホストのホームの写しに、入った人の猫が集まる */
+.party-room {
+  position: fixed; inset: 0; overflow: hidden; z-index: 85; display: grid; grid-template-rows: minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr) auto;
+  background: var(--bg); color: var(--ink); animation: dlg-in .2s ease-out;
+}
+.pr-stage { position: relative; isolation: isolate; grid-row: 1; grid-column: 1; overflow: hidden; cursor: pointer; min-height: 0; background: var(--bg); }
+.party-room .cat-layer { z-index: 3; }
+
+/* 吹き出し: 文字だけ。自分宛て・自分が送った個別のものは点線の縁 */
+.cat-bubble {
+  position: absolute; left: 50%; bottom: calc(100% + 18px); transform: translateX(-50%); max-width: 220px; width: max-content;
+  padding: 6px 10px; border-radius: 10px; background: var(--ink); color: var(--bg); font-size: 12px; line-height: 1.45;
+  overflow-wrap: anywhere; white-space: pre-wrap; pointer-events: none; box-shadow: 0 4px 12px rgba(0, 0, 0, .4);
+}
+.cat-bubble::after { content: ""; position: absolute; left: 50%; top: 100%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--ink); }
+.cat-bubble.secret { background: var(--panel); color: var(--ink); outline: 1.5px dashed var(--accent); }
+.cat-bubble.secret::after { border-top-color: var(--panel); }
+.cat-bubble[hidden] { display: none; }
+.cat.cat-pup .cat-tag { top: auto; bottom: -16px; pointer-events: none; }
+
+.pr-bar { grid-row: 2; grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--panel); }
+.pr-now { flex: 1 1 200px; min-width: 0; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-emotes, .pr-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pr-bar .btn { font-size: 12px; padding: 5px 10px; }
+.pr-vol { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.pr-vol input { width: 90px; }
+.pr-people { font-size: 12px; font-family: var(--font-mono); color: var(--muted); }
+
+.pr-side { grid-row: 1; grid-column: 2; width: min(320px, 100vw); display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-left: 1px solid var(--line); background: var(--panel); min-height: 0; }
+.pr-side[hidden], .pr-side-body[hidden], .pr-say[hidden], .pr-find[hidden], .pr-card[hidden] { display: none; }
+.pr-side-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.pr-chat-head { display: flex; align-items: center; justify-content: space-between; }
+.pr-log { flex: 1; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 0; display: grid; align-content: start; gap: 8px; }
+.pr-log li { display: grid; gap: 2px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.pr-log b { font-weight: 500; font-size: 11px; color: var(--muted); }
+.pr-log li.secret span { border-left: 2px dashed var(--accent); padding-left: 6px; }
+.pr-say { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.pr-say select { grid-column: 1 / -1; }
+.pr-say input, .pr-say select { font: inherit; font-size: 12px; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 4px; padding: 6px 8px; min-width: 0; }
+@media (max-width: 640px) {
+  .pr-side { position: absolute; grid-column: 1 / -1; grid-row: 1; inset: auto 0 0 0; width: auto; height: 70%; border-left: 0; border-top: 1px solid var(--line); z-index: 4; }
+}
+
+/* 猫を選ぶ欄 */
+.pe { display: grid; gap: 8px; }
+.pe-stage { position: relative; height: 110px; border-radius: 6px; background: linear-gradient(transparent 70%, rgba(255, 220, 170, .06)); border: 1px solid var(--line); overflow: hidden; }
+.pe select { font: inherit; font-size: 12px; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 4px; padding: 5px 8px; }
+.pe-traits summary { font-size: 11px; color: var(--muted); cursor: pointer; }
+.pe-traits label { display: grid; grid-template-columns: 7em 1fr; align-items: center; gap: 8px; font-size: 12px; margin-top: 4px; }
+
+/* ホームの写し: 本物のホームと同じ組み方（style.css の .home / .grid / .mod）を使い、見るだけにする */
+.pr-home { position: absolute; inset: 0; overflow-y: auto; }
+.pr-home .grid { position: relative; min-height: 100%; }
+.pr-home .mod-head { opacity: .6; pointer-events: none; }
+.pr-home .split { cursor: default; pointer-events: none; }
+.pr-home .face, .pr-home .spine { cursor: pointer; }
+.pr-plat { position: absolute; left: 11px; right: 11px; top: 0; height: 0; pointer-events: none; }
+.pr-plat-board { top: auto; bottom: var(--board, 11px); }
+.pr-now-card { flex: 1; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto 1fr; align-content: start; gap: 4px 14px; padding: 14px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.pr-now-card b { color: var(--ink); font-weight: 500; font-size: 15px; overflow-wrap: anywhere; }
+.pr-now-card span { overflow-wrap: anywhere; }
+.pr-now-art { grid-row: 1 / 4; width: min(160px, 30vw); aspect-ratio: 1; border-radius: 3px; overflow: hidden; box-shadow: 0 6px 14px rgba(0, 0, 0, .3); }
+.pr-wait { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+
+/* アルバムの札 */
+.pr-card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 6; width: min(420px, calc(100vw - 32px)); max-height: min(560px, calc(100dvh - 120px)); display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); box-shadow: 0 18px 50px rgba(0, 0, 0, .5); }
+.pr-card-head { display: grid; grid-template-columns: 96px 1fr auto; gap: 12px; align-items: start; }
+.pr-card-head > div:nth-child(2) { display: grid; gap: 4px; min-width: 0; }
+.pr-card-head b { font-weight: 500; font-size: 15px; overflow-wrap: anywhere; }
+.pr-card-head span { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.pr-card-head .btn { justify-self: start; margin-top: 6px; font-size: 12px; padding: 5px 10px; }
+.pr-card-art { width: 96px; aspect-ratio: 1; border-radius: 3px; overflow: hidden; }
+.pr-card-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pr-tracks { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: grid; gap: 2px; }
+.pr-tracks li { display: grid; grid-template-columns: 2.2em 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; padding: 3px 0; border-bottom: 1px solid var(--soft); }
+.pr-tracks li > span:first-child, .pr-tracks li > span:nth-child(3) { font-family: var(--font-mono); color: var(--muted); font-size: 11px; }
+.pr-tracks .btn { font-size: 11px; padding: 3px 8px; }
+
+/* リクエストを探す・チャットのリクエスト */
+.pr-find input { width: 100%; box-sizing: border-box; font: inherit; font-size: 12px; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+.pr-found { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; max-height: 180px; overflow-y: auto; }
+.pr-found-item { width: 100%; display: grid; text-align: left; gap: 1px; padding: 5px 8px; border-radius: 4px; border: 0; background: none; color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
+.pr-found-item:hover { background: var(--soft); }
+.pr-found-item span { color: var(--muted); font-size: 11px; }
+.pr-log li.req span { border-left: 2px solid var(--accent); padding-left: 6px; }
+.pr-req-acts { display: flex; gap: 6px; margin-top: 2px; }
+.pr-req-acts .btn { font-size: 11px; padding: 3px 9px; }
+
+/* 権限 */
+.pr-perm { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.pr-perm-who { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px 8px; margin: 0; display: grid; gap: 4px; }
+.pr-perm-who legend { font-size: 12px; padding: 0 4px; }
+.pr-perm-who label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; font-size: 12px; }
+.pr-perm-who select { font: inherit; font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; }

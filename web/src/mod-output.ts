@@ -1,22 +1,12 @@
-// 出力: 出力先の機器、音量の正規化（ReplayGain）、いまの信号の流れ
+// 出力: 出力先の機器、いまの信号の流れ、重ねる音（音量の正規化は設定の「音」でだけ変える）
 
 import { ctx, esc } from "./modctx";
-import type { Normalize } from "./player";
 import { NOISES, noiseLevel, setNoiseLevel, onNoise } from "./noise";
-
-const NORMS: { v: Normalize; label: string }[] = [
-  { v: "off", label: "しない" }, { v: "track", label: "曲ごと" }, { v: "album", label: "アルバムごと" },
-];
 
 export function mountOutput(body: HTMLElement) {
   body.innerHTML = `
     <div class="out">
       <label class="out-field"><span>出力先</span><select class="out-sink"></select></label>
-      <div class="out-field"><span>音量の正規化</span>
-        <div class="out-seg" role="radiogroup" aria-label="音量の正規化">
-          ${NORMS.map(n => `<button role="radio" data-v="${n.v}">${n.label}</button>`).join("")}
-        </div>
-      </div>
       <p class="out-path" aria-label="信号の流れ"></p>
       <div class="out-noise" role="group" aria-label="重ねる音">
         <span class="out-noise-head">重ねる音</span>
@@ -38,8 +28,6 @@ export function mountOutput(body: HTMLElement) {
   sink.onchange = () => p.setSink(sink.value);
   navigator.mediaDevices?.addEventListener?.("devicechange", fillSinks);
 
-  root.querySelectorAll<HTMLButtonElement>(".out-seg button").forEach(b => b.onclick = () => p.setNormalize(b.dataset.v as Normalize));
-
   // 重ねる音: つまみを動かすとすぐに音量が変わる。ダブルクリックで 0
   const knobs = [...root.querySelectorAll<HTMLInputElement>(".out-noise input")];
   const paintNoise = () => knobs.forEach(k => {
@@ -56,7 +44,6 @@ export function mountOutput(body: HTMLElement) {
   paintNoise();
 
   const sync = () => {
-    root.querySelectorAll<HTMLButtonElement>(".out-seg button").forEach(b => b.setAttribute("aria-checked", String(b.dataset.v === p.normalize)));
     const t = p.track, rate = p.sampleRate;
     const src = t?.format || (t ? "読み込み中" : "—");
     const norm = p.normalize === "off" ? "" : p.normGain === undefined ? "正規化のタグなし" : `正規化 ${p.normGain > 0 ? "+" : ""}${p.normGain.toFixed(1)} dB`;

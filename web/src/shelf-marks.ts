@@ -1,14 +1,13 @@
 // 棚板の跡: ホームの棚板に、暮らした跡が少しずつ残る。
 //  - 猫がよく眠る場所: 板の縁に、その猫の毛色の毛が引っかかり、板の前がうっすら擦れて明るくなる
 //  - 猫がよく跳び乗る場所: 板の前に、爪で引っかいた細い傷
-//  - コーヒーを置く場所: 縁から垂れたしみ（置いた日の数だけ濃くなる）
 // 位置は棚（モジュール）ごとに、幅を 48 に分けた区画で覚える。モジュールの幅が変わっても同じ場所に残る。
 // 記録は端末の中（kona.marks）だけ。設定の「棚板に跡を残す」で止められる（止めると跡も見せない）
 
 import { prefs } from "./prefs";
 
 const KEY = "kona.marks", N = 48;
-interface ModMarks { s?: Record<number, [number, string]>; c?: Record<number, number>; k?: Record<number, number>; kd?: string }
+interface ModMarks { s?: Record<number, [number, string]>; c?: Record<number, number> }
 let data: Record<string, ModMarks> | undefined;
 const load = () => {
   if (data) return data;
@@ -48,19 +47,6 @@ export function markClaw(mod: Element, clientX: number) {
   m.c[s[1]] = (m.c[s[1]] ?? 0) + 1;
   save();
 }
-/** コーヒーを置いている。1 日に 1 回だけ数える */
-let coffeeAt = 0;
-export function markCoffee(mod: Element, clientX: number) {
-  const now = Date.now();
-  if (!on() || now - coffeeAt < 60_000) return; // 毎フレーム呼ばれるので、確かめるのは 1 分に 1 回
-  coffeeAt = now;
-  const s = slot(mod, clientX); if (!s) return;
-  const m = of(s[0]), today = new Date().toDateString();
-  if (m.kd === today) return;
-  m.kd = today; m.k ??= {};
-  m.k[s[1]] = (m.k[s[1]] ?? 0) + 1;
-  save();
-}
 
 // ---------- 描く ----------
 const seeded = (n: number) => { let s = n * 2654435761 >>> 0 || 1; return () => ((s = Math.imul(s ^ (s >>> 13), 1274126177) >>> 0) / 4294967296); };
@@ -94,18 +80,6 @@ function svgFor(m: ModMarks, w: number, board: number) {
       }
     }
   }
-  // コーヒーのしみ: 縁に輪、前へ 1〜2 筋垂れる。置いた日が多いほど濃い
-  for (const [b, days] of Object.entries(m.k ?? {})) {
-    if (days < 2) continue;
-    const a = Math.min(1, days / 30), x = cx(Number(b)), R = seeded(Number(b) + 503);
-    const col = `rgba(38, 20, 8, ${(.3 + .4 * a).toFixed(3)})`;
-    out += `<ellipse cx="${x.toFixed(1)}" cy="${TOP + .8}" rx="${(9 + 3 * a).toFixed(1)}" ry="1.4" fill="none" stroke="${col}" stroke-width="1.1"/>`;
-    const drips = days >= 10 ? 2 : 1;
-    for (let i = 0; i < drips; i++) {
-      const dx = x + (R() - .5) * 12, len = board * (.5 + R() * .45);
-      out += `<path d="M${dx.toFixed(1)} ${TOP} q.6 ${(len * .5).toFixed(1)} 0 ${len.toFixed(1)}" stroke="${col}" stroke-width="${(1.4 + R()).toFixed(2)}" stroke-linecap="round" fill="none"/>`;
-    }
-  }
   return out ? `<svg width="${w}" height="${H}" viewBox="0 0 ${w} ${H}">${out}</svg>` : "";
 }
 
@@ -117,7 +91,7 @@ function paint() {
     const m = show ? d[mod.dataset.id!] : undefined;
     if (!m) { el?.remove(); return; }
     if (!el) { el = document.createElement("div"); el.className = "shelf-marks"; el.setAttribute("aria-hidden", "true"); mod.append(el); }
-    const w = Math.round(el.clientWidth), sig = `${w}|${board}|${JSON.stringify(m.s)}|${JSON.stringify(m.c)}|${JSON.stringify(m.k)}`;
+    const w = Math.round(el.clientWidth), sig = `${w}|${board}|${JSON.stringify(m.s)}|${JSON.stringify(m.c)}`;
     if (el.dataset.sig === sig) return;
     el.dataset.sig = sig;
     el.style.height = `${board + 12}px`;

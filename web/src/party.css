@@ -3,6 +3,13 @@
 .party-code { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-family: var(--font-mono); font-size: 11px; line-height: 1.5; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 4px; padding: 7px 9px; word-break: break-all; }
 .party-code:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .party-code[readonly] { background: var(--soft); color: var(--muted); }
+input.party-code { resize: none; }
+.party-knocks:empty { display: none; }
+.party-knocks { display: grid; gap: 6px; }
+.party-knock { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 6px; background: var(--soft); font-size: 13px; }
+.party-knock span { flex: 1 1 12em; overflow-wrap: anywhere; }
+.party-knock b { font-weight: 500; }
+.party-knock .btn { font-size: 12px; padding: 5px 12px; }
 .party-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .party-row .btn { font-size: 12px; padding: 6px 12px; }
 .party-hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
@@ -26,4 +33,3 @@
   .party-pill:not(.off) i { animation: party-glow 2.4s ease-in-out infinite; }
 }
 @keyframes party-glow { 50% { opacity: .45; } }
-body.focus-lock .party-pill { opacity: .3; }

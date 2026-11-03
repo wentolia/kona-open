@@ -1,4 +1,4 @@
-// Spotify の入口: 設定の「詳細」で Client ID を入れてサインイン → 保存したアルバムを棚に並べる。
+// Spotify の入口: 設定の「読み込み元」で Client ID を入れてサインイン → 保存したアルバムを棚に並べる。
 // 画面の文字はすべて textContent か esc() で入れ、Spotify の曲名などを HTML として読ませない
 import type { Album } from "./library";
 import type { Player } from "./player";
@@ -7,7 +7,7 @@ import { spotifyConfig, saveSpotifyConfig, spotifyRedirectUri, spotifySignedIn, 
 import { spotifyRemote } from "./spotify-play";
 import { esc } from "./dom";
 
-const GUIDE = "https://github.com/wentolia/kona/blob/HEAD/web/docs/spotify.md";
+const GUIDE = "https://github.com/wentolia/kona-open/blob/HEAD/web/docs/spotify.md";
 const LAST_KEY = "kona.spotify.last"; // 前に開いていたのが Spotify なら、開き直したときもそのまま
 
 type Progress = (n: number, total: number) => void;
@@ -82,11 +82,10 @@ export async function resumeSpotify(): Promise<boolean> {
 
 export const isSpotifyError = (e: unknown) => e instanceof SpotifyAuthError;
 
-// ---------- 設定の「詳細」 ----------
+// ---------- 設定の「読み込み元」 ----------
 export function spotifySettingsHTML(t: (s: string) => string): string {
   const c = spotifyConfig(), signed = spotifySignedIn();
   return `
-    <h3>Spotify</h3>
     <p class="set-note">${t("自分の Spotify for Developers で作った Client ID を入れると、保存したアルバムを棚に並べて聴けます（Premium が必要）。")}<a href="${GUIDE}" target="_blank" rel="noopener noreferrer">${t("作り方の手順")}</a></p>
     <dl class="dlg-uris set-uris">
       <dt>Redirect URI</dt><dd><code>${esc(spotifyRedirectUri())}</code><button type="button" class="set-btn" id="set-sp-copy">${t("コピー")}</button></dd>
@@ -101,7 +100,7 @@ export function spotifySettingsHTML(t: (s: string) => string): string {
       ${signed ? `<button type="button" class="set-btn" id="set-sp-out">${t("サインアウト")}</button>` : ""}
       <button type="button" class="set-btn danger" id="set-sp-forget">${t("Client ID を消す")}</button>
     </div>` : ""}
-    <p class="set-note">${t("Spotify の曲は DRM で守られているため、イコライザー・波形・音量の正規化・速さとピッチ・クロスフェード・環境音は効きません。曲名やジャケットは端末に残さず、開くたびに Spotify から読みます。写真ではジャケットをいつも隠します。")}</p>`;
+    <p class="set-note">${t("Spotify の曲は DRM で守られているため、イコライザー・波形・音量の正規化・クロスフェード・環境音は効きません。曲名やジャケットは端末に残さず、開くたびに Spotify から読みます。写真ではジャケットをいつも隠します。")}</p>`;
 }
 
 export function wireSpotifySettings(root: HTMLElement, again: () => void) {

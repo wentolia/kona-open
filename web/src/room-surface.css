@@ -1,4 +1,4 @@
-/* 部屋の壁・床・ラグの置き方（形と色の素は room-lowpoly.css） */
+/* 部屋の壁と床の置き方（形と色の素は room-lowpoly.css） */
 
 /* ---------- 壁: 画面の奥いっぱいに、テーマ色を少し明るくした面をマスクで刻む ---------- */
 :root[data-wall] body::before {
@@ -20,12 +20,3 @@
   background: var(--floor-bg);
   box-shadow: 0 -10px 18px -12px rgba(0, 0, 0, .55); filter: brightness(.86);
 }
-/* ラグ: 床のまんなかに寝かせる */
-:root[data-floor][data-rug] .grid::before {
-  content: ""; position: absolute; left: 50%; bottom: calc(var(--floor-h) * .1); transform: translateX(-50%);
-  width: min(38%, 440px); height: calc(var(--floor-h) * .74); z-index: 1; pointer-events: none;
-  background: var(--rug) center / 100% 100% no-repeat;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .4));
-}
-/* 傘立ては床の上に立てる */
-:root[data-floor] .room-umbrella { bottom: calc(var(--floor-h) * .45); }
