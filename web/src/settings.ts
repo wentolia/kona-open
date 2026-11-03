@@ -6,8 +6,9 @@ import { PALETTES, CUSTOM, themePrefs, setThemePrefs, paletteColors, toHex, type
 import { roomLightOn, setRoomLight } from "./mod-window";
 import { SHELF_SKINS, shelfSkin, setShelfSkin } from "./shelf-skin";
 import { WALLS, FLOORS, roomSurface, setRoomSurface } from "./room-surface";
-import { THINGS, placedThings, toggleThing, thingArt } from "./room-things";
+import { THINGS, placedThings, toggleThing, thingThumb } from "./room-things";
 import { OBJECTS, objectAvailable, objectArt } from "./mod-objects";
+import { chimeOn, setChime } from "./mod-clock";
 import { prefs, setPrefs, type Prefs } from "./prefs";
 import { BANDS, BUILTIN_PRESETS, userPresets, savePreset, deletePreset, presetMatching } from "./eq";
 import { BREEDS, type Coat } from "./cat";
@@ -124,6 +125,7 @@ function roomTab() {
       <div class="set-checks">
         ${check("set-roomlight", roomLightOn(), t("部屋の明かりも時刻で変える"))}
         ${check("set-marks", q.marks, t("棚板に暮らした跡を残す"))}
+        ${check("set-chime", chimeOn(), t("置き時計が正時に鐘を鳴らす"))}
       </div>`)}`;
 }
 
@@ -139,7 +141,7 @@ function putBlock(h: SettingsHooks) {
     <div class="set-puts-head">${t("棚に置く")}</div>
     <div class="set-puts">${OBJECTS.filter(o => objectAvailable(o.key)).map(o => tile(`obj:${o.key}`, t(o.label.replace(/（.*）/, "")), h.goods.shelfOf(o.key), "")).join("")}</div>
     <div class="set-puts-head">${t("床に置く")}</div>
-    <div class="set-puts">${THINGS.map(x => tile(`thing:${x.key}`, t(x.label), things.includes(x.key) ? t("床") : undefined, thingArt(x.key))).join("")}</div>`;
+    <div class="set-puts">${THINGS.map(x => tile(`thing:${x.key}`, t(x.label), things.includes(x.key) ? t("床") : undefined, "")).join("")}</div>`;
 }
 
 function soundTab(h: SettingsHooks) {
@@ -416,8 +418,10 @@ function wire(el: HTMLElement) {
   // 見た目・部屋
   on<HTMLInputElement>("#set-roomlight", "change", c => setRoomLight(c.checked));
   on<HTMLInputElement>("#set-marks", "change", c => setPrefs({ marks: c.checked }));
+  on<HTMLInputElement>("#set-chime", "change", c => setChime(c.checked));
   // 置くもの: 小物の見本は今の姿の写し。置いてあるものを押すとしまう（置くのはホームへドラッグで。place-drag.ts）
   el.querySelectorAll<HTMLElement>("[data-put^='obj:'] .set-put-art").forEach(box => { const art = objectArt(box.closest<HTMLElement>("[data-put]")!.dataset.put!.slice(4)); if (art) box.append(art); });
+  el.querySelectorAll<HTMLElement>("[data-put^='thing:'] .set-put-art").forEach(box => box.append(thingThumb(box.closest<HTMLElement>("[data-put]")!.dataset.put!.slice(6))));
   on("[data-put]", "click", b => {
     if (b.dataset.dragged) { delete b.dataset.dragged; return; }
     if (b.getAttribute("aria-pressed") !== "true") return;

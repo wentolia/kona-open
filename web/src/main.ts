@@ -17,7 +17,7 @@ import { type ModuleDef, type ModuleType, type ShelfDef, type ShelfKind, type So
 import { mountSingle, mountTwin, unwatchRow, folderGap, installWheel } from "./panes";
 import { mountModule } from "./modules";
 import { setModuleContext, fadeSwap } from "./modctx";
-import { stopAtAlbumEnd, albumEndArmed } from "./mod-clock";
+import { stopAtAlbumEnd, albumEndArmed, legacyClockKind } from "./mod-clock";
 import { setCats, randomCoat, isCoat, breedCoat, setCatsMusic, setCatHooks, catPicksAlbum, toggleWand, wandOn, type Coat } from "./cat";
 import { initNoise, roomTail } from "./noise";
 import { ritual, isPulled } from "./ritual";
@@ -32,7 +32,8 @@ import { initShelfMarks } from "./shelf-marks";
 import "./photo.css";
 import "./room-light.css";
 import "./header.css";
-import { mountThings } from "./room-things";
+import { mountThings, placedThings, toggleThing, setThing, THING_OF_MODULE } from "./room-things";
+import { roomSurface, setRoomSurface } from "./room-surface";
 import { placeObjects, legacyShown, markPlaced } from "./mod-objects";
 import { initSizeKnob } from "./size-knob";
 import { initPlaceDrag } from "./place-drag";
@@ -86,6 +87,43 @@ function putObject(key: string, shelfId?: string, at?: number) {
 }
 const saveMods = () => saveLayout(modules);
 const home = loadHome(modules);
+// 時計のモジュールは、棚の置き時計（アナログ / デジタル）になった: 同じ列に積んでいた棚、なければ小物だけの棚、
+// なければいちばん上の棚に、以前の種類の時計を置く（振り子はアナログに）
+{
+  const clocks = modules.filter(m => m.type === "clock");
+  if (clocks.length) {
+    const key = legacyClockKind() === "analog" || legacyClockKind() === "pendulum" ? "aclock" : "dclock";
+    const placed = modules.some(m => m.goods?.includes("aclock") || m.goods?.includes("dclock"));
+    const shelves = home.rows.flatMap(r => r.cols.flatMap(c => c.stack.map(s => s.id))).map(id => modules.find(m => m.id === id)).filter((m): m is ModuleDef => !!m && m.type === "shelf");
+    const col = home.rows.flatMap(r => r.cols).find(c => c.stack.some(s => s.id === clocks[0].id));
+    const near = col?.stack.map(s => modules.find(m => m.id === s.id)).find((m): m is ModuleDef => !!m && m.type === "shelf");
+    const to = near ?? shelves.find(m => m.kind === "goods") ?? shelves[0];
+    if (to && !placed) to.goods = [key, ...(to.goods ?? [])];
+    for (const m of clocks) removeModule(home, m.id);
+    modules = modules.filter(m => m.type !== "clock");
+    saveLayout(modules); saveHome(home);
+  }
+}
+// 猫の家具（キャットタワー・箱・ごはん・爪とぎ）は、モジュールから床の家具になった: 置いていたものは床に置き直す。
+// 左右の位置は、ホームで置いていた列のおおよその位置（段の中の列の左端からの割合）
+{
+  const old = modules.filter(m => THING_OF_MODULE[m.type]);
+  if (old.length) {
+    for (const m of old) {
+      const k = THING_OF_MODULE[m.type];
+      let x: number | undefined;
+      for (const r of home.rows) {
+        let acc = 0, tot = r.cols.reduce((n, c) => n + c.w, 0) || 1;
+        for (const c of r.cols) { if (c.stack.some(s => s.id === m.id)) x = (acc + c.w / 2) / tot; acc += c.w; }
+      }
+      if (!(placedThings() as string[]).includes(k)) { toggleThing(k, true); if (x !== undefined) setThing(k, { x }); }
+      removeModule(home, m.id);
+    }
+    modules = modules.filter(m => !THING_OF_MODULE[m.type]);
+    if (roomSurface().floor === "none") setRoomSurface({ floor: "oak" }); // 家具は床の上に立つ
+    saveLayout(modules); saveHome(home);
+  }
+}
 const shelfById = (id: string) => modules.find((m): m is ShelfDef => m.id === id && isShelf(m));
 const kept = new Map<string, HTMLElement>(); // 描き直しても作り直さないモジュール（再生中など）
 let editing: { id: string } | undefined; // 設定ページで設定を開いているモジュール
@@ -1762,7 +1800,7 @@ initSettings($("#view-settings"), {
       const item = (d: ModuleDef) => ({ id: d.id, title: d.title, label: tr(isShelf(d) ? kindLabel(d.kind) : moduleInfo(d.type).label) });
       return home.rows.map(r => r.cols.map(c => c.stack.map(k => modules.find(m => m.id === k.id)).filter((d): d is ModuleDef => !!d).map(item)).filter(c => c.length));
     },
-    addable: () => MODULES.map(m => ({ type: m.type, label: tr(m.label), disabled: !m.ready || (!!m.single && modules.some(x => x.type === m.type)) })),
+    addable: () => MODULES.filter(m => !THING_OF_MODULE[m.type] && m.type !== "clock").map(m => ({ type: m.type, label: tr(m.label), disabled: !m.ready || (!!m.single && modules.some(x => x.type === m.type)) })),
     add: type => addModuleOf(type as ModuleType),
     form: id => { const d = modules.find(m => m.id === id); return d ? moduleFormHTML(d) : ""; },
     wire: (el, id, again) => { const d = modules.find(m => m.id === id); if (d) wireModuleForm(el, d, again); },
