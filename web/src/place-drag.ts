@@ -2,8 +2,10 @@
 // 小物は落とした棚に（その棚の小物の中で、落とした位置の順に）、家具は床の落とした左右の位置に、壁のものは落とした場所に置く。
 // 家具と壁のものは、ドラッグするたびにもうひとつ置く（猫の家具はひとつだけなので、置いてあれば動かす）。
 // ホームの小物はドラッグで別の棚へ移せる。小物も家具も、設定の上へ戻して落とすとしまう。
+// ホームから動かしている間は画面の上に受け皿が出て、そこで放してもしまう（stow.ts。元に戻せる）。
 import { objectArt } from "./mod-objects";
-import { thingThumb, toggleThing, addThing, countOf, defOf } from "./room-things";
+import { thingThumb, addThing, countOf, defOf } from "./room-things";
+import { stowObject, stowThing, showTray, overTray } from "./stow";
 import { roomSurface, setRoomSurface } from "./room-surface";
 import { renderSettings } from "./settings";
 import { clamp } from "./dom";
@@ -34,6 +36,7 @@ function sourceOf(n: EventTarget | null, h: PlaceHooks): Src | undefined {
 }
 
 function dropAt(x: number, y: number, src: Src, h: PlaceHooks): Drop {
+  if (overTray(x, y)) return { to: "away" };
   const at = document.elementsFromPoint(x, y);
   if (at.some(e => e.closest("#view-settings .set"))) return { to: "away" };
   if (!at.some(e => e.closest("#view-home"))) return undefined;
@@ -67,6 +70,7 @@ export function initPlaceDrag(h: PlaceHooks) {
       document.body.append(ghost);
       document.body.classList.add("putting");
       src.from.classList.add("put-from");
+      if (!src.from.closest("#view-settings")) showTray(true);
     };
     const move = (ev: PointerEvent) => {
       if (!ghost && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
@@ -85,6 +89,7 @@ export function initPlaceDrag(h: PlaceHooks) {
       ghost.remove(); over?.classList.remove("put-over");
       document.body.classList.remove("putting"); src.from.classList.remove("put-from");
       document.querySelector("#view-settings .set")?.classList.remove("put-away");
+      showTray(false);
       // ドラッグのあとに来るクリック（灯りが点く・見本を押した扱いになる）は捨てる
       const eat = (ce: Event) => { ce.stopPropagation(); ce.preventDefault(); };
       addEventListener("click", eat, { capture: true, once: true });
@@ -92,10 +97,10 @@ export function initPlaceDrag(h: PlaceHooks) {
       if (ev.type === "pointercancel" || !drop) return;
       if (src.kind === "obj") {
         if (drop.to === "shelf") h.putObject(src.key, drop.id, indexIn(drop.mod, ev.clientX, src.from));
-        else if (drop.to === "away" && src.placed) h.putObject(src.key);
+        else if (drop.to === "away" && src.placed) stowObject(src.key);
         return;
       }
-      if (drop.to === "away") { if (src.placed) { toggleThing(src.key, false); renderSettings(); } return; }
+      if (drop.to === "away") { if (src.placed) stowThing({ kind: src.key }); return; }
       const grid = document.querySelector<HTMLElement>("#view-home .grid"), def = defOf(src.key);
       if (!grid || !def) return;
       // 落とした場所: 影の大きさ（標準の大きさ）で、左右と（壁なら）上下の割合にする
