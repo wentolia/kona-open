@@ -34,6 +34,7 @@ def enc(ring, tol, min_area):
         out += [x - px, y - py]; px, py = x, y
     return ",".join(map(str, out))
 
+RENAME = {"TW": "台湾", "US": "アメリカ", "TH": "タイ", "KR": "韓国", "CN": "中国", "GB": "イギリス", "RU": "ロシア"}  # 呼び名を短く・ふだんの言い方に
 a1, a0 = json.load(open(sys.argv[1])), json.load(open(sys.argv[2]))
 shapes, names = [], {}
 for f in sorted((f for f in a1["features"] if f["properties"].get("adm0_a3") == "JPN"), key=lambda f: f["properties"]["iso_3166_2"]):
@@ -41,10 +42,13 @@ for f in sorted((f for f in a1["features"] if f["properties"].get("adm0_a3") == 
     rs = [e for e in (enc(r, .012, .0004) for r in rings(f["geometry"])) if e]
     shapes.append([code, rs]); names[code] = [p.get("name_ja") or p["name"], p["name"].replace("ō", "o").replace("Ō", "O")]
 for f in a0["features"]:
-    p = f["properties"]; code = p["ISO_A2"] if p["ISO_A2"] != "-99" else p["ISO_A2_EH"]
-    if code in ("-99", "JP") or not f["geometry"]: continue
+    p = f["properties"]; exact = len(p["ISO_A2"]) == 2; code = p["ISO_A2"] if exact else p["ISO_A2_EH"]
+    if len(code) != 2 or code == "JP" or not f["geometry"]: continue
     rs = [e for e in (enc(r, .06, .01) for r in rings(f["geometry"])) if e]
-    if rs: shapes.append([code, rs]); names[code] = [p["NAME_JA"] or p["NAME"], p["NAME"]]
+    if not rs: continue
+    shapes.append([code, rs])
+    # 名前は本土のもの（ISO_A2 がそのまま合うもの）を優先する。海外領は本土の名前を上書きしない
+    if exact or code not in names: names[code] = [RENAME.get(code, p["NAME_JA"] or p["NAME"]), p["NAME"]]
 
 with open("src/region-map.ts", "w") as o:
     o.write("// 土地の形（scripts/region-map.py が Natural Earth から作る。手で直さない）。[コード, 外周（0.01 度の差分を , で並べたもの）…]\n")
