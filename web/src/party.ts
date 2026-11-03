@@ -22,6 +22,7 @@ import { BANDS } from "./eq";
 import { playLog, stat, listenedSeconds, type PlayEvent } from "./store";
 import type { Album } from "./library";
 import { setPartyEar, setCatsAway, type Coat, type Emote } from "./cat";
+import { hereLand, isLand } from "./region";
 
 const NAME_KEY = "kona.party.name";
 const VOL_KEY = "kona.party.volume";
@@ -35,7 +36,7 @@ const BITRATE = 128_000;           // 送る音の速さ（bps）
 interface TrackInfo { title: string; artist: string; album: string }
 type Msg =
   | { t: "peers"; host: string; names: string[] }
-  | { t: "state"; track?: TrackInfo; playing: boolean; ext: boolean; id?: string }
+  | { t: "state"; track?: TrackInfo; playing: boolean; ext: boolean; id?: string; land?: string }   // land: ホストの土地のコードだけ（ご当地の品。region.ts）
   | { t: "bye" }
   // 部屋（参加者 → ホスト は id なし。ホストが送り主の id を付けて、ほかの人へ中継する）
   | { t: "cat"; coat: Coat }                                   // 参加者 → ホスト: この猫で入る
@@ -109,7 +110,7 @@ function asMsg(x: unknown): Msg | undefined {
     case "state":
       if (typeof m.playing !== "boolean" || typeof m.ext !== "boolean") return undefined;
       if (m.track !== undefined && !isTrack(m.track)) return undefined;
-      return { t: "state", track: m.track as TrackInfo | undefined, playing: m.playing, ext: m.ext, id: isAid(m.id) ? m.id : undefined };
+      return { t: "state", track: m.track as TrackInfo | undefined, playing: m.playing, ext: m.ext, id: isAid(m.id) ? m.id : undefined, land: isLand(m.land) ? m.land : undefined };
     case "cat": { const coat = cleanCoat(m.coat); return coat ? { t: "cat", coat } : undefined; }
     case "you": return isId(m.id) ? { t: "you", id: m.id } : undefined;
     case "cats": {
@@ -747,7 +748,7 @@ function received(peer: Peer, m: Msg) {
 function sendPeers() { broadcast({ t: "peers", host: hostName, names: peers.filter(p => p.open).map(p => p.name) }); }
 function snapshot(): Msg {
   const p = ctx().player, a = p.album, t = p.track;
-  return { t: "state", track: a && t ? { title: t.title, artist: a.artist, album: a.title } : undefined, playing: p.playing, ext: p.external, id: a ? nowId() : undefined };
+  return { t: "state", track: a && t ? { title: t.title, artist: a.artist, album: a.title } : undefined, playing: p.playing, ext: p.external, id: a ? nowId() : undefined, land: hereLand() };
 }
 
 function end(why: string, tip: typeof endTip = "") {
@@ -992,6 +993,7 @@ export function initParty(opts: { toast: (t: string) => void }) {
     else if (inRoom() && guestStep !== "name") quiet();
   });
   addEventListener("pagehide", () => broadcast({ t: "bye" }));
+  document.addEventListener("kona:regional", () => { if (role === "host") broadcast(snapshot()); });   // 土地が変わったら参加者へ
   if (location.hash.startsWith(HASH)) {
     const [key, id] = decodeURIComponent(location.hash.slice(HASH.length)).split(".");
     // リンクは開いたらすぐ消す（履歴や画面に部屋の鍵を残さない）
@@ -999,5 +1001,9 @@ export function initParty(opts: { toast: (t: string) => void }) {
     if (key && isRoomKey(key) && /^[0-9a-f]{64}$/.test(id ?? "")) { startGuest(key, id); setTimeout(() => openParty(), 300); }
     else setTimeout(() => toastFn?.("招待リンクが壊れています"), 300);
   }
+}
+/** 参加者としてホストの部屋にいて、ホストが鳴らしているとき: ホストの土地と名前（ご当地の品。region.ts） */
+export function partyVisit(): { land: string; host: string } | undefined {
+  return role === "guest" && room && last?.playing && last.land ? { land: last.land, host: cleanName(hostName) } : undefined;
 }
 export const partySupported = () => "RTCPeerConnection" in window && "crypto" in window && !!crypto.subtle;

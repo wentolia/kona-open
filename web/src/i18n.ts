@@ -82,7 +82,21 @@ const EN: Record<string, string> = {
   "サーバーはなく、アクセス解析もしません。設定・記録・取り込んだ曲は、このブラウザの中にだけ置きます。": "There is no server and no analytics. Settings, history and kept tracks stay in this browser.",
   "通信するのは Google Drive を使うときの Google の API、Spotify を使うときの Spotify だけです。": "The only network traffic is Google's API when you use Google Drive, and Spotify when you use Spotify.",
   "Google Drive は読み取りだけで、サインインはこのタブの中だけ（約 1 時間）有効です。": "Google Drive access is read-only, and sign-in lasts only for this tab (about an hour).",
-  "聴いた場所は記録しません。位置情報は使いません。": "Kona does not record where you listen and never uses your location.",
+  "聴いた場所は記録しません。位置情報は「ご当地の品」をオンにしたときだけ 1 日 1 回使い、端末の中で都道府県・国に置き換えます。座標は保存も送信もしません。": "Kona does not record where you listen. Your location is used only when Local keepsakes is on, at most once a day, and is turned into a prefecture or country on this device. Coordinates are never stored or sent.",
+  // ご当地の品
+  "ご当地の品": "Local keepsakes", "土地を調べています…": "Finding where you are…",
+  "位置情報が許可されていません。ブラウザのサイトの設定で許可できます": "Location is not allowed. You can allow it in your browser's site settings.",
+  "このブラウザは位置情報を使えません": "This browser cannot use location.", "土地が分かりませんでした": "Couldn't tell where you are.",
+  "いま": "Now", "あと": "Listen", "分聴くと": "more minutes for", "が届きます": "", "この土地の品はみんな届きました": "You have everything from here.",
+  "さんの部屋で": "'s room", "で": "",
+  "いる土地（都道府県・国）で合わせて 30 分聴くと、その土地らしい品がひとつ届きます。パーティーでは、ホストの土地の品が届きます": "Listen for 30 minutes in a prefecture or country and something from there arrives. In a listening party, you receive something from the host's place.",
+  "いる土地の品を受け取る（位置情報を使う）": "Receive local keepsakes (uses location)",
+  "位置情報は 1 日 1 回だけ使い、端末の中で都道府県・国に置き換えます。座標は保存も送信もしません": "Location is checked at most once a day and turned into a prefecture or country on this device. Coordinates are never stored or sent.",
+  "調べ直す": "Check again", "届いた品": "Received",
+  "木彫りの熊": "Carved bear", "りんご": "Apples", "こけし": "Kokeshi doll", "赤べこ": "Akabeko", "だるま": "Daruma", "招き猫": "Beckoning cat",
+  "茶筒と湯呑み": "Tea caddy and cup", "扇子": "Folding fan", "たこ焼き": "Takoyaki", "うどん": "Udon", "しゃもじ": "Rice paddle", "シーサー": "Shisa",
+  "木靴とチューリップ": "Clogs and tulips", "ナザール": "Nazar", "タジン鍋": "Tagine", "マトリョーシカ": "Matryoshka",
+  "が届きました": " arrived",
 };
 
 export const lang = () => prefs().lang;

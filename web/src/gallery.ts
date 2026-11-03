@@ -4,6 +4,7 @@ import "./fonts";
 import "./gallery.css";
 import { ALL_ITEMS, viewBoxOf, type ItemDef } from "./items";
 import { startLive } from "./items/live";
+import { NAMES } from "./region-names";
 
 const PLACE = { floor: "床", wall: "壁", shelf: "棚" } as const;
 /** 画面の 1px あたりの、描いた大きさ（置き場所ごとに同じ縮尺で並べ、大きさを見比べられるように） */
@@ -26,7 +27,7 @@ function card(d: ItemDef) {
   return `<button type="button" class="g-card${d.draft ? " draft" : ""}" data-k="${d.key}">
     <div class="g-scene ${d.at}">${artHTML(d, SCALE[d.at] * st.size, st.flip, 150, 112)}</div>
     <div class="g-meta">
-      <div class="g-name">${esc(d.label)}<span class="g-tag${d.draft ? " draft" : ""}">${d.draft ? "試作" : "今ある"}</span><span class="g-tag">${esc(d.cat)}</span></div>
+      <div class="g-name">${esc(d.label)}<span class="g-tag${d.draft ? " draft" : ""}">${d.draft ? "試作" : "今ある"}</span><span class="g-tag">${esc(d.cat)}</span>${d.region ? `<span class="g-tag">${esc(NAMES[d.region]?.[0] ?? d.region)}</span>` : ""}</div>
       <div class="g-sub">${d.key} · ${d.w}×${d.flat ? "敷く" : d.h}</div>
       ${d.note ? `<div class="g-note">${esc(d.note)}</div>` : ""}
     </div></button>`;

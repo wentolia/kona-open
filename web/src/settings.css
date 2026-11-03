@@ -193,3 +193,7 @@ body { transition: background-color .6s ease, color .6s ease; }
 .set-noise-row input { accent-color: var(--accent); width: 100%; }
 #set-sink { max-width: 100%; }
 .set-put-n { position: absolute; top: 3px; right: 5px; font: 10px/1 var(--font-mono); color: var(--accent); }
+
+/* ご当地の品: 届いた品の札 */
+.set-got { list-style: none; margin: .3em 0 0; padding: 0; display: grid; gap: .25em; font-size: .9em; }
+.set-got span { opacity: .7; }

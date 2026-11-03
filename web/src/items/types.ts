@@ -21,6 +21,8 @@ export interface ItemDef {
   /** 見本帳に出す一言（仕掛けの予定など） */
   note?: string;
   art: () => string;
+  /** ご当地の品: その土地のコード（都道府県は JP-01〜JP-47、国は ISO 3166-1 の 2 文字）。そこで聴くと届き、届くまでは置けない（region.ts） */
+  region?: string;
   /** 動き（毎コマ呼ぶ関数を返す。items/live.ts） */
   live?: Live;
 }
