@@ -175,3 +175,11 @@ body { transition: background-color .6s ease, color .6s ease; }
 .set-mod-body .sm-actions { justify-content: flex-end; }
 .set-chips button:disabled { opacity: .35; cursor: default; }
 .set-chips button:disabled:hover { color: var(--muted); }
+
+/* ホームの配置どおりの入れ子: 段 → ボックス（重ねた列）→ 中の段 */
+.set-tree { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.set-tier { display: grid; gap: 6px; min-width: 0; }
+.set-tier-h, .set-box-h { font-size: 11px; color: var(--muted); letter-spacing: .08em; }
+.set-tier > .set-mods { padding-left: 10px; border-left: 1px solid var(--soft); }
+.set-box { display: grid; gap: 6px; padding: 8px 8px 8px 10px; border: 1px dashed var(--line); border-radius: 6px; min-width: 0; }
+.set-mod-head em { font-style: normal; font-size: 11px; color: var(--muted); white-space: nowrap; }

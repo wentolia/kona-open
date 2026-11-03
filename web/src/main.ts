@@ -1054,8 +1054,6 @@ function shelfBody(body: HTMLElement, d: ShelfDef) {
 // ---------- モジュールの追加と設定: どちらも設定ページの「モジュール」タブで ----------
 // ホームの札を押すと、そのモジュールの設定を開く。開いている間、ホームのそのモジュールは札を出したままにする
 
-/** ホームに並んでいる順（段 → 列 → 縦積み） */
-const homeOrder = () => home.rows.flatMap(r => r.cols.flatMap(c => c.stack.map(k => modules.find(m => m.id === k.id)))).filter((d): d is ModuleDef => !!d);
 
 function focusModule(id: string | undefined, scroll = false) {
   editing = id && modules.some(m => m.id === id) ? { id } : undefined;
@@ -1760,7 +1758,10 @@ setCatHooks({
 initSettings($("#view-settings"), {
   player,
   modules: {
-    list: () => homeOrder().map(d => ({ id: d.id, title: d.title, label: tr(isShelf(d) ? kindLabel(d.kind) : moduleInfo(d.type).label) })),
+    tree: () => {
+      const item = (d: ModuleDef) => ({ id: d.id, title: d.title, label: tr(isShelf(d) ? kindLabel(d.kind) : moduleInfo(d.type).label) });
+      return home.rows.map(r => r.cols.map(c => c.stack.map(k => modules.find(m => m.id === k.id)).filter((d): d is ModuleDef => !!d).map(item)).filter(c => c.length));
+    },
     addable: () => MODULES.map(m => ({ type: m.type, label: tr(m.label), disabled: !m.ready || (!!m.single && modules.some(x => x.type === m.type)) })),
     add: type => addModuleOf(type as ModuleType),
     form: id => { const d = modules.find(m => m.id === id); return d ? moduleFormHTML(d) : ""; },
