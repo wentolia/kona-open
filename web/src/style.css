@@ -148,9 +148,13 @@ body.arranging, body.arranging * { cursor: grabbing !important; user-select: non
 .eq-power[aria-pressed="true"] { color: var(--ink); }
 .eq-power[aria-pressed="true"] i { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 .eq-pre { margin-left: auto; font-family: var(--font-mono); font-size: 10px; }
-.eq-flat { font-size: 11px; color: var(--muted); padding: 2px 8px; border-radius: 3px; }
-.eq-flat:hover:not(:disabled) { background: var(--soft); color: var(--ink); }
-.eq-flat:disabled { opacity: .3; cursor: default; }
+/* プリセット: ‹ 名前 › */
+.eq-presets { display: inline-flex; align-items: center; gap: 2px; }
+.eq-presets button { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 3px; }
+.eq-presets button:hover { background: var(--soft); }
+.eq-presets svg { width: 10px; height: 10px; fill: var(--muted); }
+.eq-presets button:hover svg { fill: var(--ink); }
+.eq-preset-name { min-width: 7.5em; text-align: center; font-size: 11px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .eq-stage { position: relative; flex: 1; min-height: 0; }
 .eq-curve { position: absolute; left: 0; top: 0; width: 100%; height: calc(100% - 18px); pointer-events: none; }
 .eq-bands { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); }
