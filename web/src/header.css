@@ -40,9 +40,6 @@ body:not([data-state="ready"]) .top::before { display: none; }
 .top .tabs .hd-btn:not([aria-current="page"]):hover .hd-icon { opacity: 1; filter: none; }
 .top .tabs .hd-btn[aria-current="page"]::before { opacity: 1; }
 .top .winctl { gap: 0; }
-.top #to-photo { width: 32px; height: 30px; padding: 5px; margin-left: -6px; }
-.top #to-photo .hd-icon { opacity: .7; }
-.top #to-photo:hover .hd-icon, .top #to-photo:focus-visible .hd-icon { opacity: 1; }
 .top .tabs .hd-btn[aria-current="page"] { background: none; }
 @media (prefers-reduced-motion: reduce) { .top .hd-btn::before, .top .hd-btn .hd-icon { transition: none; } }
 

@@ -206,7 +206,6 @@ body.mobile .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 /* 再生のしかた（通常 → アルバムリピート → 1 曲リピート → シャッフル） */
 .m-now-top:has(.m-now-acts) { display: grid; grid-template-columns: 1fr auto 1fr; }
 .m-now-acts { display: flex; justify-self: end; }
-.m-now-receipt svg { width: 18px; height: 18px; fill: var(--ink); opacity: .7; }
 .m-now-mode svg.ic-line { width: 22px; height: 22px; fill: none; stroke: var(--ink); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .m-now-mode svg.ic-line text { fill: var(--ink); stroke: none; font: 600 6px var(--font-mono); }
 .m-now-mode[data-mode="normal"] { opacity: .4; }

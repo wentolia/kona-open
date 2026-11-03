@@ -2,7 +2,7 @@
 // 字は置かない（読み上げと、触れたときの名前は aria-label / title に持たせる）。どれも 32×32 の中に描く。
 import { poly, puff, slab, bevel, ngon, tone, WOOD, SAGE, OCHRE, ROSE, BRASS, INK, type Pt } from "./items/lowpoly";
 
-const PAPER = tone("#d9c8a4"), TERRA = tone("#a5523c"), GLASS = tone("#3f5c6c"), SKY = tone("#6f8fa0");
+const PAPER = tone("#d9c8a4"), TERRA = tone("#a5523c"), SKY = tone("#6f8fa0");
 
 /** ホーム: 切妻の小さな家。窓に灯り */
 const home = () => `
@@ -32,28 +32,6 @@ const settings = () => {
   }
   return `${puff(BRASS, g, [13.5, 13.5])}
   ${puff(INK, ngon(16, 16, 4.6, 8, Math.PI / 8), [17, 17.5])}`;
-};
-
-/** 写真を撮る: 黒い箱に真鍮のレンズ */
-const photo = () => `
-  ${poly(INK.mid, [[10, 10], [12, 6], [20, 6], [22, 10]])}${poly(INK.hi, [[12, 6], [20, 6], [19, 7.5], [13, 7.5]])}
-  ${slab(INK.hi, INK.lo, [3, 10, 29, 26])}
-  ${poly(INK.deep, [[3, 24.5], [29, 24.5], [29, 26], [3, 26]])}
-  ${slab(PAPER.hi, PAPER.mid, [23.5, 12, 27, 14.5])}${slab(ROSE.hi, ROSE.lo, [5, 7.5, 8.5, 10])}
-  ${puff(BRASS, ngon(16, 18, 7, 8, Math.PI / 8), [13.5, 15.5])}
-  ${puff(GLASS, ngon(16, 18, 4.2, 6), [14.8, 16.8])}
-  ${poly("#e8eef0", [[13.8, 16.4], [15, 15.6], [15.2, 16.6]])}`;
-
-/** 最小表示: 手のひらほどのラジオ（小さな再生の窓に畳む） */
-const mini = () => {
-  const grille = [0, 1, 2].flatMap(r => [0, 1, 2].map(c => poly(INK.lo, ngon(9 + c * 3.2, 17 + r * 3.2, 1.1, 6)))).join("");
-  return `
-  ${poly(INK.mid, [[8, 10], [21, 3.5], [21.6, 4.6], [9.6, 10]])}
-  ${slab(ROSE.hi, ROSE.lo, [3, 10, 29, 27])}
-  ${poly(ROSE.deep, [[3, 25.5], [29, 25.5], [29, 27], [3, 27]])}
-  ${slab(PAPER.hi, PAPER.lo, [5.5, 13.5, 18.5, 25])}${grille}
-  ${puff(BRASS, ngon(23.5, 19, 3.6, 8), [22.5, 18])}
-  ${slab(OCHRE.hi, OCHRE.lo, [20.5, 12.5, 26.5, 14.5])}`;
 };
 
 /** 小窓で手前に出す: 壁の窓枠の前に、小さな額がもう 1 枚 */
@@ -90,7 +68,7 @@ export const logo = () => `<g transform="translate(16 16) scale(.31) translate(-
   ${poly(AMBER.hi, [[46, 28], [62, 34], [28, 94]])}${poly(AMBER.mid, [[62, 34], [52, 94], [28, 94]])}
   ${poly(AMBER.lo, [[62, 34], [78, 28], [82, 94], [52, 94]])}${poly(AMBER.deep, [[28, 94], [10, 84], [12, 72], [30, 86]])}</g>`;
 
-export const HEADER_ICON = { home, library, settings, photo, mini, pip, invite, open, more, logo };
+export const HEADER_ICON = { home, library, settings, pip, invite, open, more, logo };
 export type HeaderIcon = keyof typeof HEADER_ICON;
 
 export const headerIcon = (k: HeaderIcon) =>

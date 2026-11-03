@@ -20,7 +20,7 @@ import "./mod-objects.css";
 import { ctx, everyFrame, esc, fmt, onDocument, stored } from "./modctx";
 import { playLog, listenedSeconds } from "./store";
 import { reduceMotion } from "./prefs";
-import { awards, openCertificate } from "./awards";
+import { awards } from "./awards";
 import { chimeOn, chimeHour } from "./mod-clock";
 import { regionAllows } from "./region";
 
@@ -32,7 +32,7 @@ export const OBJECTS = [
   { key: "lamp", label: "灯り", w: 72 }, { key: "plant", label: "鉢植え", w: 62 }, { key: "candle", label: "ろうそく（おやすみタイマー）", w: 44 },
   { key: "hourglass", label: "砂時計", w: 44 }, { key: "records", label: "きょうのレコード", w: 76 }, { key: "bowl", label: "金魚鉢", w: 70 },
   { key: "book", label: "読みかけの本", w: 64 }, { key: "knit", label: "編みもの", w: 66 },
-  { key: "award", label: "賞状（聴いた距離の証書）", w: 52 },
+  { key: "award", label: "賞状（聴いた距離の目じるし）", w: 52 },
   { key: "cactus", label: "サボテン", w: 40 }, { key: "vase", label: "季節の切り花", w: 46 },
   { key: "aclock", label: "アナログ時計", w: 60 },
   // items/ の棚のもの（1 品 1 ファイル。描いた高さを 100 の箱の下に立てる）
@@ -450,7 +450,7 @@ function mountObjects() {
   <svg class="bowl" viewBox="0 0 70 100" role="button" tabindex="0" aria-label="金魚鉢（押すとえさをあげる）"><title>金魚鉢（押すとえさをあげる）</title>${bowlArt(id)}</svg>
   <svg class="book" viewBox="0 0 64 100"><title></title><g class="bk"></g><polygon class="turn"/></svg>
   <svg class="knit" viewBox="0 0 66 100"><title></title><g class="kn"></g></svg>
-  <svg class="award" viewBox="0 0 52 100" role="button" tabindex="0" aria-label="賞状（押すと証書を見る）"><title></title>${awardArt()}</svg>
+  <svg class="award" viewBox="0 0 52 100" role="img" aria-label="賞状"><title></title>${awardArt()}</svg>
   <svg class="cactus" viewBox="0 0 40 100"><title></title><g class="cc"></g></svg>
   <svg class="vase" viewBox="0 0 46 100" role="button" tabindex="0" aria-label="季節の切り花（押すと水を替える）"><title></title><g class="vs"></g></svg>
   <svg class="aclock" viewBox="0 0 60 100" role="img"><title></title>${aclockArt()}</svg>
@@ -607,13 +607,12 @@ function mountObjects() {
     ktitle.textContent = `編みかけ（${row} / ${KNIT_ROWS} 段）${idx ? `・編み上がったもの ${idx} 枚` : ""}。音楽を聴いている間に 1 段ずつ編み進む`;
   };
 
-  // ---------- 賞状: 聴いた距離の証書。届いたばかりのときはガラスがきらりと光る ----------
+  // ---------- 賞状: 聴いた距離の目じるしに届いた数。届いたばかりのときはガラスがきらりと光る ----------
   const award = $<SVGSVGElement>(".award"), atitle = $<SVGTitleElement>(".award title");
   const paintAward = () => {
     const n = awards().length;
-    atitle.textContent = n ? `賞状（${n} 枚。押すと証書を見る）` : "";
+    atitle.textContent = n ? `賞状（${n} 枚）` : "";
   };
-  press(award, () => { award.classList.remove("new"); openCertificate(); });
   onDocument(root, "kona:award", () => { award.classList.add("new"); paintAward(); document.dispatchEvent(new CustomEvent("kona:objects")); }); // 賞状を置ける棚を描き直す
   paintAward();
 

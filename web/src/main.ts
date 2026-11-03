@@ -23,14 +23,11 @@ import { setCats, randomCoat, isCoat, breedCoat, setCatsMusic, setCatHooks, catP
 import { initNoise, roomTail } from "./noise";
 import { ritual, isPulled } from "./ritual";
 import { wakeCatHost, placeWakeCat, catAwake } from "./wakecat";
-import { initMini, setMini } from "./mini";
+import { initMini } from "./mini";
 import { windowRain, WINDOW_SCENES, windowScene, setWindowScene } from "./mod-window";
 import { initRoomLight } from "./room-light";
-import { initPhoto } from "./photo";
-import { openReceipt } from "./receipt";
-import { checkAwards, hasCertificates, openCertificate } from "./awards";
+import { checkAwards } from "./awards";
 import { initShelfMarks } from "./shelf-marks";
-import "./photo.css";
 import "./room-light.css";
 import "./header.css";
 import { paintHeaderIcons, headerIcon } from "./header-icons";
@@ -1779,16 +1776,12 @@ initShortcuts(id => {
       const q = document.querySelector<HTMLInputElement>(location.hash === "#library" ? "#lib-q" : "#view-home .mod-search");
       q?.focus(); q?.select(); return;
     }
-    case "mini": return setMini(!document.body.hasAttribute("data-mini"));
   }
 });
 
-// ---------- 最小表示と小窓（mini.ts） ----------
+// ---------- 小窓（mini.ts） ----------
 initMini(player, art);
-initPhoto({ toast, others: {
-  receipt: { label: "レシート", available: () => !!player.album, open: () => openReceipt(() => ({ album: player.album, index: player.index, position: player.position })) },
-  certificate: { label: "証書", available: hasCertificates, open: () => openCertificate() },
-} });
+document.addEventListener("kona:award", e => { const t = (e as CustomEvent<string>).detail; if (t) toast(t); });
 initShelfMarks();
 
 // タスクバーに置けるように（PWA）。オフラインでも開けるよう、読んだ画面のファイルを手元に残す

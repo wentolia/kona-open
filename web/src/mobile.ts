@@ -13,7 +13,6 @@ import { stat } from "./store";
 import { t } from "./i18n";
 import { libGroup, groupAlbums } from "./libgroup";
 import { modeButtonHTML } from "./modeui";
-import { openReceipt } from "./receipt";
 import { $, esc, fmt } from "./dom";
 
 export interface MobileCtx {
@@ -36,7 +35,6 @@ export interface MobileCtx {
 const hashOf = (s: string) => { let h = 2166136261; for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return Math.abs(h); };
 
 const ICON = {
-  receipt: '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M3 1h10v14l-1.66-1.2L9.66 15 8 13.8 6.34 15l-1.68-1.2L3 15zm2 3v1.2h6V4zm0 2.8V8h6V6.8zm0 2.8v1.2h4V9.6z"/></svg>',
   prev: '<svg viewBox="0 0 16 16"><path d="M3 2h2v12H3zM14 2v12L6 8z"/></svg>',
   next: '<svg viewBox="0 0 16 16"><path d="M11 2h2v12h-2zM2 2v12l8-6z"/></svg>',
   play: '<svg viewBox="0 0 16 16"><path d="M4 2v12l10-6z"/></svg>',
@@ -451,7 +449,7 @@ function renderNow() {
     <header class="m-now-top">
       <button class="m-icon m-now-close" aria-label="閉じる">${ICON.down}</button>
       <span class="m-now-from">再生中</span>
-      <span class="m-now-acts"><button class="m-icon m-now-receipt" aria-label="レシートにする">${ICON.receipt}</button>${modeButtonHTML(p.mode, "m-icon m-now-mode")}</span>
+      <span class="m-now-acts">${modeButtonHTML(p.mode, "m-icon m-now-mode")}</span>
     </header>
     <div class="m-now-scroll">
       <div class="m-now-art${(a.ratio ?? 1) < 1 ? " tall" : ""}" style="--ar:${a.ratio ?? 1}">${ctx.art(a)}</div>
@@ -484,7 +482,6 @@ function renderNow() {
   $(".m-now-play", el).onclick = () => p.toggle();
   $(".m-now-next", el).onclick = () => p.next();
   $(".m-now-mode", el).onclick = () => p.cycleMode();
-  $(".m-now-receipt", el).onclick = () => openReceipt(() => ({ album: p.album, index: p.index, position: p.position }));
   const range = $<HTMLInputElement>(".m-seek-range", el);
   range.addEventListener("input", () => { seeking = true; paintSeek(Number(range.value) / 1000 * p.duration); });
   range.addEventListener("change", () => { p.seek(Number(range.value) / 1000); seeking = false; });

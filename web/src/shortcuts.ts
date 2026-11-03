@@ -17,7 +17,6 @@ export const ACTIONS: Action[] = [
   { id: "library", label: "ライブラリ", def: "2" },
   { id: "settings", label: "設定", def: "3" },
   { id: "search", label: "検索", def: "/" },
-  { id: "mini", label: "最小表示", def: "Shift+M" },
 ];
 
 /** 押されたキーを "Ctrl+Shift+K" の形に。修飾キーだけのときは空 */
