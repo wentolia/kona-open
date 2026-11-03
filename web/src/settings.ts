@@ -348,7 +348,8 @@ export function initSettings(el: HTMLElement, h: SettingsHooks) {
 }
 
 export function renderSettings() {
-  if (!root) return;
+  // 閉じているときは描かない（棚の小物を動かしたときなどに呼ばれる。描くと「モジュールを選ぶ」状態がホームに残り、モジュールが点線で囲まれて押せなくなる）
+  if (!root || root.hidden) return;
   const body = root.querySelector(".set-body"), scroll = body?.scrollTop ?? 0;
   if ((tab === "modules" || tab === "cats") && onMobile()) tab = "room"; // スマホ版にはモジュールも猫もない
   if (tab !== "modules") hooks.modules.focus(undefined);
