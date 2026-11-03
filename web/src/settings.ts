@@ -6,7 +6,8 @@ import { PALETTES, CUSTOM, themePrefs, setThemePrefs, paletteColors, toHex, type
 import { roomLightOn, setRoomLight } from "./mod-window";
 import { SHELF_SKINS, shelfSkin, setShelfSkin } from "./shelf-skin";
 import { WALLS, FLOORS, roomSurface, setRoomSurface } from "./room-surface";
-import { THINGS, THING_MIN, THING_MAX, placedThings, thingX, thingSize, toggleThing, setThing } from "./room-things";
+import { THINGS, placedThings, toggleThing, thingArt } from "./room-things";
+import { OBJECTS, objectAvailable, objectArt } from "./mod-objects";
 import { prefs, setPrefs, type Prefs } from "./prefs";
 import { BANDS, BUILTIN_PRESETS, userPresets, savePreset, deletePreset, presetMatching } from "./eq";
 import { BREEDS, type Coat } from "./cat";
@@ -36,6 +37,8 @@ export interface ModuleHooks {
 }
 export interface SettingsHooks {
   player: Player;
+  /** 棚の小物: 置いてある棚の名前、しまう */
+  goods: { shelfOf(key: string): string | undefined; putAway(key: string): void };
   modules: ModuleHooks;
   /** 猫と遊ぶ（ホームの「＋」にあったもの） */
   play: { canPick(): boolean; pick(): void; wandOn(): boolean; toggleWand(): void };
@@ -116,7 +119,7 @@ function roomTab() {
     ${sec(t("棚"), tiles("skin", SHELF_SKINS, shelfSkin(), "set-skin"))}
     ${sec(t("壁"), tiles("wall", WALLS, r.wall, "set-wall"))}
     ${sec(t("床"), tiles("floor", FLOORS, r.floor, "set-floor"))}
-    ${sec(t("床に置く"), thingsBlock())}
+    ${sec(t("置くもの"), putBlock(hooks))}
     ${fold("room-more", t("もっと見る"), `
       <div class="set-checks">
         ${check("set-roomlight", roomLightOn(), t("部屋の明かりも時刻で変える"))}
@@ -124,16 +127,19 @@ function roomTab() {
       </div>`)}`;
 }
 
-// 床に置く家具: 押して置く・片づける。置いたものは位置と大きさを変えられる（棚の小物の大きさと同じ 50〜150%）
-function thingsBlock() {
-  const on = placedThings();
-  return `<div class="set-chips">${THINGS.map(x => `<button type="button" role="checkbox" data-thing="${x.key}" aria-checked="${on.includes(x.key)}">${esc(t(x.label))}</button>`).join("")}</div>
-    ${on.length ? `<div class="set-things">${on.map(k => {
-      const x = THINGS.find(i => i.key === k)!, v = Math.round(thingSize(k) * 100);
-      return `<div class="set-thing"><b>${esc(t(x.label))}</b>
-        <label><span>${t("位置")}</span><input type="range" data-thing-x="${k}" min="0" max="100" step="1" value="${Math.round(thingX(k) * 100)}" aria-label="${esc(t(x.label))} ${esc(t("位置"))}"></label>
-        <label><span>${t("大きさ")}</span><input type="range" data-thing-s="${k}" min="${THING_MIN * 100}" max="${THING_MAX * 100}" step="5" value="${v}" aria-label="${esc(t(x.label))} ${esc(t("大きさ"))}"><output>${v}%</output></label></div>`;
-    }).join("")}</div>` : ""}`;
+// 置くもの: 小物と家具の見本を並べ、ホームの棚・床へドラッグして置く。見本を押すか、ホームからここへ戻すとしまう。
+// 位置は自動（家具は床で左右に動かせる）、大きさはホームで角のつまみを引いて変える（size-knob.ts）
+function putBlock(h: SettingsHooks) {
+  const tile = (id: string, label: string, at: string | undefined, art: string) =>
+    `<button type="button" class="set-put${at ? " placed" : ""}" data-put="${id}" aria-pressed="${!!at}" title="${esc(at ? `${label}（${at}）。押すとしまう` : `${label}: ホームへドラッグして置く`)}">
+      <span class="set-put-art">${art}</span><span class="set-put-label">${esc(label)}</span></button>`;
+  const things = placedThings();
+  return `
+    <p class="set-note">${t("ホームの棚や床へドラッグして置く。ここへ戻すとしまう")}</p>
+    <div class="set-puts-head">${t("棚に置く")}</div>
+    <div class="set-puts">${OBJECTS.filter(o => objectAvailable(o.key)).map(o => tile(`obj:${o.key}`, t(o.label.replace(/（.*）/, "")), h.goods.shelfOf(o.key), "")).join("")}</div>
+    <div class="set-puts-head">${t("床に置く")}</div>
+    <div class="set-puts">${THINGS.map(x => tile(`thing:${x.key}`, t(x.label), things.includes(x.key) ? t("床") : undefined, thingArt(x.key))).join("")}</div>`;
 }
 
 function soundTab(h: SettingsHooks) {
@@ -410,16 +416,15 @@ function wire(el: HTMLElement) {
   // 見た目・部屋
   on<HTMLInputElement>("#set-roomlight", "change", c => setRoomLight(c.checked));
   on<HTMLInputElement>("#set-marks", "change", c => setPrefs({ marks: c.checked }));
-  // 床に置く家具。床を敷いていなければ、置くときに木の床を敷く
-  on("[data-thing]", "click", b => {
-    const k = b.dataset.thing!, put = b.getAttribute("aria-checked") !== "true";
-    if (put && roomSurface().floor === "none") setRoomSurface({ floor: "oak" });
-    toggleThing(k, put); again();
+  // 置くもの: 小物の見本は今の姿の写し。置いてあるものを押すとしまう（置くのはホームへドラッグで。place-drag.ts）
+  el.querySelectorAll<HTMLElement>("[data-put^='obj:'] .set-put-art").forEach(box => { const art = objectArt(box.closest<HTMLElement>("[data-put]")!.dataset.put!.slice(4)); if (art) box.append(art); });
+  on("[data-put]", "click", b => {
+    if (b.dataset.dragged) { delete b.dataset.dragged; return; }
+    if (b.getAttribute("aria-pressed") !== "true") return;
+    const [kind, k] = b.dataset.put!.split(":");
+    if (kind === "obj") h.goods.putAway(k); else toggleThing(k, false);
+    again();
   });
-  on<HTMLInputElement>("[data-thing-x]", "input", r => setThing(r.dataset.thingX!, { x: Number(r.value) / 100 }));
-  on<HTMLInputElement>("[data-thing-x]", "change", r => setThing(r.dataset.thingX!, { x: Number(r.value) / 100 }, true));
-  on<HTMLInputElement>("[data-thing-s]", "input", r => { setThing(r.dataset.thingS!, { s: Number(r.value) / 100 }); r.nextElementSibling!.textContent = `${r.value}%`; });
-  on<HTMLInputElement>("[data-thing-s]", "change", r => setThing(r.dataset.thingS!, { s: Number(r.value) / 100 }, true));
 
   // 音
   on("[data-preset]", "click", b => {

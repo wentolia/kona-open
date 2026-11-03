@@ -33,7 +33,9 @@ import "./photo.css";
 import "./room-light.css";
 import "./header.css";
 import { mountThings } from "./room-things";
-import { OBJECTS, placeObjects, legacyShown, markPlaced, objectAvailable, objectSize, setObjectSize, SIZE_MIN, SIZE_MAX } from "./mod-objects";
+import { placeObjects, legacyShown, markPlaced } from "./mod-objects";
+import { initSizeKnob } from "./size-knob";
+import { initPlaceDrag } from "./place-drag";
 import { spectrumPrefs, setSpectrumPrefs, type SpectrumPrefs } from "./mod-spectrum";
 import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeDrive } from "./drive-ui";
 import { isDriveEntry, isKept, keepAlbum, forgetAlbum, driveConfig, driveToken, walkDrive, type DriveEntry } from "./drive";
@@ -75,6 +77,13 @@ let modules = loadLayout();
   }
 }
 document.addEventListener("kona:objects", () => renderShelves()); // 賞状が届いたら、置いてある棚に立てる
+/** 小物を棚に置く（at はその棚の小物の中で何番目か）。shelfId がなければしまう。小物はひとつの棚にだけ */
+function putObject(key: string, shelfId?: string, at?: number) {
+  for (const m of modules) if (m.goods?.includes(key)) m.goods = m.goods.filter(x => x !== key);
+  const d = shelfId ? shelfById(shelfId) : undefined;
+  if (d) { const g = [...(d.goods ?? [])]; g.splice(Math.max(0, Math.min(g.length, at ?? g.length)), 0, key); d.goods = g; }
+  saveMods(); renderShelves(); renderSettings();
+}
 const saveMods = () => saveLayout(modules);
 const home = loadHome(modules);
 const shelfById = (id: string) => modules.find((m): m is ShelfDef => m.id === id && isShelf(m));
@@ -1080,15 +1089,6 @@ function moduleFormHTML(d: ModuleDef) {
     if (!isShelf(d)) return "";
     return `
     <label>中身<select id="sm-kind">${KINDS.map(k => opt(k.kind, k.label, k.kind === d.kind)).join("")}</select></label>
-    <fieldset class="sm-objects"><legend>置く小物</legend>${OBJECTS.filter(o => objectAvailable(o.key)).map(o => {
-      // ほかの棚に置いてある小物は、選ぶとこの棚へ移る
-      const at = modules.find(m => m !== d && m.goods?.includes(o.key));
-      return `<label class="sm-check"><input type="checkbox" data-obj="${o.key}"${d.goods?.includes(o.key) ? " checked" : ""}>${o.label}${at ? `<i class="sm-at">${esc(at.title)}</i>` : ""}</label>`;
-    }).join("")}</fieldset>
-    ${d.goods?.some(objectAvailable) ? `<fieldset class="sm-sizes"><legend>小物の大きさ</legend>${d.goods.filter(objectAvailable).map(k => {
-      const o = OBJECTS.find(x => x.key === k), v = Math.round(objectSize(k) * 100);
-      return o ? `<label class="sm-size"><span>${esc(o.label.replace(/（.*）/, ""))}</span><input type="range" data-size="${k}" min="${SIZE_MIN * 100}" max="${SIZE_MAX * 100}" step="5" value="${v}" aria-label="${esc(o.label)}の大きさ"><output>${v}%</output></label>` : "";
-    }).join("")}</fieldset>` : ""}
     ${d.kind !== "queue" && d.kind !== "goods" ? `<label class="sm-check"><input id="sm-folder-gaps" type="checkbox"${d.folderGaps ? " checked" : ""}>${libGroup() === "artist" ? "アーティスト" : "フォルダ"}ごとに隙間をあけて仕切る</label>` : ""}
     ${d.kind === "search" ? `
       <label>検索語<input id="sm-query" type="search" autocomplete="off" placeholder="folder:… artist:… tag:… mood:夜" value="${esc(d.query ?? "")}"></label>
@@ -1143,20 +1143,6 @@ function wireModuleForm(el: HTMLElement, d: ModuleDef, again: () => void) {
   if (specSize) specSize.oninput = () => setSpectrumPrefs({ size: Number(specSize.value) / 100 });
   const sceneSel = el.querySelector<HTMLSelectElement>("#sm-scene");
   if (sceneSel) sceneSel.onchange = () => setWindowScene(sceneSel.value);
-  // 小物はひとつの棚にだけ: 選ぶとほかの棚から外して、この棚の右端に足す
-  el.querySelectorAll<HTMLInputElement>("[data-obj]").forEach(cb => cb.onchange = () => {
-    const k = cb.dataset.obj!;
-    for (const m of modules) if (m.goods?.includes(k)) m.goods = m.goods.filter(x => x !== k);
-    if (cb.checked) d.goods = [...(d.goods ?? []), k];
-    save();
-  });
-  // 小物の大きさ: つまみを動かすとその場で変わる（描き直さない）。ダブルクリックで 100% に戻す
-  el.querySelectorAll<HTMLInputElement>("[data-size]").forEach(r => {
-    const out = r.nextElementSibling as HTMLOutputElement;
-    const set = (v: number) => { r.value = String(v); out.value = `${v}%`; setObjectSize(r.dataset.size!, v / 100); };
-    r.oninput = () => set(Number(r.value));
-    r.ondblclick = () => set(100);
-  });
   $(".sm-delete", el).onclick = () => {
     modules = modules.filter(m => m !== d); removeModule(home, d.id); kept.delete(d.id);
     focusModule(undefined); saveMods(); saveHome(home); renderShelves(); again();
@@ -1770,6 +1756,7 @@ setCatHooks({
 // ---------- 設定ページ ----------
 initSettings($("#view-settings"), {
   player,
+  goods: { shelfOf: k => modules.find(m => m.goods?.includes(k))?.title, putAway: k => putObject(k) },
   modules: {
     tree: () => {
       const item = (d: ModuleDef) => ({ id: d.id, title: d.title, label: tr(isShelf(d) ? kindLabel(d.kind) : moduleInfo(d.type).label) });
@@ -1878,3 +1865,7 @@ async function boot() {
   }
 }
 boot();
+
+// ホームで直接: 小物・家具の大きさのつまみ、設定の「置くもの」からドラッグで置く
+initSizeKnob();
+initPlaceDrag({ putObject, isShelf: id => !!shelfById(id), shelfOf: k => modules.find(m => m.goods?.includes(k))?.id });

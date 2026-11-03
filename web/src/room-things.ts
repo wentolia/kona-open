@@ -1,5 +1,5 @@
 // 床に置く家具: ソファ・ひとりがけ・クッション・ラグ。棚の小物と同じローポリ（平らな多角形と濃淡 4 段）で描く。
-// 小物が「好きな棚に置ける・大きさを変えられる」のと同じく、家具は床の好きな位置に置けて、大きさを変えられる（設定の「部屋」）。
+// 何を置くかは設定の「部屋」で選ぶ。位置はホームで左右にドラッグ、大きさは角のつまみで変える（size-knob.ts）。
 // 猫はソファやクッションの上で丸くなり、ソファの背もたれにも乗る（data-cat-plat を cat.ts が足場として測る）。
 // ラグの上は暖かいので、床にいる猫はラグの上で横になりたがる（data-cat-rug）。床を敷いているときだけ見える。
 import "./room-things.css";
@@ -161,6 +161,8 @@ function roundArt() {
 
 const ART: Record<string, () => string> = { sofa: sofaArt, chair: chairArt, cushion: cushionArt, kilim: kilimArt, round: roundArt };
 const VB: Record<string, string> = { sofa: "0 0 300 110", chair: "0 0 150 112", cushion: "0 0 100 36", kilim: "0 0 280 40", round: "0 0 240 40" };
+/** 設定に並べる見本（猫の足場の印は除く） */
+export const thingArt = (k: string) => `<svg viewBox="${VB[k]}" preserveAspectRatio="xMidYMax meet" aria-hidden="true">${ART[k]().replace(/<i [^>]*><\/i>/g, "")}</svg>`;
 
 // ---------- 床に並べる ----------
 let layer: HTMLElement | undefined;

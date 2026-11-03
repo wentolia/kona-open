@@ -4,7 +4,7 @@
   left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); }
 :root:not([data-floor]) .room-things { display: none; }
 /* x は床の左端 0 〜 右端 1。端に寄せても床からはみ出さない */
-.thing { position: absolute; left: calc(var(--x) * (100% - var(--w))); width: var(--w); }
+.thing { pointer-events: auto; cursor: grab; position: absolute; left: calc(var(--x) * (100% - var(--w))); width: var(--w); }
 .thing svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .thing svg polygon { stroke-width: .5px; stroke-linejoin: round; }
 /* 立てるもの: 足は猫が歩く線の少し奥 */
