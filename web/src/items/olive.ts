@@ -19,4 +19,4 @@ function art() {
   return s + pot(P, 64, 168, 210, 22, 16, 6);
 }
 
-export default { key: "olive", label: "オリーブ", at: "floor", w: 120, h: 210, cat: "植物", order: 42, draft: true, note: "銀色がかった細い葉と小さな実", art } satisfies ItemDef;
+export default { key: "olive", label: "オリーブ", at: "floor", w: 120, h: 210, cat: "植物", order: 42, note: "銀色がかった細い葉と小さな実", art } satisfies ItemDef;

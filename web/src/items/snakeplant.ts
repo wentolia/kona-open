@@ -19,4 +19,4 @@ function art() {
   return L.map(([x, len, w, d, lit]) => sword(x + 2, 128, len, w, d, !!lit)).join("") + pot(P, 42, 124, 160, 22, 18, 0, "#3b2c22", 8);
 }
 
-export default { key: "snakeplant", label: "サンスベリア", at: "floor", w: 84, h: 160, cat: "植物", order: 43, draft: true, note: "剣の形の葉に黄色の縁と横縞", art } satisfies ItemDef;
+export default { key: "snakeplant", label: "サンスベリア", at: "floor", w: 84, h: 160, cat: "植物", order: 43, note: "剣の形の葉に黄色の縁と横縞", art } satisfies ItemDef;

@@ -30,4 +30,4 @@ function art() {
   return s + vine(28, 54, [[16, 58], [8, 66]], 1) + vine(62, 54, [[74, 58], [82, 64]], 0);
 }
 
-export default { key: "pothos", label: "吊るしたポトス", at: "wall", w: 90, h: 170, x: 0.9, y: 0.04, cat: "植物", order: 107, draft: true, note: "マクラメの吊り紐と、斑入りの葉の蔓", art } satisfies ItemDef;
+export default { key: "pothos", label: "吊るしたポトス", at: "wall", w: 90, h: 170, x: 0.9, y: 0.04, cat: "植物", order: 107, note: "マクラメの吊り紐と、斑入りの葉の蔓", art } satisfies ItemDef;

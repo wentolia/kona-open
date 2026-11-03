@@ -29,4 +29,4 @@ function art() {
   return s + pot(P, 75, 144, 200, 27, 21, 5);
 }
 
-export default { key: "monstera", label: "モンステラ", at: "floor", w: 150, h: 200, cat: "植物", order: 40, draft: true, note: "切れ込みの入った大きな葉", art } satisfies ItemDef;
+export default { key: "monstera", label: "モンステラ", at: "floor", w: 150, h: 200, cat: "植物", order: 40, note: "切れ込みの入った大きな葉", art } satisfies ItemDef;
