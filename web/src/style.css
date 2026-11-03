@@ -39,7 +39,7 @@ body {
 }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.gutter, .top, .np {
+.top, .np {
   padding-left: max(var(--sp-4), env(safe-area-inset-left, 0px));
   padding-right: max(var(--sp-4), env(safe-area-inset-right, 0px));
 }
@@ -204,8 +204,6 @@ body.arranging, body.arranging * { cursor: grabbing !important; user-select: non
 /* ---------- スペクトラム ---------- */
 .spec { position: relative; flex: 1; min-height: 0; margin: var(--sp-2) var(--sp-3); }
 .spec-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.wave-note { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; font-size: 12px; color: var(--muted); pointer-events: none; }
-.wave-note:empty { display: none; }
 /* 名前の札: モジュールの上の余白（境目）に出す。中身とは重ならない。ふだんは隠し、カーソルを乗せたときだけ */
 .mod-head {
   position: absolute; left: 0; bottom: 100%; z-index: 6; height: 18px; max-width: 100%;
@@ -240,7 +238,6 @@ body.arranging, body.arranging * { cursor: grabbing !important; user-select: non
 .sm-form .sm-note { overflow-wrap: anywhere; margin: -2px 0 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
 .sm-form input, .sm-form select { box-sizing: border-box; min-width: 0; font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--pad-field); width: 100%; }
 .sm-form input[type="range"] { padding: 0; border: 0; background: none; accent-color: var(--accent); }
-.sm-hint { margin: 0; line-height: 1.5; }
 .sm-actions { display: flex; justify-content: space-between; gap: var(--sp-1h); }
 .sm-actions button { font-size: 12px; padding: var(--pad-btn-sm); border-radius: var(--r-sm); border: 1px solid var(--soft); }
 .sm-delete { color: var(--danger); }
@@ -281,7 +278,6 @@ body.dragging-album .mod-accepts .row { outline: 2px dashed var(--accent); outli
   flex: 1; min-height: 0; overflow: hidden; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
   gap: var(--sp-6); align-items: center; padding: var(--sp-3) var(--sp-5); border: 2px solid var(--line); border-top-width: 6px; border-bottom-width: 6px; background: var(--panel);
 }
-.center:has(.welcome) { grid-template-columns: 1fr; justify-items: center; }
 .jacket { height: 100%; max-height: 220px; aspect-ratio: 1; max-width: 100%; display: flex; align-items: center; justify-content: center; }
 .jacket > .art, .jacket > .art-blank { box-shadow: 0 12px 28px rgba(0,0,0,.22); }
 .mod-player .np { height: 100%; min-height: 0; }
@@ -364,10 +360,6 @@ body:not([data-state="ready"]) .top .brand { visibility: hidden; }
 .tracks .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tracks .current button, .tracks .current .no { color: var(--accent); }
 
-.welcome { display: grid; gap: var(--sp-3); justify-items: center; text-align: center; max-width: 34em; }
-.welcome h1 { font-size: 18px; font-weight: 500; margin: 0; letter-spacing: .04em; text-wrap: balance; }
-.welcome p { margin: 0; color: var(--muted); font-size: 13px; text-wrap: balance; }
-.welcome .actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); justify-content: center; margin-top: var(--sp-1); }
 .btn { font-size: 13px; padding: var(--pad-btn-lg); border: 1.5px solid var(--line); border-radius: var(--r-sm); }
 .btn.primary { background: var(--ink); color: var(--bg); }
 .btn:hover { opacity: .85; }
@@ -419,12 +411,8 @@ body:is([data-view="home"], [data-view="settings"]) .np-footer { display: none; 
 .np-vol-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .np-idle { grid-column: 1 / -1; justify-self: center; margin: 0; font-size: 12px; color: var(--muted); text-align: center; text-wrap: balance; }
 
-/* ---------- ウィンドウ（最小表示・小窓） ---------- */
+/* ---------- 小窓（Picture-in-Picture） ---------- */
 .winctl { display: flex; gap: var(--sp-0h); }
-.win-btn { width: var(--ctl-md); height: var(--ctl-md); display: grid; place-items: center; border-radius: var(--r-sm); }
-.win-btn:hover { background: var(--soft); }
-.win-btn svg { width: 15px; height: 15px; fill: var(--muted); }
-.win-btn:hover svg { fill: var(--ink); }
 
 /* 小窓のプレイヤー */
 .mini-host { flex: 1; min-height: 0; container-type: size; position: relative; }
@@ -509,7 +497,6 @@ body.pip > .mini-host { display: block; }
 .box .shelf-label { padding: var(--sp-1h) var(--sp-0h) var(--sp-6); }
 .box .row { padding: 0; }
 .hint { font-size: 11px; color: var(--muted); padding: var(--sp-2) var(--sp-3) 0; }
-.lib-empty { margin: auto; color: var(--muted); font-size: 13px; }
 
 @media (max-width: 720px) {
   .mod { flex-basis: 100%; }
@@ -597,7 +584,6 @@ body { background: radial-gradient(120% 80% at 50% 45%, color-mix(in srgb, var(-
 
 /* ---------- レベルメーター ---------- */
 .tone { flex: 1; min-height: 0; position: relative; margin: var(--sp-1h) var(--sp-3) 0; }
-.tone-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 /* ---------- アルバムの情報（図書カード） ---------- */
 .card {
@@ -616,7 +602,6 @@ body { background: radial-gradient(120% 80% at 50% 45%, color-mix(in srgb, var(-
   font-family: var(--font-mono); font-size: 10px; padding: 1px var(--sp-1h); border: 1.5px solid var(--accent); color: var(--accent);
   border-radius: var(--r-sm); transform: rotate(var(--r, 0deg)); opacity: .8;
 }
-.card-empty, .log-empty { margin: auto; font-size: 12px; color: var(--muted); text-align: center; padding: var(--sp-3); }
 
 /* ---------- 聴いた記録 ---------- */
 .log { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; padding: var(--sp-1h) var(--sp-3); scrollbar-width: none; }
@@ -716,15 +701,6 @@ body { background: radial-gradient(120% 80% at 50% 45%, color-mix(in srgb, var(-
 .dist-bar b:first-child { visibility: hidden; }
 .dist-bar em { position: absolute; top: 50%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 .dist-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-.sm-form fieldset.sm-objects { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-1) var(--sp-3); }
-.sm-form fieldset.sm-objects .sm-at { font-style: normal; font-size: 10px; color: var(--muted); }
-.sm-form fieldset.sm-objects .sm-at::before { content: "（"; } .sm-form fieldset.sm-objects .sm-at::after { content: "）"; }
-.sm-form fieldset.sm-sizes { border: 0; margin: 0; padding: 0; display: grid; gap: var(--sp-0h); }
-.sm-form fieldset.sm-sizes legend { padding: 0; margin-bottom: var(--sp-1); font-size: 11px; color: var(--muted); }
-.sm-form label.sm-size { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) 3.2em; align-items: center; gap: var(--sp-2); font-size: 12px; color: var(--ink); }
-.sm-form label.sm-size span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sm-form label.sm-size output { font-family: var(--font-mono); font-size: 11px; color: var(--muted); text-align: right; }
-.sm-form fieldset.sm-objects legend { padding: 0; margin-bottom: var(--sp-1); font-size: 11px; color: var(--muted); }
 
 /* 曲・アルバムが変わったときの差し替え: 薄く消えて、ゆっくり現れる */
 .swap-out { opacity: 0 !important; transition: opacity .2s ease; }

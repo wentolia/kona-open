@@ -22,13 +22,11 @@ body { transition: background-color .6s ease, color .6s ease; }
 /* 行: 狭い板なので、名前を上に、操作をその下に */
 .set-row { display: flex; align-items: center; gap: var(--sp-1h) var(--sp-3); flex-wrap: wrap; font-size: 13px; }
 .set-row > span:first-child { width: 100%; color: var(--muted); font-size: 12px; }
-.set-row.set-top { align-items: flex-start; }
 .set-row select { font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--pad-field); }
 .set-row select option { background: var(--panel); }
 .set-check { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: 13px; cursor: pointer; }
 .set-check input, .set-checks input { accent-color: var(--accent); margin: 0; }
 .set-checks { display: grid; grid-template-columns: 1fr; gap: var(--sp-2); }
-.set-num { font-family: var(--font-mono); font-size: 12px; min-width: 3.5em; }
 .set-btn { font-size: 12px; padding: var(--pad-btn-sm); border: 1px solid var(--line); border-radius: var(--r-sm); }
 .set-btn:hover:not(:disabled) { background: var(--soft); }
 .set-btn:disabled { opacity: .4; cursor: default; }
@@ -47,8 +45,6 @@ body { transition: background-color .6s ease, color .6s ease; }
 .set-sw:hover { border-color: color-mix(in srgb, var(--sw-ink) 40%, transparent); }
 .set-sw[aria-pressed="true"] { border-color: var(--sw-acc); }
 
-.set-custom label { display: inline-flex; align-items: center; gap: var(--sp-1h); font-size: 12px; color: var(--muted); }
-.set-custom input[type=color] { width: 30px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: var(--r-sm); background: none; cursor: pointer; }
 
 
 @media (prefers-reduced-motion: reduce) { body { transition: none; } }
@@ -114,7 +110,6 @@ body { transition: background-color .6s ease, color .6s ease; }
 .set-color { display: inline-flex; align-items: center; gap: var(--sp-1h); font-size: 12px; color: var(--muted); }
 .set-color input[type=color] { width: 30px; height: 22px; padding: 0; border: 1px solid var(--line); border-radius: var(--r-sm); background: none; cursor: pointer; }
 .set-note { margin: 0; font-size: 11px; color: var(--muted); }
-.set-num { color: var(--muted); }
 .set input:not([type]), .set-cat-name, #set-preset-name {
   font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--pad-field); min-width: 0;
 }

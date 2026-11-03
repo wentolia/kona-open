@@ -3,7 +3,7 @@
 // 中継サーバーを、ホストが 1 か所で設定しておけば、参加者は何もしなくてもその中継を通してつながる
 // （参加者の側から中継サーバーへ送るので、参加者の回線の NAT は問題にならない）。
 // 認証情報はこの端末の localStorage にだけ置き、招待リンクやリレーには載せない。
-import { esc } from "./modctx";
+import { esc } from "./dom";
 
 type Kind = "metered" | "cloudflare" | "custom" | "none";
 interface RelayConf { kind: Kind; user: string; pass: string; urls: string; stun: string; checked?: { at: number; ok: boolean } }

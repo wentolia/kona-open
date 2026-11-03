@@ -6,6 +6,7 @@ import "./size-knob.css";
 import { objectSize, setObjectSize, SIZE_MIN, SIZE_MAX } from "./mod-objects";
 import { thingSize, thingOf, setThing, removeThing, flipThing, canFlip, defOf, THING_MIN, THING_MAX } from "./room-things";
 import { renderSettings } from "./settings";
+import { clamp } from "./dom";
 
 type Target = { el: HTMLElement | SVGElement; kind: "obj" | "thing"; key: string };
 
@@ -20,7 +21,6 @@ function targetOf(n: EventTarget | null): Target | undefined {
 const sizeOf = (t: Target) => t.kind === "obj" ? objectSize(t.key) : thingSize(t.key);
 const range = (t: Target) => t.kind === "obj" ? [SIZE_MIN, SIZE_MAX] : [THING_MIN, THING_MAX];
 const setSize = (t: Target, v: number, done = false) => t.kind === "obj" ? setObjectSize(t.key, v) : setThing(t.key, { s: v }, done);
-const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 let knob: HTMLButtonElement | undefined;
 let cur: Target | undefined;

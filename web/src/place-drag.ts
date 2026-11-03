@@ -6,6 +6,7 @@ import { objectArt } from "./mod-objects";
 import { thingThumb, toggleThing, addThing, countOf, defOf } from "./room-things";
 import { roomSurface, setRoomSurface } from "./room-surface";
 import { renderSettings } from "./settings";
+import { clamp } from "./dom";
 
 export interface PlaceHooks {
   /** 小物を棚に置く（at は棚の右端の小物の中で何番目か、x はアルバムの並ぶ所に置くときの棚の中の左右の位置）。shelfId がなければしまう */
@@ -19,7 +20,6 @@ export interface PlaceHooks {
 type Src = { kind: "obj" | "thing"; key: string; from: HTMLElement | SVGElement; placed: boolean };
 type Drop = { to: "shelf"; id: string; mod: HTMLElement } | { to: "floor" } | { to: "wall" } | { to: "away" } | undefined;
 
-const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 function sourceOf(n: EventTarget | null, h: PlaceHooks): Src | undefined {
   if (!(n instanceof Element)) return undefined;
