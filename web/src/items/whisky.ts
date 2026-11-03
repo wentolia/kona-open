@@ -21,4 +21,4 @@ const live: Live = svg => {
   return s => ice.setAttribute("transform", `translate(${(.5 * sway(s, .6)).toFixed(2)} ${(.45 * sway(s, .9, 2)).toFixed(2)}) rotate(${(2.5 * sway(s, .5, 1)).toFixed(2)} 15 16)`);
 };
 
-export default { key: "whisky", label: "ウイスキーのロック", at: "shelf", w: 32, h: 30, cat: "食べ物", order: 417, draft: true, note: "大きな氷がゆらりと揺れる", art, live } satisfies ItemDef;
+export default { key: "whisky", label: "ウイスキーのロック", at: "shelf", w: 32, h: 30, cat: "食べ物", order: 417, note: "大きな氷がゆらりと揺れる", art, live } satisfies ItemDef;

@@ -29,4 +29,4 @@ const live: Live = svg => {
   };
 };
 
-export default { key: "siphon", label: "サイフォン", at: "shelf", w: 36, h: 74, cat: "食べ物", order: 412, draft: true, note: "ランプの火が揺れ、フラスコに泡が立つ", art, live } satisfies ItemDef;
+export default { key: "siphon", label: "サイフォン", at: "shelf", w: 36, h: 74, cat: "食べ物", order: 412, note: "ランプの火が揺れ、フラスコに泡が立つ", art, live } satisfies ItemDef;

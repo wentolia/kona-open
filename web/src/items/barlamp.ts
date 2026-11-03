@@ -13,4 +13,4 @@ function art() {
 
 const live: Live = svg => lamp(svg, "barlamp", 10);
 
-export default { key: "barlamp", label: "バーのランプ", at: "shelf", w: 36, h: 44, cat: "灯り", order: 116, draft: true, note: "琥珀色のガラスの笠。押すと点く", art, live } satisfies ItemDef;
+export default { key: "barlamp", label: "バーのランプ", at: "shelf", w: 36, h: 44, cat: "灯り", order: 116, note: "琥珀色のガラスの笠。押すと点く", art, live } satisfies ItemDef;

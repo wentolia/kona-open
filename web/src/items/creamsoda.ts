@@ -18,4 +18,4 @@ function art() {
 
 const live: Live = svg => bubbles(svg, 9, 21, 50, 26, 7, "rgba(230,255,235,.7)", .8);
 
-export default { key: "creamsoda", label: "クリームソーダ", at: "shelf", w: 30, h: 59, cat: "食べ物", order: 413, draft: true, note: "アイスとさくらんぼ。泡がのぼる", art, live } satisfies ItemDef;
+export default { key: "creamsoda", label: "クリームソーダ", at: "shelf", w: 30, h: 59, cat: "食べ物", order: 413, note: "アイスとさくらんぼ。泡がのぼる", art, live } satisfies ItemDef;

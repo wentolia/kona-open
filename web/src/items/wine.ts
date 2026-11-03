@@ -24,4 +24,4 @@ const live: Live = svg => {
   return s => w.setAttribute("points", wine(.6 * sway(s, .6)));
 };
 
-export default { key: "wine", label: "ワイン", at: "shelf", w: 48, h: 66, cat: "食べ物", order: 418, draft: true, note: "ボトルとグラス。グラスの中でゆっくり揺れる", art, live } satisfies ItemDef;
+export default { key: "wine", label: "ワイン", at: "shelf", w: 48, h: 66, cat: "食べ物", order: 418, note: "ボトルとグラス。グラスの中でゆっくり揺れる", art, live } satisfies ItemDef;
