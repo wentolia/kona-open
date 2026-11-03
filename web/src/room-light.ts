@@ -37,7 +37,7 @@ function drawSunbeam(c: HTMLCanvasElement, G: Glass, sun: { u: number; el: numbe
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H); g.setTransform(px, 0, 0, px, 0, 0);
   const low = 1 - sun.el;
   // 光は太陽と反対の側へ、低い太陽ほど遠く長く落ちる
-  const dy = G.h * (.45 + 1.5 * low), stretch = 1 + 1.3 * low, shear = -(sun.u - .5) * (1.1 + 1.2 * low);
+  const dy = G.h * (.45 + 1.5 * low), stretch = 1 + 1.3 * low, shear = -(sun.u - .5) * (.25 + .2 * low); // 横へのずれは控えめに（窓の下から大きく外れない）
   const map = (x: number, y: number): [number, number] => { const yy = G.y + dy + (y - G.y) * stretch; return [x + shear * (yy - y), yy]; };
   const quad = (x0: number, x1: number, y0: number, y1: number) => [map(x0, y0), map(x1, y0), map(x1, y1), map(x0, y1)];
   g.save();
@@ -50,7 +50,7 @@ function drawSunbeam(c: HTMLCanvasElement, G: Glass, sun: { u: number; el: numbe
   hull.sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
   const [ex, ey] = map(G.x + G.w / 2, G.y + G.h);
   const shaft = g.createLinearGradient(G.x + G.w / 2, G.y + G.h / 2, ex, ey);
-  shaft.addColorStop(0, `rgba(${col},${(.1 * k).toFixed(3)})`); shaft.addColorStop(1, `rgba(${col},${(.015 * k).toFixed(3)})`);
+  shaft.addColorStop(0, `rgba(${col},${(.07 * k).toFixed(3)})`); shaft.addColorStop(1, `rgba(${col},${(.015 * k).toFixed(3)})`);
   g.fillStyle = shaft; g.beginPath(); hull.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.fill();
   // 筋の濃淡（空気中のちりが光る帯）
   for (let i = 0; i < 5; i++) {
@@ -118,8 +118,8 @@ export function initRoomLight() {
     const key = [G.x, G.y, G.w, G.h, G.curtain, Math.round(sun.u * 400), Math.round(k * 50), col, innerWidth, innerHeight].map(v => typeof v === "number" ? Math.round(v) : v).join("|");
     if (key === beamKey) return;
     beamKey = key;
-    drawSunbeam(beam, G, sun, k, col, r, false, .7);
-    drawSunbeam(patch, G, sun, k, mixN(col, [255, 255, 255], .3).map(Math.round), r, true, 1.1);
+    drawSunbeam(beam, G, sun, k, col, r, false, .5);
+    drawSunbeam(patch, G, sun, k, mixN(col, [255, 255, 255], .3).map(Math.round), r, true, .75);
   };
   update();
   setInterval(update, 1000);
