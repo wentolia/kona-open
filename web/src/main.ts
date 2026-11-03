@@ -1549,7 +1549,7 @@ function renderNP() {
       if (i !== undefined) player.playAlbum(a, Number(i));
     };
     const cur = $(".np-tracks .current", np);
-    if (cur) { const list = cur.closest<HTMLElement>(".np-tracks")!; list.scrollLeft = cur.offsetLeft - list.offsetLeft - 20; }
+    if (cur) { const list = cur.closest<HTMLElement>(".np-tracks")!; list.scrollTop = cur.offsetTop - list.offsetTop - cur.offsetHeight; } // いまの曲を上の方に
     const range = $<HTMLInputElement>(".np-vol-range", np);
     const paint = () => document.querySelectorAll<HTMLElement>(".np-vol").forEach(v => {
       const r = $<HTMLInputElement>(".np-vol-range", v), m = $(".b-mute", v);

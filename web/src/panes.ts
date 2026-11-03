@@ -173,10 +173,9 @@ export function installWheel() {
     if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
     const target = e.target as HTMLElement;
     if (target.closest("#pop")) return; // 曲目パネルは縦に送る
-    const list = target.closest<HTMLElement>(".np-tracks");
-    if (list && list.scrollWidth <= list.clientWidth) return;
+    if (target.closest(".np-tracks")) return; // 再生中の曲目は縦に送る
     const twin = target.closest<HTMLElement>(".row.two-panes");
-    const el = twin ?? target.closest(".box")?.closest<HTMLElement>(".packed") ?? target.closest<HTMLElement>(".spines, .packed, .np-tracks");
+    const el = twin ?? target.closest(".box")?.closest<HTMLElement>(".packed") ?? target.closest<HTMLElement>(".spines, .packed");
     if (!el) return;
     const sc = scrollerOf(el);
     const dx = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? el.clientWidth : 1) * WHEEL_STEP;
