@@ -1,31 +1,31 @@
 /* リスニングパーティー（party.ts）。ダイアログの骨組みは style.css の .dlg を使う */
-.party .dlg-body { gap: 10px; }
-.party-code { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-family: var(--font-mono); font-size: 11px; line-height: 1.5; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 4px; padding: 7px 9px; word-break: break-all; }
+.party .dlg-body { gap: var(--sp-3); }
+.party-code { width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-family: var(--font-mono); font-size: 11px; line-height: 1.5; color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-2); word-break: break-all; }
 .party-code:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .party-code[readonly] { background: var(--soft); color: var(--muted); }
 input.party-code { resize: none; }
 .party-knocks:empty { display: none; }
-.party-knocks { display: grid; gap: 6px; }
-.party-knock { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 6px; background: var(--soft); font-size: 13px; }
+.party-knocks { display: grid; gap: var(--sp-1h); }
+.party-knock { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1h); padding: var(--inset-card); border-radius: var(--r-md); background: var(--soft); font-size: 13px; }
 .party-knock span { flex: 1 1 12em; overflow-wrap: anywhere; }
 .party-knock b { font-weight: 500; }
-.party-knock .btn { font-size: 12px; padding: 5px 12px; }
-.party-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.party-row .btn { font-size: 12px; padding: 6px 12px; }
-.party-hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+.party-knock .btn { font-size: 12px; padding: var(--pad-btn); }
+.party-row { display: flex; flex-wrap: wrap; gap: var(--sp-1h); }
+.party-row .btn { font-size: 12px; padding: var(--pad-btn); }
+.party-hr { border: 0; border-top: 1px solid var(--line); margin: var(--sp-1) 0; width: 100%; }
 .party-wait { color: var(--muted); }
-.party-people ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.party-people li { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--soft); }
-.party-now { display: grid; gap: 2px; padding: 10px 12px; border-radius: 6px; background: var(--soft); font-size: 13px; min-height: 2.6em; }
+.party-people ul { list-style: none; margin: var(--sp-1) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-1h); }
+.party-people li { font-size: 12px; padding: var(--pad-btn-sm); border-radius: var(--r-pill); background: var(--soft); }
+.party-now { display: grid; gap: var(--sp-0h); padding: var(--inset-card); border-radius: var(--r-md); background: var(--soft); font-size: 13px; min-height: 2.6em; }
 .party-now b { font-weight: 500; overflow-wrap: anywhere; }
 .party-now span { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
-.party-now .party-state { font-family: var(--font-mono); color: var(--ink); opacity: .8; margin-top: 4px; }
+.party-now .party-state { font-family: var(--font-mono); color: var(--ink); opacity: .8; margin-top: var(--sp-1); }
 .party-ice summary { font-size: 11px; color: var(--muted); cursor: pointer; }
-.party-ice[open] { display: grid; gap: 8px; }
+.party-ice[open] { display: grid; gap: var(--sp-2); }
 .party-ice .dlg-field input { font-size: 12px; }
 
 /* 上の帯の札: 灯りの点と人数 */
-.party-pill { display: inline-flex; align-items: center; gap: 6px; flex: none; font-size: 12px; font-family: var(--font-mono); padding: 4px 10px; border: 1.5px solid var(--line); border-radius: 999px; white-space: nowrap; }
+.party-pill { display: inline-flex; align-items: center; gap: var(--sp-1h); flex: none; font-size: 12px; font-family: var(--font-mono); padding: var(--pad-btn-sm); border: 1.5px solid var(--line); border-radius: var(--r-pill); white-space: nowrap; }
 .party-pill:hover { background: var(--soft); }
 .party-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
 .party-pill.off i { background: var(--muted); box-shadow: none; }
@@ -33,9 +33,9 @@ input.party-code { resize: none; }
   .party-pill:not(.off) i { animation: party-glow 2.4s ease-in-out infinite; }
 }
 @keyframes party-glow { 50% { opacity: .45; } }
-.dlg-check { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 4px; font-size: 12px; color: var(--muted); cursor: pointer; }
-.dlg-check input { margin-top: 2px; accent-color: var(--accent); }
-.party-tip { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line, rgba(255,255,255,.12)); border-radius: 8px; font-size: 12px; line-height: 1.6; }
+.dlg-check { display: flex; gap: var(--sp-2); align-items: flex-start; margin: var(--sp-3) 0 var(--sp-1); font-size: 12px; color: var(--muted); cursor: pointer; }
+.dlg-check input { margin-top: var(--sp-0h); accent-color: var(--accent); }
+.party-tip { display: grid; gap: var(--sp-1h); padding: var(--inset-card); border: 1px solid var(--line, rgba(255,255,255,.12)); border-radius: var(--r-md); font-size: 12px; line-height: 1.6; }
 .party-tip p { margin: 0; }
-.party-tip-steps { margin: 0; padding-left: 1.4em; display: grid; gap: 2px; }
+.party-tip-steps { margin: 0; padding-left: 1.4em; display: grid; gap: var(--sp-0h); }
 .party-tip summary { color: var(--muted); cursor: pointer; }

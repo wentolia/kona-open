@@ -5,7 +5,7 @@
 
 /* ---------- 帯 ---------- */
 .top, .m-top { position: relative; isolation: isolate; }
-.top { padding-bottom: 18px; }
+.top { padding-bottom: var(--sp-5); }
 .top::before, .m-top::before {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: color-mix(in srgb, var(--panel), var(--ink) 3%);
@@ -20,7 +20,7 @@ body:not([data-state="ready"]) .top::before { display: none; }
 .top .brand { width: 30px; height: 30px; flex: none; }
 .top .hd-btn {
   position: relative; isolation: isolate; flex: none; display: grid; place-items: center;
-  width: 40px; height: 38px; padding: 6px 7px; border: 0; border-radius: 0; background: none; text-decoration: none;
+  width: 40px; height: 38px; padding: var(--sp-1h) var(--sp-2); border: 0; border-radius: 0; background: none; text-decoration: none;
 }
 .top .hd-btn .hd-icon { transition: transform .15s, opacity .15s, filter .15s; }
 /* 下に、三面の六角の台座。触れると浮かび、いまのページでは立ったまま */
@@ -35,7 +35,7 @@ body:not([data-state="ready"]) .top::before { display: none; }
 .top .hd-btn:hover::before, .top .hd-btn:focus-visible::before { opacity: .7; }
 .top .hd-btn:hover .hd-icon { transform: translateY(-1px); }
 /* ページのタブ: いまのページ以外は少し沈める */
-.top .tabs { gap: 2px; }
+.top .tabs { gap: var(--sp-0h); }
 .top .tabs .hd-btn:not([aria-current="page"]) .hd-icon { opacity: .62; filter: saturate(.55); }
 .top .tabs .hd-btn:not([aria-current="page"]):hover .hd-icon { opacity: 1; filter: none; }
 .top .tabs .hd-btn[aria-current="page"]::before { opacity: 1; }
@@ -44,7 +44,7 @@ body:not([data-state="ready"]) .top::before { display: none; }
 @media (prefers-reduced-motion: reduce) { .top .hd-btn::before, .top .hd-btn .hd-icon { transition: none; } }
 
 /* ---------- スマホ版の上: 帯は同じ形を細かめに、検索欄は六角の札 ---------- */
-.m-top { padding-bottom: 16px; }
+.m-top { padding-bottom: var(--sp-4); }
 .m-top::before { -webkit-mask-size: 900px 100%; mask-size: 900px 100%; }
 .m .m-search {
   border-radius: 0;

@@ -1,17 +1,17 @@
 /* 包み（presents-ui.ts）: 床の手前の左寄りに並べる。床がないときはホームの下の端 */
-.present-pile { position: absolute; z-index: 4; left: 4%; bottom: calc(var(--floor-h) * .35 + 4px); display: flex; gap: 4px; align-items: flex-end; pointer-events: none; }
+.present-pile { position: absolute; z-index: 4; left: 4%; bottom: calc(var(--floor-h) * .35 + 4px); display: flex; gap: var(--sp-1); align-items: flex-end; pointer-events: none; }
 .present { pointer-events: auto; width: 46px; height: 42px; padding: 0; border: 0; background: none; cursor: pointer; rotate: var(--tilt, 0deg);
   filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .45)); transition: translate .2s; animation: present-in .6s ease-out; }
 .present svg { display: block; width: 100%; height: 100%; }
 .present svg polygon { stroke-width: .5px; stroke-linejoin: round; }
 .present:hover { translate: 0 -3px; }
-.present:focus-visible { outline: 2px solid var(--accent, #f0b35e); outline-offset: 2px; border-radius: 4px; }
+.present:focus-visible { outline: 2px solid var(--accent, #f0b35e); outline-offset: 2px; border-radius: var(--r-sm); }
 .present.opening { animation: present-open .65s ease-in forwards; }
 @keyframes present-in { from { opacity: 0; translate: 0 -30px; } 70% { translate: 0 2px; } to { opacity: 1; translate: 0 0; } }
 @keyframes present-open { 0% { rotate: var(--tilt); } 20% { rotate: -8deg; } 40% { rotate: 8deg; } 60% { rotate: -4deg; scale: 1.05; } 100% { rotate: 0deg; scale: 1.3; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .present, .present.opening { animation-duration: .01s; } }
-.present-reveal { position: fixed; z-index: 60; left: 50%; top: 50%; translate: -50% -50%; width: min(300px, calc(100vw - 32px)); display: grid; justify-items: center; gap: 6px; text-align: center;
-  padding: 18px 18px 14px; border-radius: 12px; border: 1px solid var(--line, rgba(236, 228, 216, .22)); background: var(--panel, #24272d); color: var(--ink, #ece4d8);
+.present-reveal { position: fixed; z-index: 60; left: 50%; top: 50%; translate: -50% -50%; width: min(300px, calc(100vw - 32px)); display: grid; justify-items: center; gap: var(--sp-1h); text-align: center;
+  padding: var(--sp-5) var(--sp-5) var(--sp-4); border-radius: var(--r-lg); border: 1px solid var(--line, rgba(236, 228, 216, .22)); background: var(--panel, #24272d); color: var(--ink, #ece4d8);
   box-shadow: 0 16px 40px rgba(0, 0, 0, .5); animation: pr-in .3s ease-out; font-size: 13px; }
 .present-reveal.out { opacity: 0; transition: opacity .25s; }
 .present-reveal .pr-thumb { width: 120px; height: 96px; display: grid; place-items: center; }
@@ -19,10 +19,10 @@
 .present-reveal .pr-thumb svg polygon { stroke-width: .5px; stroke-linejoin: round; }
 .present-reveal b { font-size: 15px; }
 .present-reveal .pr-why, .present-reveal .pr-where { color: var(--muted, #9b968d); font-size: 12px; }
-.present-reveal .pr-ok { margin-top: 6px; padding: 6px 18px; border-radius: 8px; border: 1px solid var(--line, rgba(236, 228, 216, .22)); background: var(--soft, rgba(236, 228, 216, .08)); color: inherit; font: inherit; cursor: pointer; }
+.present-reveal .pr-ok { margin-top: var(--sp-1h); padding: var(--sp-1h) var(--sp-5); border-radius: var(--r-md); border: 1px solid var(--line, rgba(236, 228, 216, .22)); background: var(--soft, rgba(236, 228, 216, .08)); color: inherit; font: inherit; cursor: pointer; }
 @keyframes pr-in { from { opacity: 0; scale: .92; } to { opacity: 1; scale: 1; } }
 /* 猫の名札のカード: 飼い猫にする・アクセサリー */
-.cat-card .cat-adopt { margin-top: 8px; width: 100%; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--line, rgba(236, 228, 216, .22)); background: var(--soft, rgba(236, 228, 216, .08)); color: inherit; font: inherit; cursor: pointer; }
+.cat-card .cat-adopt { margin-top: var(--sp-2); width: 100%; padding: var(--pad-btn); border-radius: var(--r-md); border: 1px solid var(--line, rgba(236, 228, 216, .22)); background: var(--soft, rgba(236, 228, 216, .08)); color: inherit; font: inherit; cursor: pointer; }
 .cat-card .cat-adopt:disabled { opacity: .5; cursor: default; }
 .cat-card .cat-full { color: var(--muted, #9b968d); font-size: 11px; }
-.cat-card .cat-acc-pick { max-width: 120px; font: inherit; font-size: 11px; background: var(--soft, rgba(236, 228, 216, .08)); color: inherit; border: 1px solid var(--line, rgba(236, 228, 216, .22)); border-radius: 6px; }
+.cat-card .cat-acc-pick { max-width: 120px; font: inherit; font-size: 11px; background: var(--soft, rgba(236, 228, 216, .08)); color: inherit; border: 1px solid var(--line, rgba(236, 228, 216, .22)); border-radius: var(--r-md); }
