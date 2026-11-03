@@ -1,22 +1,10 @@
-// 時計まわり: 正時の鐘と、スリープタイマーの予約（アルバムの終わりで止める）。
+// 時計まわり: 正時の鐘と、空中に掛ける時計のモジュール（おやすみタイマーは棚のろうそく。mod-objects.ts）。
 // 時計は 2 通り: 棚に立てる置き時計（mod-objects.ts のアナログ時計）と、空中に掛ける時計のモジュール。
 // モジュールにはメニューを付けない。文字盤を押すと、デジタルとアナログが入れ替わる
 
 import { ctx, everyFrame } from "./modctx";
 
-interface Sleep { until?: number; albumEnd: boolean; fading: boolean; choice?: number }
-const sleep: Sleep = { albumEnd: false, fading: false };
-
-/** アルバムを聴き終えたとき、次へ進まずに止めるか（本体の「次に再生」より先に聞く） */
-export function stopAtAlbumEnd(): boolean {
-  if (!sleep.albumEnd) return false;
-  sleep.albumEnd = false;
-  return true;
-}
-/** 「アルバムの終わり」で止める予約が入っているか（予約は消さずに見るだけ） */
-export const albumEndArmed = () => !!sleep.albumEnd;
-
-// 正時の鐘: 設定（部屋 → もっと見る）で切り替える。kona.clock に置く（以前の時計の種類 kind も残っていれば読む）
+// 正時の鐘: 設定（部屋 → 置くもの、時計の並びの下）で切り替える。kona.clock に置く（以前の時計の種類 kind も残っていれば読む）
 const LOOK_KEY = "kona.clock";
 const readLook = (): { kind?: string; chime: boolean } => { try { const v = JSON.parse(localStorage.getItem(LOOK_KEY) ?? "{}"); return { kind: typeof v.kind === "string" ? v.kind : undefined, chime: v.chime === true }; } catch { return { chime: false }; } };
 export const chimeOn = () => readLook().chime;

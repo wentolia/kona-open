@@ -236,5 +236,5 @@ export function openReceipt(get: () => { album?: Album; index: number; position:
   if (!s.album) return;
   const a = s.album, i = s.index, pos = s.position;
   // ジャケットは既定で点の濃淡で刷る（写真とは別に覚える）。Spotify のアルバムは刷らない
-  showPicture({ label: "レシート", prefix: "kona-receipt", tab: "receipt", hideToggle: !!a.cover, hideKey: "kona.receiptHideArt", hideDefault: false, locked: !!a.remote, draw: ({ hideArt }) => drawReceipt(a, i, pos, hideArt) });
+  showPicture({ label: "レシート", prefix: "kona-receipt", tab: "receipt", hideToggle: !!a.cover, hideKey: "kona.receiptHideArt", hideDefault: true, locked: !!a.remote, draw: ({ hideArt }) => drawReceipt(a, i, pos, hideArt) });
 }

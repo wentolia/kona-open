@@ -22,10 +22,11 @@ import { BANDS } from "./eq";
 import { playLog, stat, listenedSeconds, type PlayEvent } from "./store";
 import type { Album } from "./library";
 import { setPartyEar, setCatsAway, type Coat, type Emote } from "./cat";
-import { hereLand, isLand } from "./region";
+import { hereLand, isLand, landName } from "./region";
 
 const NAME_KEY = "kona.party.name";
 const VOL_KEY = "kona.party.volume";
+const LAND_KEY = "kona.party.land";   // ご当地の品: ホストの土地を参加者に届けるか（既定は届けない）
 const ICE_KEY = "kona.party.ice";
 const DEFAULT_ICE = "stun:stun.l.google.com:19302";
 const HASH = "#party=";            // 招待リンク（# 以降はどのサーバーにも送られない）
@@ -38,6 +39,7 @@ type Msg =
   | { t: "peers"; host: string; names: string[] }
   | { t: "state"; track?: TrackInfo; playing: boolean; ext: boolean; id?: string; land?: string }   // land: ホストの土地のコードだけ（ご当地の品。region.ts）
   | { t: "bye" }
+  | { t: "out" }                                              // ホスト → 参加者: 退出させる
   // 部屋（参加者 → ホスト は id なし。ホストが送り主の id を付けて、ほかの人へ中継する）
   | { t: "cat"; coat: Coat }                                   // 参加者 → ホスト: この猫で入る
   | { t: "you"; id: string }                                   // ホスト → 参加者: あなたの猫の id
@@ -104,6 +106,7 @@ function asMsg(x: unknown): Msg | undefined {
   if (!m || typeof m !== "object") return undefined;
   switch (m.t) {
     case "bye": return { t: "bye" };
+    case "out": return { t: "out" };
     case "peers":
       return isText(m.host) && Array.isArray(m.names) && m.names.length <= MAX_NAMES && m.names.every(isText)
         ? { t: "peers", host: m.host, names: m.names as string[] } : undefined;
@@ -171,6 +174,7 @@ let role: Role = "idle";
 let box: Mailbox | undefined;
 let peers: Peer[] = [];            // ホスト: 参加者たち（つなぎかけを含む） / 参加者: ホストひとり
 let knocks: { id: string; name: string }[] = [];   // ホスト: 入れるかどうかを待っている人
+const outed = new Set<string>();   // ホスト: 退出させた人の名乗りの公開鍵（このパーティーの間は「入れてください」を捨てる）
 let roomKey = "", hostId = "";     // 招待リンクの中身（部屋の鍵・ホストの使い捨ての公開鍵）
 let hostName = "", guestNames: string[] = [];
 let relaysOpen = 0;
@@ -204,7 +208,8 @@ const partyVol = () => { try { const v = Number(localStorage.getItem(VOL_KEY) ??
 // ---------- WebRTC ----------
 /** 「stun:… turn:…?username=u&credential=p」を ICE サーバーの設定に。空なら同じ LAN の中だけでつなぐ */
 function iceServers(): RTCIceServer[] {
-  return iceText().split(/[\s,]+/).filter(Boolean).map(u => {
+  // 書き損じ（「turn::80」や「<サーバー>」のまま）が 1 つでもあると接続の準備ごと失敗するので、形の合うものだけを使う
+  return iceText().split(/[\s,]+/).filter(u => /^(stun|turns?):[\w.-]+(:\d+)?(\?|$)/i.test(u)).map(u => {
     const q = u.indexOf("?");
     if (!/^turns?:/.test(u) || q < 0) return { urls: u };
     const p = new URLSearchParams(u.slice(q + 1)), username = p.get("username") ?? undefined, credential = p.get("credential") ?? undefined;
@@ -242,21 +247,44 @@ async function describe(pc: RTCPeerConnection, d: RTCSessionDescriptionInit) {
 /** つながらなかった理由（参加者に見せる）。どんな経路の候補が出ていたかも添える（原因を調べる手がかり） */
 const NO_ROUTE = "つながりませんでした（おたがいの回線のあいだに通り道が見つかりませんでした）";
 /** 同じ回線（外から見たアドレスが同じ）らしいか。STUN に届かず分からないときも、同じ回線として案内する */
-function sameNetwork(pc: RTCPeerConnection) {
-  const pub = (sdp?: string) => new Set([...(sdp ?? "").matchAll(/candidate:\S+ \d+ \S+ \d+ (\S+) \d+ typ srflx/g)].map(m => m[1]));
-  const a = pub(pc.localDescription?.sdp), b = pub(pc.remoteDescription?.sdp);
-  return !a.size || !b.size || [...a].some(x => b.has(x));
+// IPv6 は端末ごとにアドレスが違う（NAT がない）ので、前半の 64 ビット（同じ回線なら同じ）で比べる
+function netOf(ip: string) {
+  if (!ip.includes(":")) return `4 ${ip}`;
+  const [head, tail = ""] = ip.toLowerCase().split("::"), h = head ? head.split(":") : [], t = tail ? tail.split(":") : [];
+  const all = ip.includes("::") ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill("0"), ...t] : h;
+  return `6 ${all.slice(0, 4).map(x => x.replace(/^0+(?=.)/, "")).join(":")}`;
 }
-const isMac = () => /Mac/.test(navigator.platform || navigator.userAgent);
-// 同じ Wi-Fi なのにつながらないときは、たいてい Mac がブラウザーに同じ回線の相手との通信を許していない
-const LAN_STEPS = `<ol class="party-tip-steps">
+function sameNetwork(pc: RTCPeerConnection) {
+  const pub = (sdp?: string) => new Set([...(sdp ?? "").matchAll(/candidate:\S+ \d+ \S+ \d+ (\S+) \d+ typ srflx/g)].map(m => netOf(m[1])));
+  const a = pub(pc.localDescription?.sdp), b = pub(pc.remoteDescription?.sdp);
+  // IPv4 どうし・IPv6 どうしで比べられないとき（片方にしかない）は分からないので、同じ回線として案内する
+  const fam = (s: Set<string>, f: string) => [...s].some(x => x.startsWith(f));
+  if (!["4 ", "6 "].some(f => fam(a, f) && fam(b, f))) return true;
+  return [...a].some(x => b.has(x));
+}
+// iPad は Safari・Chrome とも Mac を名乗るので、触れる画面かどうかで見分ける
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Mac/.test(navigator.platform || navigator.userAgent) && navigator.maxTouchPoints > 1);
+const isMac = () => !isIOS() && /Mac/.test(navigator.platform || navigator.userAgent);
+// 同じ Wi-Fi なのにつながらないときは、たいてい端末がブラウザーに同じ回線の相手との通信（ローカルネットワーク）を許していない
+const MAC_STEPS = `<ol class="party-tip-steps">
     <li>「システム設定」→「プライバシーとセキュリティ」→「ローカルネットワーク」を開く</li>
     <li>使っているブラウザー（Chrome など）をオンにする</li>
     <li>ブラウザーをいったん終了して（⌘Q）開き直し、もう一度招待リンクから入る</li></ol>`;
+const IOS_STEPS = `<ol class="party-tip-steps">
+    <li>「設定」→「プライバシーとセキュリティ」→「ローカルネットワーク」を開く（または「設定」→ アプリ → 使っているブラウザー）</li>
+    <li>使っているブラウザー（Chrome など）をオンにする。一覧にないときは、一度このページで招待リンクから入り直すと許可を求められます</li>
+    <li>ブラウザーをアプリの切り替え画面から上にはらって終了し、開き直してもう一度招待リンクから入る</li></ol>`;
+const lanTip = (open: boolean) => {
+  const here = isIOS() ? "iPad・iPhone" : "Mac", other = isIOS() ? "Mac" : "iPad・iPhone";
+  const mine = isIOS() ? IOS_STEPS : MAC_STEPS, theirs = isIOS() ? MAC_STEPS : IOS_STEPS;
+  const known = isIOS() || isMac();
+  return `<${open ? "div" : "details"}>${open ? `<p><b>同じ Wi-Fi の相手とつながらないとき</b>${known ? `（${here}）` : ""}</p>` : `<summary>同じ Wi-Fi なのにつながらないとき（${here}）</summary>`}${mine}
+    <p>相手が ${other} のときは、相手の端末でも:</p>${theirs}</${open ? "div" : "details"}>`;
+};
 function tipHTML() {
-  if (endTip === "lan") return `<div class="party-tip"><p><b>同じ Wi-Fi の相手とつながらないとき</b>${isMac() ? "" : "（Mac の場合）"}</p>${LAN_STEPS}</div>`;
+  if (endTip === "lan") return `<div class="party-tip">${lanTip(true)}</div>`;
   if (endTip === "turn") return `<div class="party-tip"><p><b>別の回線どうしでつながらないとき</b>: 会社・学校・テザリングなどの回線では、「つなぎ方の設定」に TURN を足すとつながることがあります。</p>
-    <details><summary>同じ Wi-Fi なのにつながらないとき（Mac）</summary>${LAN_STEPS}</details></div>`;
+    ${lanTip(false)}</div>`;
   return "";
 }
 function routes(pc: RTCPeerConnection) {
@@ -297,7 +325,7 @@ function host() {
   setCatsAway(true);
   voiceHost?.close(); voiceHost = new HostVoice();
   room.open();
-  resetIds(); setShareSet(pickedSet === undefined ? currentSet() : pickedSet); defaults = { chat: false, request: false, voice: true }; overrides.clear();
+  resetIds(); setShareSet(pickedSet === undefined ? currentSet() : pickedSet); defaults = { chat: false, request: false, voice: false }; overrides.clear();
   newLink();
   peaksKey = ""; lastPeaks = undefined;
   stateTimer = window.setInterval(() => {
@@ -323,6 +351,7 @@ function newLink() {
 function hostLetter(l: Letter) {
   if (role !== "host") return;
   if (l.note.t === "knock") {
+    if (outed.has(l.from)) { box?.send(l.from, { t: "no" }); return; }
     if (peers.some(p => p.id === l.from)) return;   // つなぎかけの人の、くり返しの「入れてください」
     const k = knocks.find(x => x.id === l.from);
     if (k) return;
@@ -368,7 +397,7 @@ function refuse(id: string) {
 
 // ---------- 部屋 ----------
 // 権限: 部屋の既定と、人ごとの上書き（ホストだけが持ち、確かめるのもホスト）
-let defaults: Perms = { chat: false, request: false, voice: true };
+let defaults: Perms = { chat: false, request: false, voice: false };   // 通話も既定は不可（ホストが人ごとか全員に許す）
 const overrides = new Map<string, Partial<Perms>>();
 const ALL: Perms = { chat: true, request: true, voice: true };
 const permsOf = (cid: string): Perms => cid === "h" ? ALL : { ...defaults, ...overrides.get(cid) };
@@ -403,6 +432,7 @@ function makeRoom(isHost: boolean): Room {
     mic: on => isHost ? voiceHost?.setMic(on) ?? Promise.resolve(false) : voiceGuest?.setMic(on) ?? Promise.resolve(false),
     toast: t => toastFn?.(t),
     permsOf: isHost ? () => ({ defaults, guests: overrides }) : undefined,
+    kick: isHost ? cid => kick(cid) : undefined,
     play: isHost ? (id, i) => { const a = albumOf(id); if (a) ctx().player.playAlbum(a, i); } : undefined,
     src: () => isHost ? hostSrc() : guestSrc(),
     volume: isHost ? undefined : { get: partyVol, set: v => { try { localStorage.setItem(VOL_KEY, String(v)); } catch { /* ignore */ } applyOut(); } },
@@ -640,7 +670,11 @@ function hear(stream: MediaStream) {
   // 部屋の猫の耳: 届いた音の大きさから拍を拾う（リズムをとる）
   try {
     earCtx?.close().catch(() => {});
+    // iPad・iPhone は、消音モードのとき Web Audio の音を鳴らさない。音楽として鳴らすと伝える（Safari 16.4 以降）
+    try { const as = (navigator as Navigator & { audioSession?: { type: string } }).audioSession; if (as) as.type = "playback"; } catch { /* ignore */ }
     earCtx = new AudioContext();
+    const ec = earCtx;
+    ec.onstatechange = () => { if (ec !== earCtx || role !== "guest") return; const b = earSilent(); if (b !== blocked) { blocked = b; update(); } };
     const an = earCtx.createAnalyser(), buf = new Float32Array(1024);
     an.fftSize = 1024;
     const src = earCtx.createMediaStreamSource(stream);
@@ -680,12 +714,17 @@ function hear(stream: MediaStream) {
   applyOut();
   playParty();
 }
+// 鳴らす経路が AudioContext のときは、audio 要素が鳴っていても（消音で流しているだけ）AudioContext が止まっていれば無音になる。
+// iPad・iPhone では、つながった瞬間（操作の外）に作った AudioContext は止まったまま始まり、通話の着信などでも止まる
+const earSilent = () => earOn && !!earCtx && earCtx.state !== "running";
 function playParty() {
   if (!audio) return;
-  if (earCtx?.state === "suspended") earCtx.resume().catch(() => {});
+  if (earCtx && earCtx.state !== "running" && earCtx.state !== "closed") earCtx.resume().then(() => { if (!earSilent() && blocked) { blocked = false; update(); } }, () => {});
   voiceGuest?.resume();
-  audio.play().then(() => { blocked = false; update(); }).catch(() => { blocked = true; update(); });
+  audio.play().then(() => { blocked = earSilent(); update(); }).catch(() => { blocked = true; update(); });
 }
+// 「画面のどこかを押すと鳴ります」: 止められている間は、どこを押しても鳴らし直す（押した操作の中で呼ぶ必要がある）
+document.addEventListener("pointerdown", () => { if (role === "guest" && blocked) playParty(); }, true);
 /** 参加者の音量はパーティー用に別に持つ（2 乗のカーブ）。出力先だけは、この端末の設定（スピーカーかイヤホンか）にそろえる */
 function applyOut() {
   if (!audio) return;
@@ -738,8 +777,17 @@ function dropped(peer: Peer) {
   else end(was ? "ホストとの接続が切れました" : "つながりませんでした");
   render();
 }
+/** ホスト: その人を退出させる（接続を切り、このパーティーの間は入れない。ページを開き直した人は新しいリンクで防ぐ） */
+function kick(cid: string) {
+  const peer = peers.find(p => p.cid === cid);
+  if (!peer) return;
+  outed.add(peer.id);
+  send(peer, { t: "out" });
+  setTimeout(() => dropped(peer), 150);   // 「退出」が届いてから切る
+}
 function received(peer: Peer, m: Msg) {
   if (m.t === "bye") { dropped(peer); return; }
+  if (m.t === "out") { if (role === "guest") end("ホストがあなたを退出させました"); return; }
   if (role === "host") { hostRoom(peer, m); return; }   // ホストが参加者から受け取るのは、抜けますと部屋のことだけ
   if (m.t === "peers") { hostName = m.host; guestNames = m.names; update(); }
   else if (m.t === "state") { last = m; update(); }
@@ -748,7 +796,7 @@ function received(peer: Peer, m: Msg) {
 function sendPeers() { broadcast({ t: "peers", host: hostName, names: peers.filter(p => p.open).map(p => p.name) }); }
 function snapshot(): Msg {
   const p = ctx().player, a = p.album, t = p.track;
-  return { t: "state", track: a && t ? { title: t.title, artist: a.artist, album: a.title } : undefined, playing: p.playing, ext: p.external, id: a ? nowId() : undefined, land: hereLand() };
+  return { t: "state", track: a && t ? { title: t.title, artist: a.artist, album: a.title } : undefined, playing: p.playing, ext: p.external, id: a ? nowId() : undefined, land: landShared() ? hereLand() : undefined };
 }
 
 function end(why: string, tip: typeof endTip = "") {
@@ -771,7 +819,7 @@ function leave(quiet = false) {
   clearInterval(talkTimer); talkTimer = 0;
   voiceHost?.close(); voiceHost = undefined; voiceGuest?.close(); voiceGuest = undefined; lastTalk = "";
   mirror = undefined; mhist = undefined; hostLook = undefined; clearTimeout(npQueued); npQueued = 0;
-  peers = []; knocks = []; roomKey = hostId = ""; ended = ""; endTip = ""; last = undefined; guestNames = []; relaysOpen = 0;
+  peers = []; knocks = []; outed.clear(); roomKey = hostId = ""; ended = ""; endTip = ""; last = undefined; guestNames = []; relaysOpen = 0;
   role = "idle";
   if (!quiet) render();
 }
@@ -818,6 +866,13 @@ const onKey = (e: KeyboardEvent) => {
   if (e.key === "Escape") { e.stopPropagation(); closeDlg(); }
 };
 
+const landShared = () => { try { return localStorage.getItem(LAND_KEY) === "1"; } catch { return false; } };
+/** ご当地の品をオンにしているホストだけ: 土地（都道府県・国）を参加者に届けるか */
+const LAND = () => {
+  const here = hereLand();
+  return here ? `<label class="dlg-check"><input type="checkbox" id="party-land"${landShared() ? " checked" : ""}> ご当地の品のために、いまいる土地（${esc(landName(here))}）を入った人に知らせる（一緒に 30 分聴くと、その土地の品が届きます）</label>` : "";
+};
+const RIGHTS = `<p class="dlg-note">招待リンクは、知っている人にだけ直接送ってください（SNS など誰でも見られる場所には貼らないでください）。流す曲の権利に気を配るのは、ホストの役目です。</p>`;
 const PRIVACY = `<p class="dlg-note">つなぐための情報は、公開の Nostr リレーを通して暗号化して受け渡します（鍵は招待リンクの中だけにあり、リレーには読めません）。つながるとホストと参加者の間でお互いの IP アドレスが見えるので、知っている人とだけ使ってください。参加者どうしはつながりません。</p>`;
 const nameField = () => `<label class="dlg-field"><span>あなたの名前（相手に見えます）</span><input id="party-name" type="text" maxlength="40" autocomplete="nickname" value="${esc(myName())}"></label>`;
 /** 送るアルバムのセット（タグ）を選ぶ欄。タグがなければ出さない */
@@ -862,6 +917,8 @@ function render() {
     ${nameField()}
     ${SHARE(pickedSet === undefined ? currentSet() : pickedSet)}
     ${editorHtml()}
+    ${LAND()}
+    ${RIGHTS}
     <div class="dlg-actions"><button class="btn primary" id="party-host">パーティーを開く</button></div>
     <p class="dlg-note">参加するときは、ホストから届いた招待リンクを開いてください。</p>
     ${PRIVACY}${ICE()}`);
@@ -877,6 +934,8 @@ function render() {
     <div class="party-knocks" id="party-knocks"></div>
     <div class="party-people" id="party-people"></div>
     ${SHARE(shareSet())}
+    ${LAND()}
+    ${RIGHTS}
     <p class="dlg-note">いつもどおりに曲を選んで操作してください。EQ をかけた音がそのまま届きます。</p>
     <p class="dlg-note">入ってきた人の猫は、あなたのホームに来ます（パーティーの間は、いつもの猫はお出かけしています）。</p>
     <div class="dlg-actions"><button class="btn" id="party-leave">パーティーを閉じる</button></div>`);
@@ -907,6 +966,8 @@ function render() {
   $<HTMLButtonElement>("#party-renew")?.addEventListener("click", () => { newLink(); shown = ""; render(); });
   $<HTMLButtonElement>("#party-leave")?.addEventListener("click", () => leave());
   $<HTMLButtonElement>("#party-done")?.addEventListener("click", () => { leave(); closeDlg(); });
+  const land = $<HTMLInputElement>("#party-land");
+  if (land) land.onchange = () => { try { localStorage.setItem(LAND_KEY, land.checked ? "1" : "0"); } catch { /* ignore */ } if (role === "host") broadcast(snapshot()); };
   const pick = $<HTMLSelectElement>("#party-set");
   if (pick) pick.onchange = () => changeShare(parseSet(pick.value));
   wireEditor(body, () => name?.value.trim() ?? myName());

@@ -28,9 +28,14 @@ export function roomLight(h: number, wet: number, snow: boolean, winter: number)
   return { tint, edge, spillCol: spillC, spill };
 }
 
+/** 日差しをかけない所: 文字や操作のあるモジュール（曲目・EQ・出力など）と、設定の板。光がかぶると読みにくい。
+ *  棚・窓・時計・小物・床の家具には当てる */
+const SHADE = "#view-home:not([hidden]) :is(.mod-player, .mod-waveform, .mod-eq, .mod-output, .mod-info, .mod-log, .mod-distance, .mod-spectrum) > .mod-body, #view-settings:not([hidden]), #pop";
+const shaded = () => [...document.querySelectorAll<HTMLElement>(SHADE)].map(e => e.getBoundingClientRect()).filter(r => r.width > 0 && r.bottom > 0 && r.top < innerHeight);
+
 /** 日差し: 窓のガラス（画面座標）から部屋へ落ちる日だまりと光の筋を描く */
 interface Glass { x: number; y: number; w: number; h: number; curtain: number; bar: number }
-function drawSunbeam(c: HTMLCanvasElement, G: Glass, sun: { u: number; el: number }, k: number, col: number[], clipOut: DOMRect | null, patchOnly: boolean, gain: number) {
+function drawSunbeam(c: HTMLCanvasElement, G: Glass, sun: { u: number; el: number }, k: number, col: number[], clipOut: DOMRect | null, patchOnly: boolean, gain: number, shade: DOMRect[]) {
   const px = Math.min(1.5, devicePixelRatio || 1), W = Math.round(innerWidth * px), H = Math.round(innerHeight * px);
   if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
   const g = c.getContext("2d")!;
@@ -76,6 +81,9 @@ function drawSunbeam(c: HTMLCanvasElement, G: Glass, sun: { u: number; el: numbe
     const cut = Math.max(x0, Math.min(x1, G.curtain));
     pane(x0, cut, .35); pane(cut, x1, 1);
   }
+  // 文字のあるモジュールの上は抜く（ぼかしで縁はやわらかく消える）
+  g.globalCompositeOperation = "destination-out"; g.fillStyle = "#000";
+  for (const r of shade) g.fillRect(r.left, r.top, r.width, r.height);
   g.restore();
 }
 
@@ -115,13 +123,17 @@ export function initRoomLight() {
     const cr = cv.getBoundingClientRect();
     const G = { x: cr.left + wg.x, y: cr.top + wg.y, w: wg.w, h: wg.h, curtain: cr.left + wg.curtain, bar: Math.max(2, Math.min(cr.width, cr.height) * .045 * .38) };
     const col = mixN([255, 240, 212], [255, 138, 58], (1 - sun.el) ** 1.1).map(Math.round);
-    const key = [G.x, G.y, G.w, G.h, G.curtain, Math.round(sun.u * 400), Math.round(k * 50), col, innerWidth, innerHeight].map(v => typeof v === "number" ? Math.round(v) : v).join("|");
+    const shade = shaded();
+    const key = [G.x, G.y, G.w, G.h, G.curtain, Math.round(sun.u * 400), Math.round(k * 50), col, innerWidth, innerHeight, ...shade.flatMap(s => [s.left, s.top, s.width, s.height])].map(v => typeof v === "number" ? Math.round(v) : v).join("|");
     if (key === beamKey) return;
     beamKey = key;
-    drawSunbeam(beam, G, sun, k, col, r, false, .5);
-    drawSunbeam(patch, G, sun, k, mixN(col, [255, 255, 255], .3).map(Math.round), r, true, .75);
+    drawSunbeam(beam, G, sun, k, col, r, false, .5, shade);
+    drawSunbeam(patch, G, sun, k, mixN(col, [255, 255, 255], .3).map(Math.round), r, true, .75, shade);
   };
   update();
   setInterval(update, 1000);
   addEventListener("resize", update);
+  // スクロールしたら、止まったところで描き直す（日だまりと、光を抜く所の位置を合わせる）
+  let settle = 0;
+  addEventListener("scroll", () => { clearTimeout(settle); settle = window.setTimeout(update, 120); }, { capture: true, passive: true });
 }

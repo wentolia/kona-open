@@ -2,7 +2,6 @@
 // 出入りは document に "kona:bird" で知らせる。とまったとき { state: "land", x, y }（画面座標）、飛び去るとき { state: "leave" }。猫が狙うのに使う
 // "kona:bird-scare" を流すと、驚いて飛び去る
 
-export interface BirdState { present: boolean; x: number; y: number }
 type Phase = "away" | "arriving" | "perched" | "leaving";
 export interface Bird {
   phase: Phase; t: number; next: number; stay: number;
@@ -16,10 +15,7 @@ export const newBird = (): Bird => ({
   from: [0, 0], to: [0, 0], act: "idle", actT: 0, actLen: 1, hopFrom: 0, hopTo: 0, scared: false,
 });
 const LEDGE = .975; // 窓の外の縁（ガラスの高さに対する位置）
-let current: BirdState = { present: false, x: 0, y: 0 };
-/** いま窓辺に鳥がとまっているか（とまっていれば画面座標） */
-export const windowBird = () => current;
-export const scareBird = () => document.dispatchEvent(new CustomEvent("kona:bird-scare"));
+let present = false; // 窓辺にとまっているか（出入りが変わったときだけ知らせる）
 
 /** 鳥を進める。ok は鳥が来てよい天気・時間か */
 export function stepBird(B: Bird, dt: number, ok: boolean) {
@@ -80,10 +76,10 @@ export function stepBird(B: Bird, dt: number, ok: boolean) {
 
 /** 画面座標の更新と、出入りの知らせ */
 export function publishBird(B: Bird, x: number, y: number) {
-  const present = B.phase === "perched";
-  const changed = present !== current.present;
-  current = { present, x, y };
-  if (changed) document.dispatchEvent(new CustomEvent("kona:bird", { detail: present ? { state: "land", x, y } : { state: "leave" } }));
+  const now = B.phase === "perched";
+  if (now === present) return;
+  present = now;
+  document.dispatchEvent(new CustomEvent("kona:bird", { detail: now ? { state: "land", x, y } : { state: "leave" } }));
 }
 
 const poly = (g: CanvasRenderingContext2D, c: string, p: number[]) => { g.fillStyle = c; g.beginPath(); g.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]); g.closePath(); g.fill(); };
