@@ -57,7 +57,7 @@ body { transition: background-color .6s ease, color .6s ease; }
 /* 書体 */
 :root[data-font="mincho"] { --font-body: "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", serif; }
 /* 文字の大きさ: 文字の多い所だけを拡大する（棚・猫・キャンバスは位置を測っているので、そのまま） */
-.top, #view-library, #view-settings .set, #np, #mini, .pop, .pop-menu, .dlg, .toast, .m { zoom: var(--font-scale, 1); }
+.top, #view-library, #view-settings .set, #np, .pop, .pop-menu, .dlg, .toast, .m { zoom: var(--font-scale, 1); }
 /* 動きを減らす（端末の設定か、設定ページで） */
 :root[data-motion="reduce"] *, :root[data-motion="reduce"] *::before, :root[data-motion="reduce"] *::after {
   animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important;

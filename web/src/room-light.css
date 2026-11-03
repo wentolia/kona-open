@@ -7,5 +7,5 @@
 .room-beam { width: 100vw; height: 100vh; filter: blur(14px); }
 .room-beam-air { mix-blend-mode: screen; }
 .room-beam-patch { mix-blend-mode: color-dodge; }
-body[data-mini] .room-light, body:not([data-state="ready"]) .room-light { display: none; }
+body:not([data-state="ready"]) .room-light { display: none; }
 @media print { .room-light { display: none; } }

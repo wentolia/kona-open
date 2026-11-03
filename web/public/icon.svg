@@ -1,10 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#1a1d22"/>
-  <g transform="translate(96 112)">
-    <rect x="0" y="40" width="44" height="232" rx="3" fill="#9a6e4c"/>
-    <rect x="52" y="0" width="36" height="272" rx="3" fill="#ece4d8"/>
-    <rect x="96" y="64" width="40" height="208" rx="3" fill="#6d4b33"/>
-    <rect x="160" y="78" width="160" height="194" rx="4" fill="#f0b35e" transform="rotate(-8 240 272)"/>
-    <rect x="-24" y="272" width="368" height="16" rx="3" fill="#3b281b"/>
-  </g>
+<!-- Kona のしるし（web/src/header-icons.ts の logo を 512 に置いたもの） -->
+<rect width="512" height="512" rx="112" fill="#1a1d22"/>
+<g transform="translate(80 80) scale(11)" style="stroke-width:.25;stroke-linejoin:round"><g transform="translate(16 16) scale(.31) translate(-46 -46)">
+  <polygon style="fill:#e6bb6e;stroke:#e6bb6e" points="48.0,8.0 52.0,-2.0 60.0,12.0"/><polygon style="fill:#a87d3c;stroke:#a87d3c" points="76.0,8.0 72.0,-2.0 64.0,12.0"/>
+  <polygon style="fill:#e6bb6e;stroke:#e6bb6e" points="48.0,8.0 60.0,12.0 62.0,34.0 46.0,28.0"/><polygon style="fill:#a87d3c;stroke:#a87d3c" points="76.0,8.0 60.0,12.0 62.0,34.0 78.0,28.0"/>
+  <polygon style="fill:#e6bb6e;stroke:#e6bb6e" points="46.0,28.0 62.0,34.0 28.0,94.0"/><polygon style="fill:#d3a55a;stroke:#d3a55a" points="62.0,34.0 52.0,94.0 28.0,94.0"/>
+  <polygon style="fill:#a87d3c;stroke:#a87d3c" points="62.0,34.0 78.0,28.0 82.0,94.0 52.0,94.0"/><polygon style="fill:#7a5828;stroke:#7a5828" points="28.0,94.0 10.0,84.0 12.0,72.0 30.0,86.0"/></g></g>
 </svg>

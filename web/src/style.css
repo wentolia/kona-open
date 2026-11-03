@@ -294,7 +294,7 @@ body[data-state="start"] .start, body[data-state="loading"] .start {
 body:not([data-state="ready"]) .top > :not(.brand), body:not([data-state="ready"]) main, body:not([data-state="ready"]) .np-footer { display: none; }
 body:not([data-state="ready"]) .top .brand { visibility: hidden; }
 .start-inner { display: grid; gap: 14px; justify-items: center; text-align: center; max-width: 30em; }
-.start-brand { font-weight: 700; letter-spacing: .5em; font-size: 22px; margin-right: -.5em; }
+.start-brand { width: 72px; height: 72px; }
 .start-lead { margin: 0; font-size: 16px; text-wrap: balance; }
 .start-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-block: 6px; }
 .start-note { margin: 0; color: var(--muted); font-size: 12px; text-wrap: balance; }
@@ -404,14 +404,7 @@ body:is([data-view="home"], [data-view="settings"]) .np-footer { display: none; 
 .win-btn svg { width: 15px; height: 15px; fill: var(--muted); }
 .win-btn:hover svg { fill: var(--ink); }
 
-/* 最小表示: 本体のウィンドウでは、ボタンで切り替えたときと、ウィンドウを低くしたときに出す */
-#mini { display: none; }
-body[data-state="ready"][data-mini] > :not(#mini, script, .toast) { display: none !important; }
-body[data-state="ready"][data-mini] > #mini { display: block; }
-@media (max-height: 220px) {
-  body[data-state="ready"] > :not(#mini, script, .toast) { display: none !important; }
-  body[data-state="ready"] > #mini { display: block; }
-}
+/* 小窓のプレイヤー */
 .mini-host { flex: 1; min-height: 0; container-type: size; position: relative; }
 body.pip { padding: 0; }
 body.pip > .mini-host { display: block; }
@@ -685,10 +678,9 @@ body { background: radial-gradient(120% 80% at 50% 45%, color-mix(in srgb, var(-
 .dist-num small { font-size: .45em; color: var(--muted); margin-left: 3px; text-shadow: none; }
 .dist-ends { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--muted); }
 .dist-from, .dist-to { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* 通り過ぎた目じるしは押すと証書。小さな賞のしるしを添える */
-.dist-from { font: inherit; color: inherit; padding: 0; border-radius: 3px; cursor: pointer; }
+/* 通り過ぎた目じるし。小さな賞のしるしを添える */
+.dist-from { font: inherit; color: inherit; padding: 0; }
 .dist-from::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #c9a24f; box-shadow: 0 0 0 1.5px color-mix(in srgb, #c9a24f 40%, transparent); vertical-align: 0; }
-.dist-from:hover { color: var(--ink); }
 .dist-track { padding: 6px 0 2px; }
 .dist-bar { display: flex; justify-content: space-between; height: 2px; background: var(--line); position: relative; }
 .dist-bar b { width: 1px; height: 6px; margin-top: -2px; background: var(--line); }

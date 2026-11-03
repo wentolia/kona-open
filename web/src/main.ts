@@ -22,16 +22,14 @@ import { setCats, randomCoat, isCoat, setCatsMusic, restyleCat, setCatHooks, cat
 import { initNoise, roomTail } from "./noise";
 import { ritual, isPulled } from "./ritual";
 import { wakeCatHost, placeWakeCat, catAwake } from "./wakecat";
-import { initMini, setMini } from "./mini";
+import { initMini } from "./mini";
 import { windowRain, WINDOW_SCENES, windowScene, setWindowScene } from "./mod-window";
 import { initRoomLight } from "./room-light";
-import { initPhoto } from "./photo";
-import { openReceipt } from "./receipt";
-import { checkAwards, hasCertificates, openCertificate } from "./awards";
+import { checkAwards } from "./awards";
 import { initShelfMarks } from "./shelf-marks";
-import "./photo.css";
 import "./room-light.css";
 import "./header.css";
+import { paintHeaderIcons, headerIcon } from "./header-icons";
 import { presentTick, seedPresents, catCap, achieve, ownedAccs } from "./presents";
 import { mountPresents } from "./presents-ui";
 import { mountThings, placedThings, toggleThing, setThing, THING_OF_MODULE } from "./room-things";
@@ -529,11 +527,13 @@ function setHidden(keys: string[], hide: boolean, undo = true) {
 }
 
 // タグやセットが変わったら: 出すアルバムを選び直して描き直す（次に再生はそのまま。セットの外のものは飛ばす）
+// セットの切り替えは、上の帯ではなくライブラリの上の段に置く（選んだセットはホームの棚にもそのまま効く）
 function renderSetTabs() {
-  const nav = $("#sets"), html = setTabsHTML();
+  const nav = document.querySelector<HTMLElement>("#view-library .lib-sets");
+  if (!nav) return;
+  const html = setTabsHTML();
   nav.innerHTML = html; nav.hidden = !html;
 }
-$("#sets").addEventListener("click", onSetTabClick);
 document.addEventListener("kona:tags", () => {
   albums = allAlbums.filter(shown);
   renderSetTabs();
@@ -601,7 +601,7 @@ function setState(state: AppState, note = "") {
   const cat = document.querySelector<HTMLElement>("#start .wake-cat") ?? wakeCatHost();
   $("#start").innerHTML = `<div class="start-inner">
     <i id="start-cat"></i>
-    <div class="start-brand">KONA</div>
+    <div class="start-brand" role="img" aria-label="Kona">${headerIcon("logo")}</div>
     ${state === "loading"
       ? `<p class="start-lead" id="start-step">読み込んでいます</p>
         <div class="start-bar indeterminate" id="start-bar" role="progressbar" aria-label="読み込みの進み具合" aria-valuemin="0" aria-valuemax="100"><i></i></div>
@@ -1496,11 +1496,13 @@ function renderLibrary() {
   if (!albums.length) { v.innerHTML = ""; return; }
   const byArtist = libGroup() === "artist", what = byArtist ? "アーティスト" : "フォルダ";
   v.innerHTML = `<div class="lib"><nav class="side" aria-label="${what}"><h2>${what}</h2></nav><div class="lib-shelves">
-    <div class="lib-bar"><div class="lib-group" role="group" aria-label="${t("括り方")}">
+    <div class="lib-bar"><nav class="sets lib-sets" aria-label="${t("アルバムのセット")}"></nav><div class="lib-group" role="group" aria-label="${t("括り方")}">
       <button data-g="folder" aria-pressed="${!byArtist}">${t("フォルダ")}</button><button data-g="artist" aria-pressed="${byArtist}">${t("アーティスト")}</button></div>
       <select class="lib-sort" aria-label="${t("並び順")}" title="${t("並び順")}">${SORTS.map(o => `<option value="${o.key}"${o.key === prefs().libSort ? " selected" : ""}>${esc(t(o.label))}</option>`).join("")}</select><input class="mod-search lib-search" id="lib-q" type="search" placeholder="検索" autocomplete="off" aria-label="ライブラリを検索" value="${esc(libQuery)}"></div>
     <div class="case"></div>${hiddenList()}</div></div>`;
   const side = $(".side", v), kase = $(".case", v);
+  $(".lib-sets", v).addEventListener("click", onSetTabClick);
+  renderSetTabs();
   $<HTMLInputElement>("#lib-q", v).oninput = e => { libQuery = (e.target as HTMLInputElement).value; keepScroll(renderLibrary); };
   v.querySelectorAll<HTMLButtonElement>(".lib-group button").forEach(b => b.onclick = () => {
     if (b.dataset.g === libGroup()) return;
@@ -1807,16 +1809,12 @@ initShortcuts(id => {
       const q = document.querySelector<HTMLInputElement>(location.hash === "#library" ? "#lib-q" : "#view-home .mod-search");
       q?.focus(); q?.select(); return;
     }
-    case "mini": return setMini(!document.body.hasAttribute("data-mini"));
   }
 });
 
-// ---------- 最小表示と小窓（mini.ts） ----------
+// ---------- 小窓（mini.ts） ----------
 initMini(player, art);
-initPhoto({ toast, others: {
-  receipt: { label: "レシート", available: () => !!player.album, open: () => openReceipt(() => ({ album: player.album, index: player.index, position: player.position })) },
-  certificate: { label: "証書", available: hasCertificates, open: () => openCertificate() },
-} });
+document.addEventListener("kona:award", e => { const t = (e as CustomEvent<string>).detail; if (t) toast(t); });
 initShelfMarks();
 
 // タスクバーに置けるように（PWA）。オフラインでも開けるよう、読んだ画面のファイルを手元に残す
@@ -1953,6 +1951,7 @@ document.addEventListener("kona:prefs", e => {
   if (keys.includes("catsHidden")) placeCats(true);
   if (keys.includes("libGroup") || keys.includes("libSort")) { renderShelves(); if (location.hash === "#library") keepScroll(renderLibrary); renderMobile(); }
 });
+paintHeaderIcons();
 translateStatic();
 
 // ---------- ルーティング ----------

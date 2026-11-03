@@ -2,7 +2,6 @@
 // 次に越える目じるしまでの進み具合を細い線で見せる
 
 import { esc, everyFrame, hist } from "./modctx";
-import { openCertificate } from "./awards";
 
 const SPEED = 2 * Math.PI * 0.11 * (33.333 / 60); // m/s
 export const MARKS: [number, string][] = [
@@ -18,13 +17,11 @@ export function mountDistance(body: HTMLElement) {
     <div class="dist">
       <div class="dist-num"></div>
       <div class="dist-track"><span class="dist-bar">${Array.from({ length: 9 }, () => "<b></b>").join("")}<i></i><em></em></span></div>
-      <div class="dist-ends"><button type="button" class="dist-from" title="押すと証書を見る"></button><span class="dist-to"></span></div>
+      <div class="dist-ends"><span class="dist-from"></span><span class="dist-to"></span></div>
     </div>`;
   const root = body.querySelector<HTMLElement>(".dist")!;
   const num = root.querySelector<HTMLElement>(".dist-num")!, bar = root.querySelector<HTMLElement>(".dist-bar i")!, dot = root.querySelector<HTMLElement>(".dist-bar em")!;
-  const from = root.querySelector<HTMLButtonElement>(".dist-from")!, to = root.querySelector<HTMLElement>(".dist-to")!;
-  // 通り過ぎた目じるしを押すと、その証書
-  from.onclick = () => { if (from.dataset.m) openCertificate(Number(from.dataset.m)); };
+  const from = root.querySelector<HTMLElement>(".dist-from")!, to = root.querySelector<HTMLElement>(".dist-to")!;
   let shown = -1;
   const H = hist();
   everyFrame(root, () => {

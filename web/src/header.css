@@ -14,37 +14,34 @@
 }
 body:not([data-state="ready"]) .top::before { display: none; }
 
-/* ---------- 札とボタン: 形と濃淡は ::before に持たせ、フォーカスの枠は切らない ---------- */
-.top :is(.tabs a, .win-btn, .open) { position: relative; isolation: isolate; border-radius: 0; background: none; }
-.top :is(.tabs a, .win-btn, .open)::before {
+/* ---------- ボタン: 字のない、部屋の小物と同じローポリの絵（header-icons.ts）。名前は aria-label / title ---------- */
+.hd-icon { display: block; width: 100%; height: 100%; overflow: visible; }
+.hd-icon polygon { stroke-width: .5px; stroke-linejoin: round; }
+.top .brand { width: 30px; height: 30px; flex: none; }
+.top .hd-btn {
+  position: relative; isolation: isolate; flex: none; display: grid; place-items: center;
+  width: 40px; height: 38px; padding: 6px 7px; border: 0; border-radius: 0; background: none; text-decoration: none;
+}
+.top .hd-btn .hd-icon { transition: transform .15s, opacity .15s, filter .15s; }
+/* 下に、三面の六角の台座。触れると浮かび、いまのページでは立ったまま */
+.top .hd-btn::before {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .15s;
-}
-/* タブ: 六角の札。上の面が明るく、下の面がやや沈む */
-.top .tabs a::before {
-  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 7px 100%, 0 50%);
-  background: linear-gradient(170deg, color-mix(in srgb, var(--ink) 12%, transparent) 50%, color-mix(in srgb, var(--ink) 7%, transparent) 50%);
-}
-.top .tabs a[aria-current="page"]::before { opacity: 1; }
-.top .tabs a:hover::before { opacity: .55; }
-/* 窓のボタン（写真・最小表示・小窓）: 触れると三面の六角が浮かぶ */
-.top .win-btn::before {
-  clip-path: polygon(50% 2px, 93% 26%, 93% 74%, 50% calc(100% - 2px), 7% 74%, 7% 26%);
+  clip-path: polygon(50% 0, 96% 25%, 96% 75%, 50% 100%, 4% 75%, 4% 25%);
   background: conic-gradient(from -30deg,
-    color-mix(in srgb, var(--ink) 14%, transparent) 0 120deg,
-    color-mix(in srgb, var(--ink) 9%, transparent) 0 240deg,
-    color-mix(in srgb, var(--ink) 5%, transparent) 0);
+    color-mix(in srgb, var(--ink) 13%, transparent) 0 120deg,
+    color-mix(in srgb, var(--ink) 8%, transparent) 0 240deg,
+    color-mix(in srgb, var(--ink) 4%, transparent) 0);
 }
-.top .win-btn:hover::before { opacity: 1; }
-/* フォルダを開く・読み直す: 角を落とした板 */
-.top .open { border: 0; }
-.top button.open::before {
-  opacity: 1; clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
-  background: linear-gradient(165deg, color-mix(in srgb, var(--ink) 11%, transparent) 50%, color-mix(in srgb, var(--ink) 6%, transparent) 50%);
-}
-.top .open:hover::before {
-  background: linear-gradient(165deg, color-mix(in srgb, var(--ink) 16%, transparent) 50%, color-mix(in srgb, var(--ink) 10%, transparent) 50%);
-}
-@media (prefers-reduced-motion: reduce) { .top :is(.tabs a, .win-btn, .open)::before { transition: none; } }
+.top .hd-btn:hover::before, .top .hd-btn:focus-visible::before { opacity: .7; }
+.top .hd-btn:hover .hd-icon { transform: translateY(-1px); }
+/* ページのタブ: いまのページ以外は少し沈める */
+.top .tabs { gap: 2px; }
+.top .tabs .hd-btn:not([aria-current="page"]) .hd-icon { opacity: .62; filter: saturate(.55); }
+.top .tabs .hd-btn:not([aria-current="page"]):hover .hd-icon { opacity: 1; filter: none; }
+.top .tabs .hd-btn[aria-current="page"]::before { opacity: 1; }
+.top .winctl { gap: 0; }
+.top .tabs .hd-btn[aria-current="page"] { background: none; }
+@media (prefers-reduced-motion: reduce) { .top .hd-btn::before, .top .hd-btn .hd-icon { transition: none; } }
 
 /* ---------- スマホ版の上: 帯は同じ形を細かめに、検索欄は六角の札 ---------- */
 .m-top { padding-bottom: 16px; }
@@ -54,9 +51,5 @@ body:not([data-state="ready"]) .top::before { display: none; }
   clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%);
   background: linear-gradient(172deg, color-mix(in srgb, var(--ink) 11%, transparent) 50%, color-mix(in srgb, var(--ink) 6%, transparent) 50%);
 }
-
-/* 写真を撮る: 左の KONA のすぐ横に、小さく薄く。触れたときだけはっきり見せる */
-.top #to-photo { width: 26px; height: 26px; margin-left: -8px; opacity: .6; transition: opacity .15s; }
-.top #to-photo svg { width: 13px; height: 13px; }
-.top #to-photo:hover, .top #to-photo:focus-visible { opacity: 1; }
-.top #to-photo:hover svg, .top #to-photo:focus-visible svg { fill: var(--ink); }
+.m .m-brand { width: 28px; height: 28px; }
+.m .m-more .hd-icon { width: 26px; height: 26px; }
