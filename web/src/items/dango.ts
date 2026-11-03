@@ -9,4 +9,4 @@ function art() {
     ${poly("#e8e4dc", [[0, 36], [54, 36], [50, 40], [4, 40]])}${poly("#2c4a6e", [[6, 37], [48, 37], [47, 38], [7, 38]])}`;
 }
 
-export default { key: "dango", label: "お団子", at: "shelf", w: 54, h: 40, cat: "食べ物", order: 403, draft: true, note: "三色の串を皿に", art } satisfies ItemDef;
+export default { key: "dango", label: "お団子", at: "shelf", w: 54, h: 40, cat: "食べ物", order: 403, note: "三色の串を皿に", art } satisfies ItemDef;

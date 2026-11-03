@@ -12,4 +12,4 @@ function art() {
     ${stub(9, 9, 34, -4, "#efe6d2", "#3d6b55")}${stub(44, 11, 32, 5, "#f3d38a", "#b24a3b")}${stub(10, 34, 30, 3, "#cfe0e6", "#2c4a6e")}${stub(44, 36, 34, -3, "#efe6d2", "#6b3d64")}`;
 }
 
-export default { key: "tickets", label: "チケットの半券", at: "wall", w: 84, h: 62, cat: "音楽", order: 115, draft: true, note: "コルクの板に、行ったライブの半券をピンで留める", art } satisfies ItemDef;
+export default { key: "tickets", label: "チケットの半券", at: "wall", w: 84, h: 62, cat: "音楽", order: 115, note: "コルクの板に、行ったライブの半券をピンで留める", art } satisfies ItemDef;

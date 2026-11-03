@@ -14,4 +14,4 @@ function art() {
 
 const live: Live = svg => { onPress(svg, () => chimeNotes([196, 247, 294, 392, 494], .05, .05)); };
 
-export default { key: "guitar", label: "ギター", at: "floor", w: 60, h: 150, cat: "音楽", order: 39, draft: true, note: "スタンドに立てる。押すとポロンと鳴る", art, live } satisfies ItemDef;
+export default { key: "guitar", label: "ギター", at: "floor", w: 60, h: 150, cat: "音楽", order: 39, note: "スタンドに立てる。押すとポロンと鳴る", art, live } satisfies ItemDef;

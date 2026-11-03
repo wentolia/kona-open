@@ -20,4 +20,4 @@ const live: Live = svg => {
   };
 };
 
-export default { key: "amp", label: "真空管アンプ", at: "shelf", w: 84, h: 48, cat: "音楽", order: 213, draft: true, note: "★ 再生中は真空管がともり、音に合わせて明るさがゆらぐ", art, live } satisfies ItemDef;
+export default { key: "amp", label: "真空管アンプ", at: "shelf", w: 84, h: 48, cat: "音楽", order: 213, note: "★ 再生中は真空管がともり、音に合わせて明るさがゆらぐ", art, live } satisfies ItemDef;

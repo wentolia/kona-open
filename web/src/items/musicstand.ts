@@ -11,4 +11,4 @@ function art() {
     ${poly(INK.deep, [[0, 54], [62, 54], [62, 58], [0, 58]])}`;
 }
 
-export default { key: "musicstand", label: "譜面台", at: "floor", w: 62, h: 150, cat: "音楽", order: 41, draft: true, note: "楽譜を載せる", art } satisfies ItemDef;
+export default { key: "musicstand", label: "譜面台", at: "floor", w: 62, h: 150, cat: "音楽", order: 41, note: "楽譜を載せる", art } satisfies ItemDef;

@@ -10,4 +10,4 @@ function art() {
     ${poly(B.hi, [[2, 26], [62, 26], [54, 40], [10, 40]])}${poly(B.lo, [[32, 26], [62, 26], [54, 40], [32, 40]])}${poly(B.deep, [[22, 40], [42, 40], [40, 44], [24, 44]])}`;
 }
 
-export default { key: "fruitbowl", label: "果物の鉢", at: "shelf", w: 64, h: 44, cat: "食べ物", order: 400, draft: true, note: "りんご・みかん・バナナ", art } satisfies ItemDef;
+export default { key: "fruitbowl", label: "果物の鉢", at: "shelf", w: 64, h: 44, cat: "食べ物", order: 400, note: "りんご・みかん・バナナ", art } satisfies ItemDef;

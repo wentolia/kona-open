@@ -22,4 +22,4 @@ const live: Live = svg => {
   };
 };
 
-export default { key: "crate", label: "レコードの木箱", at: "floor", w: 98, h: 64, cat: "音楽", order: 38, draft: true, note: "★ 差したジャケットの色が自分のアルバムの色になる。猫が中に入る予定", art, live } satisfies ItemDef;
+export default { key: "crate", label: "レコードの木箱", at: "floor", w: 98, h: 64, cat: "音楽", order: 38, note: "★ 差したジャケットの色が自分のアルバムの色になる。猫が中に入る予定", art, live } satisfies ItemDef;

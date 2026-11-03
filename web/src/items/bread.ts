@@ -9,4 +9,4 @@ function art() {
     ${poly(K.hi, [[2, 26], [58, 26], [54, 42], [6, 42]])}${[10, 18, 26, 34, 42, 50].map(x => poly(K.lo, [[x, 28], [x + 2, 28], [x + 2, 40], [x, 40]])).join("")}${poly(K.deep, [[2, 26], [58, 26], [58, 29], [2, 29]])}`;
 }
 
-export default { key: "bread", label: "パンの籠", at: "shelf", w: 60, h: 42, cat: "食べ物", order: 401, draft: true, note: "山型の食パンとバゲット", art } satisfies ItemDef;
+export default { key: "bread", label: "パンの籠", at: "shelf", w: 60, h: 42, cat: "食べ物", order: 401, note: "山型の食パンとバゲット", art } satisfies ItemDef;

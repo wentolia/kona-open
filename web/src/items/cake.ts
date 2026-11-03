@@ -10,4 +10,4 @@ function art() {
     ${poly("#e8e4dc", [[0, 36], [48, 36], [44, 40], [4, 40]])}${poly("#cfc8bc", [[4, 40], [44, 40], [42, 41], [6, 41]])}`;
 }
 
-export default { key: "cake", label: "いちごのケーキ", at: "shelf", w: 48, h: 41, cat: "食べ物", order: 402, draft: true, note: "ひと切れ、皿にのせて", art } satisfies ItemDef;
+export default { key: "cake", label: "いちごのケーキ", at: "shelf", w: 48, h: 41, cat: "食べ物", order: 402, note: "ひと切れ、皿にのせて", art } satisfies ItemDef;
