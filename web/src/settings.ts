@@ -22,6 +22,8 @@ import { openDrive } from "./drive-ui";
 import { saveDriveConfig, signOut as driveSignOut } from "./drive";
 import pkg from "../package.json";
 import { esc } from "./dom";
+import { regionAllows, regionalOn, setRegionalOn, hereLand, hereProgress, locate, locateStatus, landName, nextOf, gotList, regionalItems, GIFT_SEC } from "./region";
+import { itemOf } from "./items";
 
 export interface KeptAlbum { key: string; title: string; bytes: number; forget(): Promise<void> }
 export interface ModItem { id: string; title: string; label: string }
@@ -122,6 +124,7 @@ function roomTab() {
     ${sec(t("壁"), tiles("wall", WALLS, r.wall, "set-wall"))}
     ${sec(t("床"), tiles("floor", FLOORS, r.floor, "set-floor"))}
     ${sec(t("置くもの"), putBlock(hooks))}
+    ${sec(t("ご当地の品"), regionalBlock())}
     ${fold("room-more", t("もっと見る"), `
       <div class="set-checks">
         ${check("set-roomlight", roomLightOn(), t("部屋の明かりも時刻で変える"))}
@@ -137,7 +140,7 @@ function putBlock(h: SettingsHooks) {
     `<button type="button" class="set-put${at ? " placed" : ""}" data-put="${id}" aria-pressed="${!!at}" title="${esc(at ? `${label}（${at}）。押すとしまう` : `${label}: ホームへドラッグして置く`)}">
       <span class="set-put-art">${art}</span><span class="set-put-label">${esc(label)}</span>${at && /^\d+$/.test(at) ? `<span class="set-put-n">×${at}</span>` : ""}</button>`;
   const placed = (k: string) => { const n = countOf(k); return n ? (n > 1 ? `${n}` : t("置いた")) : undefined; };
-  const things = (at: string) => THINGS.filter(x => x.at === at).map(x => tile(`thing:${x.key}`, t(x.label), placed(x.key), "")).join("");
+  const things = (at: string) => THINGS.filter(x => x.at === at && regionAllows(x.key)).map(x => tile(`thing:${x.key}`, t(x.label), placed(x.key), "")).join("");
   return `
     <p class="set-note">${t("ホームの棚・床・壁へドラッグして置く（家具はいくつでも）。ここへ戻すとしまう。ダブルクリックで左右を反転")}</p>
     <div class="set-puts-head">${t("棚に置く")}</div>
@@ -146,6 +149,26 @@ function putBlock(h: SettingsHooks) {
     <div class="set-puts">${things("floor")}</div>
     <div class="set-puts-head">${t("壁に掛ける")}</div>
     <div class="set-puts">${things("wall")}</div>`;
+}
+
+// ご当地の品: いる土地で聴くと、その土地の品が届く（region.ts）。届いた品は「置くもの」に出る
+function regionalBlock() {
+  const on = regionalOn(), here = hereLand(), s = locateStatus(), got = gotList(), all = regionalItems().length;
+  const next = here ? nextOf(here) : undefined, left = Math.max(1, Math.ceil(GIFT_SEC * (1 - hereProgress()) / 60));
+  const where = s === "asking" ? t("土地を調べています…")
+    : s === "denied" ? t("位置情報が許可されていません。ブラウザのサイトの設定で許可できます")
+    : s === "unsupported" ? t("このブラウザは位置情報を使えません")
+    : s === "unknown" ? t("土地が分かりませんでした")
+    : here ? `${t("いま")}: ${esc(landName(here))} · ${next ? `${t("あと")} ${left} ${t("分聴くと")}「${esc(t(next.label))}」${t("が届きます")}` : t("この土地の品はみんな届きました")}` : "";
+  const tag = (g: { from?: string; at: string; d: string }) =>
+    `${g.from ? `${esc(g.from)}${t("さんの部屋で")}（${esc(landName(g.at))}）` : `${esc(landName(g.at))}${t("で")}`} · ${esc(g.d.slice(5).replace("-", "/"))}`;
+  return `
+    <p class="set-note">${t("いる土地（都道府県・国）で合わせて 30 分聴くと、その土地らしい品がひとつ届きます。パーティーでは、ホストの土地の品が届きます")}</p>
+    <div class="set-checks">${check("set-regional", on, t("いる土地の品を受け取る（位置情報を使う）"))}</div>
+    <p class="set-note">${t("位置情報は 1 日 1 回だけ使い、端末の中で都道府県・国に置き換えます。座標は保存も送信もしません")}</p>
+    ${on ? `<div class="set-row"><span>${where}</span>${s === "asking" ? "" : `<button type="button" class="set-btn" id="set-regional-again">${t("調べ直す")}</button>`}</div>` : ""}
+    <span class="set-sub">${t("届いた品")} ${got.length} / ${all}</span>
+    ${got.length ? `<ul class="set-got">${got.map(g => `<li><b>${esc(t(itemOf(g.key)?.label ?? g.key))}</b> <span>${tag(g)}</span></li>`).join("")}</ul>` : ""}`;
 }
 
 // 音: モジュールを置かなくても、出力先・イコライザー・重ねる音をここで変えられる（モジュールと同じものを動かす）
@@ -281,7 +304,7 @@ function aboutSection() {
       <li>${t("サーバーはなく、アクセス解析もしません。設定・記録・取り込んだ曲は、このブラウザの中にだけ置きます。")}</li>
       <li>${t("通信するのは Google Drive を使うときの Google の API、Spotify を使うときの Spotify だけです。")}</li>
       <li>${t("Google Drive は読み取りだけで、サインインはこのタブの中だけ（約 1 時間）有効です。")}</li>
-      <li>${t("聴いた場所は記録しません。位置情報は使いません。")}</li>
+      <li>${t("聴いた場所は記録しません。位置情報は「ご当地の品」をオンにしたときだけ 1 日 1 回使い、端末の中で都道府県・国に置き換えます。座標は保存も送信もしません。")}</li>
     </ul>`;
 }
 
@@ -292,6 +315,7 @@ export function initSettings(el: HTMLElement, h: SettingsHooks) {
   root = el; hooks = h;
   // 外で変わったもの（EQ のつまみ、Drive のサインインなど）を、開いているときだけ映す
   h.player.eq.subscribe(() => { if (!el.hidden && !el.contains(document.activeElement)) renderSettings(); });
+  document.addEventListener("kona:regional", () => { if (!el.hidden) renderSettings(); });
 }
 
 export function renderSettings() {
@@ -426,6 +450,8 @@ function wire(el: HTMLElement) {
 
   // 見た目・部屋
   on<HTMLInputElement>("#set-roomlight", "change", c => setRoomLight(c.checked));
+  on<HTMLInputElement>("#set-regional", "change", c => setRegionalOn(c.checked));
+  on("#set-regional-again", "click", () => locate(true));
   on<HTMLInputElement>("#set-marks", "change", c => setPrefs({ marks: c.checked }));
   on<HTMLInputElement>("#set-chime", "change", c => setChime(c.checked));
   // 置くもの: 小物の見本は今の姿の写し。置いてあるものを押すとしまう（置くのはホームへドラッグで。place-drag.ts）

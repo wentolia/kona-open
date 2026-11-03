@@ -43,7 +43,9 @@ import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeD
 import { isDriveEntry, isKept, keepAlbum, forgetAlbum, driveConfig, driveToken, walkDrive, type DriveEntry } from "./drive";
 import { initMobile, renderMobile, mobileActive } from "./mobile";
 import { initSpotifyUI, openSpotify, spotifyConfigured, resumeSpotify, forgetSpotifyOpen } from "./spotify-ui";
-import { initParty, openParty, partySupported } from "./party";
+import { initParty, openParty, partySupported, partyVisit } from "./party";
+import { regionalTick, locate, gotOf, landName } from "./region";
+import { itemOf } from "./items";
 import { type Drop, loadHome, saveHome, place, removeModule, addModule, MIN_W as MIN_COL, MIN_H as MIN_STACK } from "./layout";
 import { $, esc, fmt, collator } from "./dom";
 import { hashOf, byLast, matches, sortAlbums } from "./album-sort";
@@ -1746,7 +1748,13 @@ player.onLinger = (ctx, input) => roomTail(ctx, input, { rain: windowRain() });
 
 // 聴いた時間を数える（聴いた距離のモジュール用）
 // 目じるしに届いたら証書を作る（awards.ts）
-setInterval(() => { if (player.playing) { addListened(1); checkAwards(player.album); } }, 1000);
+setInterval(() => { if (player.playing) { addListened(1); checkAwards(player.album); } regionalTick(player.playing, partyVisit()); }, 1000);
+// ご当地の品（region.ts）: オンなら開いたときに土地を調べる（1 日 1 回まで）。品が届いたら知らせる
+locate();
+document.addEventListener("kona:regional", e => {
+  const k = (e as CustomEvent<{ key: string } | undefined>).detail?.key, d = k ? itemOf(k) : undefined, g = k ? gotOf(k) : undefined;
+  if (d && g) toast(`${t("ご当地の品")}: 「${t(d.label)}」${t("が届きました")}（${g.from ? `${g.from}${t("さんの部屋で")}` : landName(g.at)}）`);
+});
 
 // キーボード: 割り当ては設定ページで変えられる（shortcuts.ts）
 initShortcuts(id => {
