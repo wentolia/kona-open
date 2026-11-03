@@ -177,12 +177,7 @@ body.arranging, body.arranging * { cursor: grabbing !important; user-select: non
 .wave-hover .wave-time { right: auto; color: var(--ink); }
 /* ---------- スペクトラム ---------- */
 .spec { position: relative; flex: 1; min-height: 0; margin: 8px 12px; }
-.spec-canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; }
-.spec-time {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-family: var(--font-mono); font-size: 10px; color: var(--ink);
-  pointer-events: none; white-space: nowrap;
-}
-.spec-line .spec-time { left: 0; top: -2px; transform: none; color: var(--muted); }
+.spec-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .wave-note { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; font-size: 12px; color: var(--muted); pointer-events: none; }
 .wave-note:empty { display: none; }
 /* 名前の札: モジュールの上の余白（境目）に出す。中身とは重ならない。ふだんは隠し、カーソルを乗せたときだけ */
