@@ -20,9 +20,10 @@ import pkg from "../package.json";
 import { esc } from "./dom";
 
 export interface KeptAlbum { key: string; title: string; bytes: number; forget(): Promise<void> }
+export interface ModItem { id: string; title: string; label: string }
 export interface ModuleHooks {
-  /** ホームに並んでいる順 */
-  list(): { id: string; title: string; label: string }[];
+  /** ホームの配置どおり: 段 → 列（2 つ以上重ねた列は「ボックス」）→ 中の段 */
+  tree(): ModItem[][][];
   addable(): { type: string; label: string; disabled: boolean }[];
   /** ホームに足して、その id を返す */
   add(type: string): string;
@@ -140,16 +141,25 @@ function soundTab(h: SettingsHooks) {
 
 // モジュール: ホームに並んでいる順に。押すとそのモジュールの設定が開き、ホームでもそのモジュールに札が立つ
 function modulesTab(h: SettingsHooks) {
-  const list = h.modules.list();
-  if (openMod && !list.some(m => m.id === openMod)) openMod = undefined;
+  const tree = h.modules.tree(), all = tree.flat(2);
+  if (openMod && !all.some(m => m.id === openMod)) openMod = undefined;
+  const tier = (i: number) => prefs().lang === "en" ? `Row ${i + 1}` : `${i + 1}段目`;
+  const item = (m: ModItem, inner?: number) => `
+    <li class="set-mod${m.id === openMod ? " open" : ""}" data-mod="${esc(m.id)}">
+      <button type="button" class="set-mod-head" aria-expanded="${m.id === openMod}">${inner !== undefined ? `<em>${tier(inner)}</em>` : ""}<b>${esc(m.title)}</b>${m.title !== m.label ? `<i>${esc(m.label)}</i>` : ""}</button>
+      ${m.id === openMod ? `<div class="set-mod-body sm-form">${h.modules.form(m.id)}</div>` : ""}
+    </li>`;
   return `
-    ${sec(`${t("ホームのモジュール")} · ${list.length}`, `
-      <ul class="set-mods">${list.map(m => `
-        <li class="set-mod${m.id === openMod ? " open" : ""}" data-mod="${esc(m.id)}">
-          <button type="button" class="set-mod-head" aria-expanded="${m.id === openMod}"><b>${esc(m.title)}</b>${m.title !== m.label ? `<i>${esc(m.label)}</i>` : ""}</button>
-          ${m.id === openMod ? `<div class="set-mod-body sm-form">${h.modules.form(m.id)}</div>` : ""}
+    ${sec(`${t("ホームのモジュール")} · ${all.length}`, `
+      <ol class="set-tree">${tree.map((row, ri) => `
+        <li class="set-tier"><span class="set-tier-h">${tier(ri)}</span>
+          <ul class="set-mods">${row.map(col => col.length === 1 ? item(col[0]) : `
+            <li class="set-box"><span class="set-box-h">${t("ボックス")}</span>
+              <ul class="set-mods">${col.map((m, k) => item(m, k)).join("")}</ul>
+            </li>`).join("")}
+          </ul>
         </li>`).join("")}
-      </ul>`)}
+      </ol>`)}
     ${sec(t("モジュールを足す"), `
       <div class="set-chips">${h.modules.addable().map(a => `<button type="button" data-add-mod="${esc(a.type)}"${a.disabled ? " disabled" : ""}>＋ ${esc(a.label)}</button>`).join("")}</div>`)}`;
 }
