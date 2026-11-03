@@ -15,8 +15,7 @@ export interface Prefs {
   stars: boolean;
   /** 天井の吊りもの（room-things.ts）: なし・モビール・吊りランプ・ミラーボール */
   hanging: "off" | "mobile" | "lamp" | "mirrorball";
-  /** 晴れた昼の窓の外の洗濯物・雨の日の傘立て */
-  laundry: boolean;
+  /** 雨の日の傘立て */
   umbrella: boolean;
   /** 部屋の香り: なし・コーヒーの湯気・お香の煙 */
   scent: "off" | "coffee" | "incense";
@@ -44,7 +43,7 @@ export interface Prefs {
 }
 
 export const DEFAULT_PREFS: Prefs = {
-  fontScale: 1, font: "gothic", motion: "system", decor: true, stars: true, hanging: "lamp", laundry: true, umbrella: true, scent: "coffee", marks: true, crossfade: 0,
+  fontScale: 1, font: "gothic", motion: "system", decor: true, stars: true, hanging: "lamp", umbrella: true, scent: "coffee", marks: true, crossfade: 0,
   catsHidden: false, catMischief: "queue", catZoomies: true,
   autoRescan: true, libSort: "title", libGroup: "folder", blankArt: "title", lang: "ja", keys: {},
 };
@@ -67,7 +66,7 @@ export function prefs(): Prefs {
     motion: pick("motion", oneOf("system", "reduce")),
     decor: pick("decor", bool), stars: pick("stars", bool),
     hanging: pick("hanging", oneOf("off", "mobile", "lamp", "mirrorball")),
-    laundry: pick("laundry", bool), umbrella: pick("umbrella", bool),
+    umbrella: pick("umbrella", bool),
     scent: pick("scent", oneOf("off", "coffee", "incense")),
     marks: pick("marks", bool),
     crossfade: pick("crossfade", num(0, 12)),

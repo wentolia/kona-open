@@ -46,7 +46,7 @@ const EN: Record<string, string> = {
   "棚と明かり": "Shelves and light", "文字と動き": "Text and motion", "文字の大きさ": "Text size", "小": "Small", "標準": "Normal", "大": "Large", "特大": "Extra large",
   "書体": "Typeface", "ゴシック": "Sans", "明朝": "Serif", "動き": "Motion", "端末の設定に従う": "Follow the system", "減らす": "Reduce",
   "部屋のしつらえ": "Room details", "天井の吊りもの": "From the ceiling", "モビール": "Mobile", "吊りランプ": "Pendant lamp", "ミラーボール": "Mirror ball",
-  "香り": "Scent", "コーヒー": "Coffee", "お香": "Incense", "晴れた昼は窓の外に洗濯物": "Laundry outside on sunny days", "雨の日は傘立て": "Umbrella stand on rainy days", "棚板に暮らした跡を残す（猫の毛・爪あと・コーヒーのしみ）": "Let the shelves wear (cat hair, claw marks, coffee stains)",
+  "香り": "Scent", "コーヒー": "Coffee", "お香": "Incense", "雨の日は傘立て": "Umbrella stand on rainy days", "棚板に暮らした跡を残す（猫の毛・爪あと・コーヒーのしみ）": "Let the shelves wear (cat hair, claw marks, coffee stains)",
   "季節と夜": "Seasons and night", "季節の飾り": "Seasonal decorations", "深夜の星空": "Starry late-night sky", "季節の飾りを出す": "Show seasonal decorations", "窓の外": "Outside the window",
   "イコライザーのプリセット": "Equalizer presets", "フラット": "Flat", "低音を足す": "Bass boost", "声を前に": "Vocal", "明るく": "Bright",
   "夜の小さな音": "Late-night low volume", "古いレコード": "Old record", "いまの形を残す": "Save the current curve", "残す": "Save", "消す": "Delete",

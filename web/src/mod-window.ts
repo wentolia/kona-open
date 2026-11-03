@@ -4,7 +4,7 @@ import { css, ctx, fit, everyFrame } from "./modctx";
 import { noiseLevel } from "./noise";
 import { reduceMotion, prefs as konaPrefs } from "./prefs";
 import { type Bird, newBird, stepBird, drawBird, publishBird } from "./window-bird";
-import { type RGB, type SceneKey, type View, hex, mixN, rgba, mix, rnd, SCENES, DAILY, dailyScene, seasonAt, drawScene, precipitation, snowfall, deepNight, drawLaundry } from "./window-scenes";
+import { type RGB, type SceneKey, type View, hex, mixN, rgba, mix, rnd, SCENES, DAILY, dailyScene, seasonAt, drawScene, precipitation, snowfall, deepNight } from "./window-scenes";
 
 // 設定: 雨（設定で降らせるか、「出力」で雨の音を重ねているときに降る）と、外の景色
 const KEY = "kona.window";
@@ -237,11 +237,6 @@ function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bi
   const key = currentScene();
   const V: View = { g, d, t, h, X, Y, gw, gh, x0: ox0, x1: ox1, y1: oy1, night, day, wet, top, bottom, accent, calm, season: seasonAt(now), sun, moon };
   drawScene(key, V);
-  // 晴れた昼は洗濯物を干す（朝 9 時ごろ出して、夕方 4 時ごろ取り込む。雨や雪国では干さない）
-  if (konaPrefs().laundry && key !== "snow") {
-    const out = Math.min(Math.max(0, (h - 8.6) / .6), Math.max(0, (16.4 - h) / .6), 1) * Math.max(0, 1 - wet * 3) * (V.season.wi > .8 ? 0 : 1);
-    drawLaundry(V, out);
-  }
   drawBird(g, bird, X(bird.u), Y(bird.v), gh * .04, t, night + wet * .5, calm);
   const pr = precipitation(key, V);
   if (pr.kind === "snow") { if (pr.amt > .02) snowfall(V, pr.amt); }

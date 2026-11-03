@@ -133,7 +133,6 @@ function roomTab() {
         ${check("set-roomlight", roomLightOn(), t("部屋の明かりも時刻で変える"))}
         ${check("set-decor", q.decor, t("季節の飾り"))}
         ${check("set-stars", q.stars, t("深夜の星空"))}
-        ${check("set-laundry", q.laundry, t("晴れた昼は窓の外に洗濯物"))}
         ${check("set-umbrella", q.umbrella, t("雨の日は傘立て"))}
         ${check("set-marks", q.marks, t("棚板に暮らした跡を残す"))}
       </div>
@@ -380,7 +379,6 @@ function wire(el: HTMLElement) {
   on<HTMLInputElement>("#set-decor", "change", c => setPrefs({ decor: c.checked }));
   on<HTMLInputElement>("#set-stars", "change", c => setPrefs({ stars: c.checked }));
   on<HTMLInputElement>("#set-marks", "change", c => setPrefs({ marks: c.checked }));
-  on<HTMLInputElement>("#set-laundry", "change", c => setPrefs({ laundry: c.checked }));
   on<HTMLInputElement>("#set-umbrella", "change", c => setPrefs({ umbrella: c.checked }));
   on<HTMLInputElement>("#set-rain", "change", c => setWindowRain(c.checked));
   on<HTMLInputElement>("[data-obj]", "change", c => setObjectShown(c.dataset.obj!, c.checked));
