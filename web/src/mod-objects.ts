@@ -15,6 +15,7 @@
 //  夏の夜に灯りを点けていると、小さな虫が寄ってくる
 
 import { ITEMS } from "./items";
+import { startLive } from "./items/live";
 import "./mod-objects.css";
 import { ctx, everyFrame, esc, fmt, onDocument, stored } from "./modctx";
 import { playLog, listenedSeconds } from "./store";
@@ -457,6 +458,7 @@ function mountObjects() {
 
   const root = stash;
   root.querySelectorAll<SVGSVGElement>(".goods > svg").forEach(el => { const k = el.classList[0]; el.dataset.goods = k; els.set(k, el); });
+  for (const d of ITEMS) if (d.at === "shelf") startLive(d, els.get(d.key)); // items/ の棚のものの動き
   const $ = <T extends Element>(sel: string) => root.querySelector<T>(sel)!;
   const press = (el: Element, fn: () => void) => {
     el.addEventListener("click", fn);

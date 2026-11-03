@@ -10,6 +10,7 @@ import "./room-things.css";
 import { stored, currentOver, mountingWith } from "./modctx";
 import { mountCatTower, mountScratcher, mountCatFood, mountCatBox } from "./mod-cat";
 import { ITEMS, itemOf, viewBoxOf } from "./items";
+import { startLive } from "./items/live";
 
 const KEY = "kona.things";
 /** 置ける数の上限（パーティーで部屋を写すとき、ひとつの値が大きくなりすぎないように） */
@@ -165,6 +166,7 @@ function build(it: Item) {
   }
   const art = ART(k), plats = art.match(/<i [^>]*><\/i>/g) ?? [];
   el.innerHTML = `<svg viewBox="${VB(k)}" preserveAspectRatio="${t.flat ? "none" : "xMidYMax meet"}">${art.replace(/<i [^>]*><\/i>/g, "")}</svg>${plats.join("")}`;
+  startLive(itemOf(k), el.querySelector("svg"));
   return el;
 }
 /** 奥行き d（0 手前〜1 奥）での縮み */

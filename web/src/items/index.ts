@@ -2,7 +2,7 @@
 import type { ItemDef } from "./types";
 export type { ItemDef } from "./types";
 
-const mods = import.meta.glob<{ default: ItemDef }>(["./*.ts", "!./index.ts", "!./types.ts", "!./lowpoly.ts"], { eager: true });
+const mods = import.meta.glob<{ default: ItemDef }>(["./*.ts", "!./index.ts", "!./types.ts", "!./lowpoly.ts", "!./live.ts"], { eager: true });
 /** すべて（試作を含む）。order → key の順 */
 export const ALL_ITEMS: readonly ItemDef[] = Object.values(mods).map(m => m.default).filter(d => d && typeof d.key === "string")
   .sort((a, b) => (a.order ?? 500) - (b.order ?? 500) || a.key.localeCompare(b.key));

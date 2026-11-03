@@ -17,6 +17,7 @@ import { type ModuleDef, type ModuleType, type ShelfDef, type ShelfKind, type So
 import { mountSingle, mountTwin, unwatchRow, folderGap, installWheel } from "./panes";
 import { mountModule } from "./modules";
 import { setModuleContext, fadeSwap } from "./modctx";
+import { setLiveSource } from "./items/live";
 import { stopAtAlbumEnd, albumEndArmed } from "./mod-clock";
 import { setCats, randomCoat, isCoat, breedCoat, setCatsMusic, setCatHooks, catPicksAlbum, toggleWand, wandOn, type Coat } from "./cat";
 import { initNoise, roomTail } from "./noise";
@@ -126,6 +127,8 @@ setModuleContext({
   play: a => { play(a); },
   colorOf: a => a.color ?? fallbackColor(a),
 });
+// 部屋に置くものの動き（items/live.ts）に、プレイヤーの様子を渡す
+setLiveSource(() => ({ playing: player.playing, levels: () => player.levels(), album: player.album, albums: () => albums, colorOf: a => a.color ?? fallbackColor(a), calm: reduceMotion }));
 
 // ---------- フォルダを開く・足す・外す ----------
 const canPickDir = "showDirectoryPicker" in window;
