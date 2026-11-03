@@ -738,7 +738,7 @@ function renderPill() {
   }
   // スマホ版の画面が出ていればその上の帯、そうでなければ PC の上の帯
   const m = document.querySelector<HTMLElement>(".m .m-top .m-more");
-  const anchor = m?.offsetParent ? m : document.getElementById("rescan");
+  const anchor = m?.offsetParent ? m : document.getElementById("invite");
   if (anchor && pill.nextElementSibling !== anchor) anchor.before(pill);
   const live = peers.filter(p => p.open).length;
   const n = live + 1;
