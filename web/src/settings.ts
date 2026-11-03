@@ -6,6 +6,7 @@ import { PALETTES, CUSTOM, themePrefs, setThemePrefs, paletteColors, toHex, type
 import { roomLightOn, setRoomLight } from "./mod-window";
 import { SHELF_SKINS, shelfSkin, setShelfSkin } from "./shelf-skin";
 import { WALLS, FLOORS, roomSurface, setRoomSurface } from "./room-surface";
+import { THINGS, THING_MIN, THING_MAX, placedThings, thingX, thingSize, toggleThing, setThing } from "./room-things";
 import { prefs, setPrefs, type Prefs } from "./prefs";
 import { BANDS, BUILTIN_PRESETS, userPresets, savePreset, deletePreset, presetMatching } from "./eq";
 import { BREEDS, type Coat } from "./cat";
@@ -115,11 +116,24 @@ function roomTab() {
     ${sec(t("棚"), tiles("skin", SHELF_SKINS, shelfSkin(), "set-skin"))}
     ${sec(t("壁"), tiles("wall", WALLS, r.wall, "set-wall"))}
     ${sec(t("床"), tiles("floor", FLOORS, r.floor, "set-floor"))}
+    ${sec(t("床に置く"), thingsBlock())}
     ${fold("room-more", t("もっと見る"), `
       <div class="set-checks">
         ${check("set-roomlight", roomLightOn(), t("部屋の明かりも時刻で変える"))}
         ${check("set-marks", q.marks, t("棚板に暮らした跡を残す"))}
       </div>`)}`;
+}
+
+// 床に置く家具: 押して置く・片づける。置いたものは位置と大きさを変えられる（棚の小物の大きさと同じ 50〜150%）
+function thingsBlock() {
+  const on = placedThings();
+  return `<div class="set-chips">${THINGS.map(x => `<button type="button" role="checkbox" data-thing="${x.key}" aria-checked="${on.includes(x.key)}">${esc(t(x.label))}</button>`).join("")}</div>
+    ${on.length ? `<div class="set-things">${on.map(k => {
+      const x = THINGS.find(i => i.key === k)!, v = Math.round(thingSize(k) * 100);
+      return `<div class="set-thing"><b>${esc(t(x.label))}</b>
+        <label><span>${t("位置")}</span><input type="range" data-thing-x="${k}" min="0" max="100" step="1" value="${Math.round(thingX(k) * 100)}" aria-label="${esc(t(x.label))} ${esc(t("位置"))}"></label>
+        <label><span>${t("大きさ")}</span><input type="range" data-thing-s="${k}" min="${THING_MIN * 100}" max="${THING_MAX * 100}" step="5" value="${v}" aria-label="${esc(t(x.label))} ${esc(t("大きさ"))}"><output>${v}%</output></label></div>`;
+    }).join("")}</div>` : ""}`;
 }
 
 function soundTab(h: SettingsHooks) {
@@ -396,6 +410,16 @@ function wire(el: HTMLElement) {
   // 見た目・部屋
   on<HTMLInputElement>("#set-roomlight", "change", c => setRoomLight(c.checked));
   on<HTMLInputElement>("#set-marks", "change", c => setPrefs({ marks: c.checked }));
+  // 床に置く家具。床を敷いていなければ、置くときに木の床を敷く
+  on("[data-thing]", "click", b => {
+    const k = b.dataset.thing!, put = b.getAttribute("aria-checked") !== "true";
+    if (put && roomSurface().floor === "none") setRoomSurface({ floor: "oak" });
+    toggleThing(k, put); again();
+  });
+  on<HTMLInputElement>("[data-thing-x]", "input", r => setThing(r.dataset.thingX!, { x: Number(r.value) / 100 }));
+  on<HTMLInputElement>("[data-thing-x]", "change", r => setThing(r.dataset.thingX!, { x: Number(r.value) / 100 }, true));
+  on<HTMLInputElement>("[data-thing-s]", "input", r => { setThing(r.dataset.thingS!, { s: Number(r.value) / 100 }); r.nextElementSibling!.textContent = `${r.value}%`; });
+  on<HTMLInputElement>("[data-thing-s]", "change", r => setThing(r.dataset.thingS!, { s: Number(r.value) / 100 }, true));
 
   // 音
   on("[data-preset]", "click", b => {

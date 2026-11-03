@@ -707,10 +707,12 @@ function next(c: Cat): void {
   // 箱を見つけると入りたくなる。昼間は日の当たる所へ移って、ぬくぬくする
   if ((c.state === "stand" || c.state === "sit") && !c.with && p.kind !== "box" && Math.random() < .06 + P.curious * .1 && goBox(c)) return;
   if ((c.state === "stand" || c.state === "sit") && !c.with && !inSun(c) && Math.random() < .1 + P.sleepy * .15 && goSun(c)) return;
+  // 床に敷いたラグの上は暖かい。床にいるときは、ラグの上へ行って横になる
+  if ((c.state === "stand" || c.state === "sit") && !c.with && p.kind === "floor" && !onRug(c) && Math.random() < .12 + P.sleepy * .15 && goRug(c)) return;
   // 起きているときは、ときどきほかの猫に関わりにいく
   if ((c.state === "stand" || c.state === "sit" || (c.state === "lie" && r < .3)) && !c.with && Math.random() < .12 + P.social * .4 && social(c)) return;
   // 暖かい場所・窓辺では眠りやすい
-  const cozy = p.kind === "sill" || p.kind === "box" || (p.kind === "top" && p.pull > 1.5) || inSun(c);
+  const cozy = p.kind === "sill" || p.kind === "box" || p.kind === "bed" || (p.kind === "top" && p.pull > 1.5) || inSun(c) || onRug(c);
   // 起きたばかりで立ち上がるときは、まず伸びをする
   if (c.state === "stand" && c.woke) { c.woke = false; if (Math.random() < .8) return go(c, "stretch"); }
   // 窓辺では外の鳥を見つけて、歯をカカカと鳴らす
@@ -1459,10 +1461,10 @@ function goScratch(c: Cat): boolean {
   travel(c, pad, (lo(pad) + hi(pad)) / 2 + rnd(-10, 10), () => { go(c, "scratch"); tellFurniture("scratch"); }, () => go(c, "sit"));
   return true;
 }
-// タワーのベッドで丸くなる
+// タワーのベッド・ソファ・クッションで丸くなる（空いているところから選ぶ）
 function goBed(c: Cat): boolean {
-  const bed = c.plats.find(p => p.kind === "bed");
-  if (!bed || samePlat(bed, c.cur) || occupied(c, bed)) return false;
+  const beds = c.plats.filter(p => p.kind === "bed" && !samePlat(p, c.cur) && !occupied(c, p)), bed = beds[Math.floor(Math.random() * beds.length)];
+  if (!bed) return false;
   travel(c, bed, (lo(bed) + hi(bed)) / 2, () => { c.favNap = true; go(c, "lie", rnd(1.5, 3)); }, () => go(c, "sit"));
   return true;
 }
@@ -1970,6 +1972,20 @@ function paintSun() {
   if (!sun || !c || !roomLightOn()) { sunEl?.remove(); sunEl = undefined; return; }
   if (!sunEl || sunEl.parentElement !== c.grid) { sunEl?.remove(); sunEl = document.createElement("i"); sunEl.className = "cat-sun"; c.grid.append(sunEl); }
   Object.assign(sunEl.style, { left: `${(sun.x - sun.w / 2).toFixed(0)}px`, top: `${(sun.p.y - 14).toFixed(0)}px`, width: `${sun.w.toFixed(0)}px`, opacity: (sun.k * .9).toFixed(2) });
+}
+
+// ---------- ラグ ----------
+// 床に敷いたラグ（room-things.ts の data-cat-rug）。床の足場のうち、ラグの幅のところ
+function rugs(c: Cat): [number, number][] {
+  const g = c.grid.getBoundingClientRect();
+  return [...c.grid.querySelectorAll<HTMLElement>("[data-cat-rug]")].map(e => { const r = e.getBoundingClientRect(); return [r.left - g.left + r.width * .15, r.right - g.left - r.width * .15] as [number, number]; }).filter(([a, b]) => b > a);
+}
+const onRug = (c: Cat) => c.cur?.kind === "floor" && rugs(c).some(([a, b]) => c.x >= a && c.x <= b);
+function goRug(c: Cat): boolean {
+  const floor = c.plats.find(p => p.kind === "floor"), list = rugs(c), r = list[Math.floor(Math.random() * list.length)];
+  if (!floor || !r) return false;
+  travel(c, floor, clamp(rnd(r[0], r[1]), lo(floor), hi(floor)), () => { c.favNap = true; go(c, "lie", rnd(2, 4)); }, () => go(c, "sit"));
+  return true;
 }
 
 // ---------- 来客の猫 ----------

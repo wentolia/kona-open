@@ -13,7 +13,7 @@
 /* ---------- 床: ホームのいちばん下に、画面の端から端まで。中身が少なくても画面の下に来る ---------- */
 :root { --floor-h: 0px; }
 :root[data-floor] { --floor-h: 56px; }
-:root[data-floor] .grid { min-height: 100%; padding-bottom: calc(var(--floor-h) + 34px); }
+:root[data-floor] .grid { min-height: 100%; padding-bottom: calc(var(--floor-h) + 34px + var(--things-h, 0px)); } /* --things-h: 床に置いた背の高い家具の分（room-things.ts） */
 :root[data-floor] .grid::after {
   content: ""; position: absolute; bottom: 0; height: var(--floor-h); pointer-events: none;
   left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); right: calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
