@@ -71,8 +71,6 @@
 .goods .knit .yarn { fill: none; stroke-width: 1px; vector-effect: non-scaling-stroke; }
 
 /* 植物 */
-.goods .pothos .rope { fill: none; stroke: #b8a888; stroke-width: 1px; vector-effect: non-scaling-stroke; }
-.goods .pothos .stem { fill: none; stroke: #4f7a3e; stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .goods .vase .stem { stroke: #4f7a3e; stroke-width: 1px; vector-effect: non-scaling-stroke; }
 
 
@@ -83,7 +81,6 @@
 .goods .aclock .ac-s { stroke: var(--accent) !important; stroke-width: .7px; }
 .goods .aclock .ac-hands circle { fill: #2e2620; }
 .goods .aclock .ac-glass { fill: none; }
-.goods .dclock .dc-t { font-family: var(--font-mono); font-size: 15px; font-weight: 500; letter-spacing: .5px; fill: var(--accent); filter: drop-shadow(0 0 2px var(--accent)); }
 
 /* アルバムの並ぶ所に置いた小物: 棚の決まった位置に小物の幅だけの区切り（.goods-slot）を置き、小物はその上に立てる。アルバムは区切りの左右の窓を流れる */
 .goods-slot { flex: none; align-self: stretch; width: calc(min(70cqh, 170px) * var(--s, 1) * var(--ow) / 100 + 8px); }
