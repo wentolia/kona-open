@@ -1,6 +1,6 @@
 // 窓辺: いまの時刻の空を、部屋の窓から見る。朝焼け・昼・夕焼け・夜（星と月）が時間とともに移る
 
-import { css, ctx, fit, everyFrame } from "./modctx";
+import { css, ctx, fit, everyFrame, onDocument } from "./modctx";
 import { noiseLevel } from "./noise";
 import { reduceMotion } from "./prefs";
 import { drawFrame, material } from "./window-frame";
@@ -75,8 +75,7 @@ export function mountWindow(body: HTMLElement) {
   const fog: Fog = { amt: 0, strokes: [], glass: [0, 0, 1, 1] };
   const bird: Bird = newBird();
   // 猫が近づくなどで "kona:bird-scare" が流れたら、驚いて飛び去る
-  const scare = () => { if (!root.isConnected) { document.removeEventListener("kona:bird-scare", scare); return; } bird.scared = true; };
-  document.addEventListener("kona:bird-scare", scare);
+  onDocument(root, "kona:bird-scare", () => { bird.scared = true; });
   // なぞって拭う: 曇っているときだけ、ガラスの上の操作を受け取る（猫やモジュールの移動には渡さない）
   let drawing: { pts: number[]; t: number } | null = null;
   const toGlass = (e: PointerEvent): [number, number] | null => {

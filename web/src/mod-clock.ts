@@ -1,6 +1,6 @@
 // 時計とスリープタイマー: 置き時計の文字盤。決めた時間か、アルバムの終わりで静かに止める。
 
-import { ctx, fmt, everyFrame } from "./modctx";
+import { ctx, fmt, everyFrame, onDocument } from "./modctx";
 
 interface Sleep { until?: number; albumEnd: boolean; fading: boolean; choice?: number }
 const sleep: Sleep = { albumEnd: false, fading: false };
@@ -117,8 +117,8 @@ export function mountClock(body: HTMLElement) {
   const openMenu = (open: boolean) => { menu.hidden = !open; btn.setAttribute("aria-expanded", String(open)); };
   btn.onclick = () => openMenu(menu.hidden !== false);
   menu.addEventListener("click", e => { if ((e.target as HTMLElement).closest(".clock-chip")) openMenu(false); });
-  document.addEventListener("pointerdown", e => { if (!menu.hidden && !(e.target as HTMLElement).closest?.(".clock-menu, .clock-btn")) openMenu(false); });
-  document.addEventListener("keydown", e => { if (e.key === "Escape") openMenu(false); });
+  onDocument(root, "pointerdown", e => { if (!menu.hidden && !(e.target as HTMLElement).closest?.(".clock-menu, .clock-btn")) openMenu(false); });
+  onDocument(root, "keydown", e => { if ((e as KeyboardEvent).key === "Escape") openMenu(false); });
   chips.forEach(b => b.onclick = () => {
     const i = Number(b.dataset.i), c = CHOICES[i];
     const same = sleep.choice === i;

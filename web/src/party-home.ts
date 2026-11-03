@@ -5,10 +5,10 @@
 //  - 参加者の側では、HTML を受け取らない。届いた文字は textContent、色は形を確かめてから style に入れる
 //  - 時計・窓・小物・猫の家具は、参加者の端末で動く飾りとしてそのまま置く。再生中・EQ などは、ホストの「いま流れているもの」の札だけ
 
-import { ctx } from "./modctx";
+import { ctx, releaseIn } from "./modctx";
 import { enrichTracks, type Album } from "./library";
 import { mountModule } from "./modules";
-import { mountSingle } from "./panes";
+import { mountSingle, unwatchIn } from "./panes";
 import type { ModuleType } from "./shelves";
 import { inSet, type AlbumSet } from "./tags";
 
@@ -149,7 +149,7 @@ export function cleanTracks(x: unknown): SnapTrack[] | undefined {
 export const isThumb = (x: unknown): x is string => typeof x === "string" && x.length < 60_000 && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(x);
 
 // ---------- 参加者: 組み立てる ----------
-export interface HomeView { el: HTMLElement; setCover(id: string, url: string): void; setNow(id?: string): void }
+export interface HomeView { el: HTMLElement; setCover(id: string, url: string): void; setNow(id?: string): void; dispose(): void }
 /** 写しのホームを組み立てる。cover はジャケットが要るとき、open はアルバムを押したとき */
 export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts: { cover(id: string): void; open(id: string): void }): HomeView {
   const home = document.createElement("div");
@@ -170,7 +170,8 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
       box.append(b);
       opts.cover(id);
     }
-    (faces.get(id) ?? faces.set(id, []).get(id)!).push(box);
+    const waiting = faces.get(id) ?? faces.set(id, []).get(id)!;
+    if (!waiting.includes(box)) waiting.push(box);
   };
   const hash = (s: string) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); };
   const spine = (id: string, face: HTMLElement) => {
@@ -240,6 +241,8 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
   }
   return {
     el: home,
+    // 写しを捨てるとき: 棚の窓の見張りと、飾りのモジュールが document に付けた聞き耳を外す（残すと写しが丸ごと解放されない）
+    dispose() { unwatchIn(home); releaseIn(home); home.remove(); faces.clear(); nowEls = []; },
     setCover(id, url) {
       covers.set(id, url);
       for (const box of faces.get(id) ?? []) if (box.isConnected && (box.dataset.id === id || !box.dataset.id)) art(id, box);
