@@ -1,5 +1,6 @@
-// ティーポット。
+// ティーポット。注ぎ口から湯気
 import { poly, puff, tone } from "./lowpoly";
+import { wisps, type Live } from "./live";
 import type { ItemDef } from "./types";
 
 function art() {
@@ -9,4 +10,6 @@ function art() {
     ${poly(T.hi, [[22, 12], [40, 12], [36, 8], [26, 8]])}${poly(T.mid, [[29, 3], [33, 3], [34, 8], [28, 8]])}${poly(T.deep, [[16, 44], [46, 44], [44, 48], [18, 48]])}`;
 }
 
-export default { key: "teapot", label: "ティーポット", at: "shelf", w: 62, h: 48, cat: "小物", order: 201, note: "", art } satisfies ItemDef;
+const live: Live = svg => { const steam = wisps(svg, 61, 11, 2); return s => steam(s, .7); };
+
+export default { key: "teapot", label: "ティーポット", at: "shelf", w: 62, h: 48, cat: "小物", order: 201, note: "注ぎ口から湯気", art, live } satisfies ItemDef;

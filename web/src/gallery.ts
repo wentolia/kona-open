@@ -3,6 +3,7 @@
 import "./fonts";
 import "./gallery.css";
 import { ALL_ITEMS, viewBoxOf, type ItemDef } from "./items";
+import { startLive } from "./items/live";
 
 const PLACE = { floor: "床", wall: "壁", shelf: "棚" } as const;
 /** 画面の 1px あたりの、描いた大きさ（置き場所ごとに同じ縮尺で並べ、大きさを見比べられるように） */
@@ -56,17 +57,26 @@ function render() {
       return xs.length ? `<section class="g-sec"><h2>${PLACE[p]}<span>${xs.length}</span></h2><div class="g-grid">${xs.map(card).join("")}</div></section>` : "";
     }).join("")}</main>
     <div class="g-big" hidden></div>`;
+  animate(document.body);
+}
+/** 動きのあるものは、見本帳でも鳴っているつもりで動かす */
+function animate(root: Element) {
+  root.querySelectorAll<HTMLElement>("[data-k], .g-big-in").forEach(c => {
+    const d = ALL_ITEMS.find(x => x.key === (c.dataset.k ?? c.dataset.big));
+    c.querySelectorAll<SVGSVGElement>(".g-art svg").forEach(svg => startLive(d, svg));
+  });
 }
 
 function big(d: ItemDef) {
   const el = document.querySelector<HTMLElement>(".g-big")!, z = SCALE[d.at] * (d.at === "floor" ? 1.4 : 1.6);
-  el.innerHTML = `<div class="g-big-in">
+  el.innerHTML = `<div class="g-big-in" data-big="${d.key}">
     <div class="g-scene ${d.at}"><div class="g-row">${[.5, 1, 1.5].map(s => artHTML(d, z * s, st.flip, 260, 300)).join("")}</div></div>
     <div class="g-meta"><button type="button" class="g-x">閉じる</button>
       <div class="g-name">${esc(d.label)}<span class="g-tag${d.draft ? " draft" : ""}">${d.draft ? "試作" : "今ある"}</span><span class="g-tag">${esc(d.cat)}</span></div>
       <div class="g-sub">${d.key} · ${PLACE[d.at]} · ${d.w}×${d.flat ? "敷く" : d.h} · 50% / 100% / 150%</div>
       ${d.note ? `<div class="g-note">${esc(d.note)}</div>` : ""}</div></div>`;
   el.hidden = false;
+  animate(el);
 }
 
 document.addEventListener("click", e => {
