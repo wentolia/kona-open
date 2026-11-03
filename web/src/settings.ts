@@ -10,7 +10,8 @@ import { THINGS, placedThings, toggleThing, thingThumb } from "./room-things";
 import { OBJECTS, objectAvailable, objectArt } from "./mod-objects";
 import { chimeOn, setChime } from "./mod-clock";
 import { prefs, setPrefs, type Prefs } from "./prefs";
-import { BANDS, userPresets, savePreset, deletePreset, presetMatching } from "./eq";
+import { NOISES, noiseLevel, setNoiseLevel } from "./noise";
+import { BANDS, BUILTIN_PRESETS, userPresets, savePreset, deletePreset, presetMatching } from "./eq";
 import { BREEDS, type Coat } from "./cat";
 import { ACTIONS, keyFor, keyLabel } from "./shortcuts";
 import { SORTS } from "./shelves";
@@ -144,23 +145,37 @@ function putBlock(h: SettingsHooks) {
     <div class="set-puts">${THINGS.map(x => tile(`thing:${x.key}`, t(x.label), things.includes(x.key) ? t("床") : undefined, "")).join("")}</div>`;
 }
 
+// 音: モジュールを置かなくても、出力先・イコライザー・重ねる音をここで変えられる（モジュールと同じものを動かす）
 function soundTab(h: SettingsHooks) {
-  const eq = h.player.eq, cur = eq.on ? presetMatching(eq.gains) : undefined, q = prefs();
-  // プリセットの切り替えはイコライザーのモジュール（‹ ›）で。ここは自分で残した形を増やす・消すだけ
-  const own = userPresets();
-  const preset = (name: string, gains: number[]) => `
+  const p = h.player, eq = p.eq, cur = eq.on ? presetMatching(eq.gains) : undefined, q = prefs();
+  const preset = (name: string, gains: number[], user: boolean) => `
     <li class="set-preset${cur === name ? " on" : ""}">
-      <span class="set-preset-apply">
+      <button type="button" class="set-preset-apply" data-preset="${esc(name)}" aria-pressed="${cur === name}">
         <svg viewBox="0 0 ${BANDS.length * 6} 24" aria-hidden="true">${gains.map((g, i) => `<rect x="${i * 6 + 1}" y="${12 - Math.max(0, g)}" width="4" height="${Math.max(1, Math.abs(g))}"/>`).join("")}</svg>
-        <span>${esc(name)}</span></span>
-      <button type="button" class="set-x" data-del-preset="${esc(name)}" aria-label="${esc(t("消す"))}">×</button>
+        <span>${esc(user ? name : t(name))}</span></button>
+      ${user ? `<button type="button" class="set-x" data-del-preset="${esc(name)}" aria-label="${esc(t("消す"))}">×</button>` : ""}
     </li>`;
   return `
+    ${sec(t("出力先"), `<select id="set-sink" aria-label="${esc(t("出力先"))}"${p.canChooseSink ? "" : " disabled"}><option value="">${t("既定の出力")}</option></select>`)}
+    ${sec(t("イコライザー"), `
+      ${check("set-eq-on", eq.on, t("イコライザーを使う"))}
+      <ul class="set-presets">${BUILTIN_PRESETS.map(x => preset(x.name, x.gains, false)).join("")}${userPresets().map(x => preset(x.name, x.gains, true)).join("")}</ul>`)}
     ${sec(t("曲のつなぎ"), seg("crossfade", [{ v: "0", label: t("ギャップレス") }, { v: "3", label: "3 " + t("秒") }, { v: "6", label: "6 " + t("秒") }, { v: "10", label: "10 " + t("秒") }], String(q.crossfade)))}
     ${fold("sound-more", t("もっと見る"), `
-      ${row(t("音量の正規化"), seg("normalize", [{ v: "off", label: t("しない") }, { v: "track", label: t("曲ごと") }, { v: "album", label: t("アルバムごと") }], h.player.normalize))}
-      <form class="set-row set-save" id="set-save-preset"><span>${t("イコライザーのいまの形を残す")}</span><input id="set-preset-name" maxlength="24" placeholder="${esc(t("名前"))}" autocomplete="off"><button class="set-btn">${t("残す")}</button></form>
-      ${own.length ? `<ul class="set-presets">${own.map(p => preset(p.name, p.gains)).join("")}</ul>` : ""}`)}`;
+      <span class="set-sub">${t("重ねる音")}</span>
+      <div class="set-noise">${NOISES.map(n => `<label class="set-noise-row"><span>${esc(t(n.label))}</span><input type="range" min="0" max="100" step="1" data-noise="${n.key}" value="${Math.round(noiseLevel(n.key) * 100)}" aria-label="${esc(t(n.label))}"></label>`).join("")}</div>
+      ${row(t("音量の正規化"), seg("normalize", [{ v: "off", label: t("しない") }, { v: "track", label: t("曲ごと") }, { v: "album", label: t("アルバムごと") }], p.normalize))}
+      <form class="set-row set-save" id="set-save-preset"><span>${t("イコライザーのいまの形を残す")}</span><input id="set-preset-name" maxlength="24" placeholder="${esc(t("名前"))}" autocomplete="off"><button class="set-btn">${t("残す")}</button></form>`)}`;
+}
+/** 出力先の一覧は端末に尋ねてから入れる */
+async function fillSinks(el: HTMLElement, p: Player) {
+  const sel = el.querySelector<HTMLSelectElement>("#set-sink");
+  if (!sel) return;
+  let outs: MediaDeviceInfo[] = [];
+  try { outs = (await navigator.mediaDevices?.enumerateDevices() ?? []).filter(d => d.kind === "audiooutput" && d.deviceId !== "default"); } catch { /* ignore */ }
+  sel.innerHTML = `<option value="">${esc(t("既定の出力"))}</option>` + outs.map((d, i) => `<option value="${esc(d.deviceId)}">${esc(d.label || `${t("出力")} ${i + 1}`)}</option>`).join("");
+  sel.value = p.sink;
+  sel.disabled = !p.canChooseSink || !outs.length;
 }
 
 // モジュール: ホームに並んでいる順に。押すとそのモジュールの設定が開き、ホームでもそのモジュールに札が立つ
@@ -433,6 +448,14 @@ function wire(el: HTMLElement) {
   });
 
   // 音
+  on("[data-preset]", "click", b => {
+    const name = b.dataset.preset!, x = [...BUILTIN_PRESETS, ...userPresets()].find(y => y.name === name);
+    if (x) { h.player.eq.setAll(x.gains); again(); }
+  });
+  on<HTMLInputElement>("#set-eq-on", "change", c => { if (c.checked !== h.player.eq.on) h.player.eq.toggle(); again(); });
+  on<HTMLSelectElement>("#set-sink", "change", s => { void h.player.setSink(s.value); });
+  on<HTMLInputElement>("[data-noise]", "input", r => setNoiseLevel(r.dataset.noise as typeof NOISES[number]["key"], Number(r.value) / 100));
+  if (tab === "sound") void fillSinks(el, h.player);
   on("[data-del-preset]", "click", b => { deletePreset(b.dataset.delPreset!); again(); });
   const save = el.querySelector<HTMLFormElement>("#set-save-preset");
   if (save) save.onsubmit = e => {

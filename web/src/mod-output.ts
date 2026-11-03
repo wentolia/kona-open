@@ -1,4 +1,4 @@
-// 出力: 出力先の機器、いまの信号の流れ、重ねる音（音量の正規化は設定の「音」でだけ変える）
+// 出力: 出力先の機器、いまの信号の流れ、重ねる音（設定の「音」にも同じものがある。音量の正規化は設定でだけ変える）
 
 import { ctx, esc } from "./modctx";
 import { NOISES, noiseLevel, setNoiseLevel, onNoise } from "./noise";

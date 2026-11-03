@@ -201,3 +201,9 @@ body { transition: background-color .6s ease, color .6s ease; }
 .set-put.put-from { opacity: .4; }
 /* ホームのものを設定の上へ持ってきたとき: しまえることを見せる */
 .set.put-away { box-shadow: inset 0 0 0 2px var(--accent); }
+
+/* 重ねる音: 名前とつまみ */
+.set-noise { display: grid; gap: 4px; }
+.set-noise-row { display: grid; grid-template-columns: 6em minmax(0, 1fr); align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+.set-noise-row input { accent-color: var(--accent); width: 100%; }
+#set-sink { max-width: 100%; }

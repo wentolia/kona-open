@@ -43,6 +43,7 @@ const EN: Record<string, string> = {
   "フォルダを追加": "Add a folder", "別のフォルダに入れ替える": "Replace with another folder", "外す": "Remove",
   "ボックス": "Box",
   "プリセット": "Presets", "前のプリセット": "Previous preset", "次のプリセット": "Next preset", "調整中": "Custom", "オフ": "Off", "イコライザーのいまの形を残す": "Save the current EQ shape",
+  "出力先": "Output device", "既定の出力": "Default output", "イコライザーを使う": "Use the equalizer", "重ねる音": "Ambient sounds",
   "招待": "Invite", "リスニングパーティー: 流している音をいっしょに聴く": "Listening party: listen together to what's playing",
   "モジュール": "Modules", "ホームのモジュール": "Modules on home", "モジュールを足す": "Add a module", "遊ぶ": "Play",
   "猫じゃらしで遊ぶ": "Play with a cat wand", "猫じゃらしをしまう": "Put the wand away", "ランダムで1枚": "Pick one at random", "新しい棚": "New shelf",
