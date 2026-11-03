@@ -111,6 +111,7 @@ function themeBlock() {
   const p = themePrefs(), all = allPalettes();
   return `
     <div class="set-sws">${all.map(a => swatch(a.key, a.label, a.key === p.fixed, p)).join("")}</div>
+    ${row(t("部屋の明かり"), seg("roomlight", [{ v: "time", label: t("時刻に合わせる") }, { v: "fixed", label: t("いつも同じ") }], roomLightOn() ? "time" : "fixed"))}
     ${p.fixed === CUSTOM ? `<div class="set-row">
       <label class="set-color">${t("地")}<input type="color" data-custom="bg" value="${p.custom.bg}"></label>
       <label class="set-color">${t("灯り")}<input type="color" data-custom="accent" value="${p.custom.accent}"></label></div>` : ""}`;
@@ -127,7 +128,6 @@ function roomTab() {
     ${sec(t("ご当地の品"), regionalBlock())}
     ${fold("room-more", t("もっと見る"), `
       <div class="set-checks">
-        ${check("set-roomlight", roomLightOn(), t("部屋の明かりも時刻で変える"))}
         ${check("set-marks", q.marks, t("棚板に暮らした跡を残す"))}
         ${check("set-chime", chimeOn(), t("時計が正時に鐘を鳴らす"))}
       </div>`)}`;
@@ -429,6 +429,7 @@ function wire(el: HTMLElement) {
       case "motion": return setP({ motion: v as Prefs["motion"] });
       case "normalize": h.player.setNormalize(v as Normalize); return again();
       case "crossfade": return setP({ crossfade: Number(v) });
+      case "roomlight": setRoomLight(v === "time"); return again();
       case "mischief": return setP({ catMischief: v as Prefs["catMischief"] });
       case "group": return setP({ libGroup: v as Prefs["libGroup"] }); // 描き直しは本体が "kona:prefs" で
       case "blank": setP({ blankArt: v as Prefs["blankArt"] }); return h.redraw();
@@ -449,7 +450,6 @@ function wire(el: HTMLElement) {
   on<HTMLInputElement>("[data-custom]", "change", again);
 
   // 見た目・部屋
-  on<HTMLInputElement>("#set-roomlight", "change", c => setRoomLight(c.checked));
   on<HTMLInputElement>("#set-regional", "change", c => setRegionalOn(c.checked));
   on("#set-regional-again", "click", () => locate(true));
   on<HTMLInputElement>("#set-marks", "change", c => setPrefs({ marks: c.checked }));
