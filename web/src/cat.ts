@@ -1916,6 +1916,7 @@ export function catPicksAlbum(who?: unknown): boolean {
   if (!c) return false;
   release(c); c.woke = false;
   beginFetch(c, a, true);
+  document.dispatchEvent(new CustomEvent("kona:catpick", { detail: a.key }));   // 実績（achievements.ts）
   return true;
 }
 
@@ -1981,6 +1982,7 @@ function strokeCat(c: Cat, pts: [number, number][]) {
   const local = ([x, y]: [number, number]): V => [(x - c.x) / c.s * c.dir, (y - c.y) / c.s];
   const L = pts.map(local), mid = L[Math.floor(L.length / 2)];
   const along = L[L.length - 1][0] - L[0][0]; // 頭の向きを正。負なら頭からしっぽへ（毛並みに沿う）
+  document.dispatchEvent(new Event("kona:stroke"));   // 実績（achievements.ts）
   const sleeping = c.state === "sleep", pose = c.pose;
   const [hx, hy] = HEAD[sleeping ? "sleep" : pose];
   const near = (p: V) => Math.hypot(p[0] - (17 + hx), p[1] - (-27 + hy)) < 9;
@@ -2425,6 +2427,8 @@ export function restyleCat(coat: Coat) {
     c.el.classList.toggle("stray", !!coat.stray);
   }
 }
+/** 部屋のどれかの猫が寝ているか（実績） */
+export const anyCatAsleep = () => cats.some(c => !c.stage && !!c.cur && c.state === "sleep");
 export const catNames = () => cats.filter(c => !c.stage).map(c => nameOf(c.coat));
 export const debugCats = () => cats;
 export const debugEar = () => ear;

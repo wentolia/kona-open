@@ -23,6 +23,8 @@ import { playLog, stat, listenedSeconds, type PlayEvent } from "./store";
 import type { Album } from "./library";
 import { setPartyEar, setCatsAway, type Coat, type Emote } from "./cat";
 import { hereLand, isLand, landName } from "./region";
+import { giftable, giftToday, gave, receiveGift } from "./presents";
+import { itemOf } from "./items";
 
 const NAME_KEY = "kona.party.name";
 const VOL_KEY = "kona.party.volume";
@@ -59,6 +61,7 @@ type Msg =
   | { t: "tracks"; id: string; tracks: SnapTrack[] }
   | { t: "found"; list: SnapAlbum[] }
   | { t: "req"; id: string; i?: number }
+  | { t: "gift"; id?: string; to?: string; key: string }                // 贈りもの（参加者 → ホスト → 相手。presents.ts）
   // 再生の写し（ホスト → 部屋にいる参加者）: いまの再生・曲の波形・聴いた記録（ホストが見せると決めたときだけ）
   | ({ t: "np" } & NowState)
   | { t: "peaks"; k: string; d: string }
@@ -162,6 +165,8 @@ function asMsg(x: unknown): Msg | undefined {
       if (!ev || !pl || ev.length % 2 || pl.length % 2 || typeof m.ls !== "number" || !Number.isFinite(m.ls) || m.ls < 0) return undefined;
       return { t: "hist", on: true, ev, pl, ls: m.ls };
     }
+    case "gift": return typeof m.key === "string" && /^[a-z0-9-]{1,40}$/.test(m.key) && (m.id === undefined || isId(m.id)) && (m.to === undefined || isId(m.to))
+      ? { t: "gift", id: m.id as string | undefined, to: m.to as string | undefined, key: m.key } : undefined;
     case "req": return isAid(m.id) && (m.i === undefined || (Number.isInteger(m.i) && (m.i as number) >= 0 && (m.i as number) < 1000)) ? { t: "req", id: m.id, i: m.i as number | undefined } : undefined;
   }
   return undefined;
@@ -428,6 +433,13 @@ function makeRoom(isHost: boolean): Room {
       else if (w.t === "find") room?.showFound(findAlbums(w.q));
     },
     request(id, i) { toHost({ t: "req", id, i }); },
+    gifts: () => ({ items: giftable(), today: giftToday() }),
+    gift(to, key) {
+      if (!gave(key)) return false;
+      if (isHost) { const p = peers.find(p => p.inRoom && p.cid === to); if (!p) return false; send(p, { t: "gift", id: me, key }); }
+      else toHost({ t: "gift", to, key });
+      return true;
+    },
     perm: isHost ? (k, val, guest) => {
       if (guest) { const o = { ...overrides.get(guest) }; if (val === undefined) delete o[k]; else o[k] = val; overrides.set(guest, o); }
       else defaults = { ...defaults, [k]: !!val };
@@ -455,6 +467,15 @@ function guestSrc(): HomeSource {
   return mirror && mhist ? { over: { player: mirror.asPlayer(), history: mhist, byKey, play: () => {}, store: hostLook?.store ?? {} }, volume } : { volume };
 }
 const toHost = (m: Msg) => { const h = peers[0]; if (h) send(h, m); };
+/** 贈りものを受け取る（送り主の猫の名前を札に） */
+function giftIn(key: string, from: string) {
+  const name = room?.cats.get(from)?.name || "名無し";
+  if (receiveGift(key, name)) {
+    const d = itemOf(key);
+    toastFn?.(`${name}さんから「${d?.label ?? key}」が届きました`);
+    room?.said({ from, text: `「${d?.label ?? key}」を贈りました`, to: [me], at: Date.now() });
+  }
+}
 /** ホスト: 部屋に入っている参加者（except 以外）に送る */
 function relay(m: Msg, except?: Peer) { for (const p of peers) if (p.inRoom && p !== except) send(p, m); }
 /** ホスト: チャットを届ける。全員宛てなら全員に、個別なら宛先と送り主にだけ（ホストの画面にも、宛先か送り主のときだけ出す） */
@@ -479,7 +500,7 @@ function hostRoom(peer: Peer, m: Msg) {
   // 送りすぎを抑える（目線は 1 秒に 20 回ほど、ほかはもっと少なく）
   const t = performance.now();
   peer.bucket = Math.min(40, peer.bucket + (t - peer.at) / 50); peer.at = t;
-  const cost = m.t === "look" ? 1 : m.t === "want" ? (m.w === "home" ? 30 : m.w === "find" ? 6 : 2) : m.t === "say" || m.t === "req" ? 10 : 3;
+  const cost = m.t === "look" ? 1 : m.t === "want" ? (m.w === "home" ? 30 : m.w === "find" ? 6 : 2) : m.t === "say" || m.t === "req" || m.t === "gift" ? 10 : 3;
   if (peer.bucket < cost) return;
   peer.bucket -= cost;
   const id = peer.cid;
@@ -508,6 +529,11 @@ function hostRoom(peer: Peer, m: Msg) {
     else if (m.w === "find" && can(peer, "request")) send(peer, { t: "found", list: findAlbums(m.q!) });
     else if (m.w === "cover" && albumOf(m.id!)) thumbOf(m.id!).then(url => { if (url) send(peer, { t: "cover", id: m.id!, url }); });
     else if (m.w === "tracks" && albumOf(m.id!)) tracksOf(m.id!).then(tracks => { if (tracks) send(peer, { t: "tracks", id: m.id!, tracks }); });
+  }
+  else if (m.t === "gift" && m.to && m.to !== id) {
+    // 贈りもの: ホスト宛てなら受け取り、ほかの人宛てならその人へ渡す（送り主はホストが付ける）
+    if (m.to === "h") giftIn(m.key, id);
+    else { const to = peers.find(p => p.inRoom && p.cid === m.to); if (to) send(to, { t: "gift", id, key: m.key }); }
   }
   else if (m.t === "req") {
     const a = albumOf(m.id);
@@ -548,6 +574,7 @@ function guestRoom(m: Msg) {
   else if (m.t === "say" && m.id) room.said({ from: m.id, text: m.text, to: m.to, at: Date.now(), req: m.req });
   else if (m.t === "home") { hostLook = m.look; room.setHome(m.rows, m.albums, m.look, m.size); }
   else if (m.t === "albums") room.addAlbums(m.albums);
+  else if (m.t === "gift" && m.id && m.id !== me) giftIn(m.key, m.id);
   else if (m.t === "cover") { room.setCover(m.id, m.url); mirror?.setCover(m.id, m.url); }
   else if (m.t === "np") {
     mirror?.set(m);
@@ -1072,10 +1099,12 @@ export function initParty(opts: { toast: (t: string) => void }) {
 export function partyVisit(): { land: string; host: string } | undefined {
   return role === "guest" && room && last?.playing && last.land ? { land: last.land, host: cleanName(hostName) } : undefined;
 }
+/** パーティーにいる人数（自分を含む） */
+export const partySize = () => role === "host" ? 1 + peers.filter(p => p.open && p.inRoom).length : role === "guest" ? 1 + guestNames.length : 0;
 export const partySupported = () => "RTCPeerConnection" in window && "crypto" in window && !!crypto.subtle;
 /** パーティーに入っているか（実績用）: ホストで参加者がいる / 参加者で部屋に入れた */
 export function partyIn(): "host" | "guest" | undefined {
-  if (role === "host" && guestNames.length > 0) return "host";
+  if (role === "host" && peers.some(p => p.open && p.inRoom)) return "host";
   if (role === "guest" && room && guestStep === "in") return "guest";
   return undefined;
 }

@@ -11,6 +11,8 @@ import { stored, currentOver, mountingWith } from "./modctx";
 import { mountCatTower, mountScratcher, mountCatFood, mountCatBox } from "./mod-cat";
 import { ITEMS, itemOf, viewBoxOf } from "./items";
 import { startLive } from "./items/live";
+import { itemTag } from "./presents";
+import { t as tr } from "./i18n";
 
 const KEY = "kona.things";
 /** 置ける数の上限（パーティーで部屋を写すとき、ひとつの値が大きくなりすぎないように） */
@@ -81,6 +83,8 @@ const save = (items: Item[]) => { try { localStorage.setItem(KEY, JSON.stringify
 export const thingItems = () => load();
 /** 置いている種類（THINGS の順、重ならない） */
 export const placedThings = () => { const ks = new Set(load().map(i => i.k)); return THINGS.filter(t => ks.has(t.key)).map(t => t.key); };
+/** 置いているものの key（同じものを 2 つ置けば 2 つ） */
+export const placedAll = () => load().map(i => i.k);
 export const countOf = (k: string) => load().filter(i => i.k === k).length;
 export const thingOf = (id: string) => load().find(i => i.id === id);
 export const thingSize = (id: string) => thingOf(id)?.s ?? 1;
@@ -155,6 +159,7 @@ function build(it: Item) {
   const el = document.createElement("div");
   el.className = `thing thing-${k}${t.flat ? " flat" : ""}${MOUNT[k] ? " cat-thing" : ""}`;
   el.dataset.thing = it.id; el.dataset.kind = k;
+  { const tag = itemTag(k); if (tag) el.title = `${tr(t.label)} · ${tag}`; }
   if (t.flat) el.dataset.catRug = "";
   if (MOUNT[k]) {
     const body = document.createElement("div");

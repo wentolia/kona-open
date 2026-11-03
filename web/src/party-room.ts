@@ -153,6 +153,10 @@ export interface RoomOpts {
   /** ホストだけ: リクエストに応える */
   play?(id: string, i?: number): void;
   volume?: { get(): number; set(v: number): void };
+  /** 贈れる品と、今日もう贈った種類（presents.ts） */
+  gifts?(): { items: { key: string; label: string; svg: string }[]; today?: string };
+  /** 贈る（贈れなければ false） */
+  gift?(to: string, key: string): boolean;
   /** ホームの写しのモジュールを何で動かすか（描き直すたびに聞く） */
   src(): HomeSource;
 }
@@ -177,7 +181,7 @@ export class Room {
   private entered = new Map<string, number>();   // 猫をはじめて部屋に置いた時刻（飛び込んでくるのは入った直後だけ）
   private lookT = 0;
   private lastLook?: [number, number];
-  private panel: "" | "chat" | "perm" = "";
+  private panel: "" | "chat" | "perm" | "gift" = "";
   private hostLook?: SnapLook;            // ホストのホームの見た目（部屋を開いている間だけ、この画面に当てる）
   private unlook?: () => void;
 
@@ -266,6 +270,7 @@ export class Room {
           <p class="dlg-note">個別に送ったものも、ホストを通って届きます。</p>
         </div>
         <div class="pr-side-body" id="pr-perm-body"></div>
+        <div class="pr-side-body" id="pr-gift-body"></div>
       </aside>
       <div class="pr-card" id="pr-card" hidden></div>
       <div class="pr-bar">
@@ -280,6 +285,7 @@ export class Room {
           <span class="pr-people" id="pr-people"></span>
           ${this.o.host ? `<button class="btn" id="pr-perm-btn">権限</button>` : ""}
           <button class="btn" id="pr-chat-btn" hidden>チャット</button>
+          ${this.o.gift ? `<button class="btn" id="pr-gift-btn">贈る</button>` : ""}
           ${inline ? "" : `<button class="btn" id="pr-exit">抜ける</button>`}
         </div>
       </div>`;
@@ -311,6 +317,7 @@ export class Room {
     if (vol) vol.oninput = () => this.o.volume!.set(Number(vol.value));
     el.querySelector<HTMLButtonElement>("#pr-perm-btn")?.addEventListener("click", () => this.togglePanel("perm"));
     $<HTMLButtonElement>("#pr-chat-btn").onclick = () => this.togglePanel("chat");
+    el.querySelector<HTMLButtonElement>("#pr-gift-btn")?.addEventListener("click", () => this.togglePanel("gift"));
     $<HTMLButtonElement>("#pr-side-x").onclick = () => this.togglePanel("");
     $<HTMLFormElement>("#pr-say").onsubmit = e => {
       e.preventDefault();
@@ -542,13 +549,15 @@ export class Room {
     if (id !== this.nowId) { this.nowId = id; if (id && !this.albums.has(id) && this.o.host) this.o.want({ t: "home" }); this.homeView?.setNow(id); }
   }
 
-  private togglePanel(p: "" | "chat" | "perm") {
+  private togglePanel(p: "" | "chat" | "perm" | "gift") {
     this.panel = this.panel === p ? "" : p;
     if (this.panel === "chat" && !(this.perms.chat || this.perms.request || this.o.host)) this.panel = "";
     const side = this.el?.querySelector<HTMLElement>("#pr-side");
     if (!side) return;
     side.hidden = !this.panel;
-    side.querySelector<HTMLElement>("#pr-side-title")!.textContent = this.panel === "perm" ? "権限" : "チャット";
+    side.querySelector<HTMLElement>("#pr-side-title")!.textContent = this.panel === "perm" ? "権限" : this.panel === "gift" ? "贈りもの" : "チャット";
+    side.querySelector<HTMLElement>("#pr-gift-body")!.hidden = this.panel !== "gift";
+    if (this.panel === "gift") this.drawGifts();
     side.querySelector<HTMLElement>("#pr-chat-body")!.hidden = this.panel !== "chat";
     side.querySelector<HTMLElement>("#pr-perm-body")!.hidden = this.panel !== "perm";
     if (this.panel === "chat") { this.refreshLog(); this.el?.querySelector<HTMLInputElement>("#pr-text")?.focus(); }
@@ -577,6 +586,30 @@ export class Room {
     });
     body.querySelectorAll<HTMLSelectElement>("[data-who]").forEach(s => s.onchange = () => this.o.perm?.(s.dataset.perm as keyof Perms, s.value === "" ? undefined : s.value === "1", s.dataset.who));
   }
+  /** 贈りもの: 相手を選び、品を押すと贈る。1 日 1 種類まで（同じ品なら何人にでも）。贈っても手元に残る */
+  private giftTo = "";
+  drawGifts() {
+    const body = this.el?.querySelector<HTMLElement>("#pr-gift-body");
+    if (!body || !this.o.gifts || this.panel !== "gift") return;
+    const { items, today } = this.o.gifts();
+    const others = [...this.cats.values()].filter(c => c.id !== this.o.me);
+    if (!others.some(c => c.id === this.giftTo)) this.giftTo = others[0]?.id ?? "";
+    body.innerHTML = `
+      <p class="dlg-note">持っている品を贈れます。贈っても手元からは無くなりません。贈れるのは 1 日 1 種類まで（同じ品なら何人にでも）。</p>
+      ${others.length ? `<label class="pr-gift-to"><span>相手</span><select id="pr-gift-to">${others.map(c => `<option value="${esc(c.id)}"${c.id === this.giftTo ? " selected" : ""}>${esc(c.name || "名無し")}さん</option>`).join("")}</select></label>` : `<p class="dlg-note">まだだれも入っていません。</p>`}
+      ${today ? `<p class="dlg-note">今日の品: 「${esc(items.find(i => i.key === today)?.label ?? today)}」</p>` : ""}
+      ${items.length ? `<div class="pr-gifts">${items.map(i => `<button type="button" class="pr-gift" data-gift="${esc(i.key)}" title="${esc(i.label)}"${(today && today !== i.key) || !others.length ? " disabled" : ""}><span>${i.svg}</span><small>${esc(i.label)}</small></button>`).join("")}</div>`
+        : `<p class="dlg-note">贈れる品がまだありません（包みで届いた品を贈れます）。</p>`}`;
+    const sel = body.querySelector<HTMLSelectElement>("#pr-gift-to");
+    if (sel) sel.onchange = () => { this.giftTo = sel.value; };
+    body.querySelectorAll<HTMLButtonElement>("[data-gift]").forEach(b => b.onclick = () => {
+      const to = this.giftTo, key = b.dataset.gift!;
+      if (!to) return;
+      if (this.o.gift?.(to, key)) this.o.toast?.(`${this.nameOf(to)}さんに「${b.title}」を贈りました`);
+      else this.o.toast?.("今日はもう別の品を贈りました");
+      this.drawGifts();
+    });
+  }
   private nameOf(id: string) { return this.cats.get(id)?.name || "名無し"; }
   refresh() {
     if (!this.el) return;
@@ -593,6 +626,7 @@ export class Room {
     const n = this.el.querySelector<HTMLElement>("#pr-now"); if (n) n.textContent = this.now;
     this.el.querySelector<HTMLElement>("#pr-mic-box")!.hidden = !this.perms.voice;
     this.drawPerms();
+    this.drawGifts();
   }
   private refreshLog() {
     const ol = this.el?.querySelector<HTMLElement>("#pr-log");
