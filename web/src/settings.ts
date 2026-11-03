@@ -10,7 +10,7 @@ import { THINGS, placedThings, toggleThing, thingThumb } from "./room-things";
 import { OBJECTS, objectAvailable, objectArt } from "./mod-objects";
 import { chimeOn, setChime } from "./mod-clock";
 import { prefs, setPrefs, type Prefs } from "./prefs";
-import { BANDS, BUILTIN_PRESETS, userPresets, savePreset, deletePreset, presetMatching } from "./eq";
+import { BANDS, userPresets, savePreset, deletePreset, presetMatching } from "./eq";
 import { BREEDS, type Coat } from "./cat";
 import { ACTIONS, keyFor, keyLabel } from "./shortcuts";
 import { SORTS } from "./shelves";
@@ -146,19 +146,21 @@ function putBlock(h: SettingsHooks) {
 
 function soundTab(h: SettingsHooks) {
   const eq = h.player.eq, cur = eq.on ? presetMatching(eq.gains) : undefined, q = prefs();
-  const preset = (name: string, gains: number[], user: boolean) => `
+  // プリセットの切り替えはイコライザーのモジュール（‹ ›）で。ここは自分で残した形を増やす・消すだけ
+  const own = userPresets();
+  const preset = (name: string, gains: number[]) => `
     <li class="set-preset${cur === name ? " on" : ""}">
-      <button type="button" class="set-preset-apply" data-preset="${esc(name)}" aria-pressed="${cur === name}">
+      <span class="set-preset-apply">
         <svg viewBox="0 0 ${BANDS.length * 6} 24" aria-hidden="true">${gains.map((g, i) => `<rect x="${i * 6 + 1}" y="${12 - Math.max(0, g)}" width="4" height="${Math.max(1, Math.abs(g))}"/>`).join("")}</svg>
-        <span>${esc(user ? name : t(name))}</span></button>
-      ${user ? `<button type="button" class="set-x" data-del-preset="${esc(name)}" aria-label="${esc(t("消す"))}">×</button>` : ""}
+        <span>${esc(name)}</span></span>
+      <button type="button" class="set-x" data-del-preset="${esc(name)}" aria-label="${esc(t("消す"))}">×</button>
     </li>`;
   return `
-    ${sec(t("音の色（イコライザー）"), `<ul class="set-presets">${BUILTIN_PRESETS.map(p => preset(p.name, p.gains, false)).join("")}${userPresets().map(p => preset(p.name, p.gains, true)).join("")}</ul>`)}
     ${sec(t("曲のつなぎ"), seg("crossfade", [{ v: "0", label: t("ギャップレス") }, { v: "3", label: "3 " + t("秒") }, { v: "6", label: "6 " + t("秒") }, { v: "10", label: "10 " + t("秒") }], String(q.crossfade)))}
     ${fold("sound-more", t("もっと見る"), `
       ${row(t("音量の正規化"), seg("normalize", [{ v: "off", label: t("しない") }, { v: "track", label: t("曲ごと") }, { v: "album", label: t("アルバムごと") }], h.player.normalize))}
-      <form class="set-row set-save" id="set-save-preset"><span>${t("いまの形を残す")}</span><input id="set-preset-name" maxlength="24" placeholder="${esc(t("名前"))}" autocomplete="off"><button class="set-btn">${t("残す")}</button></form>`)}`;
+      <form class="set-row set-save" id="set-save-preset"><span>${t("イコライザーのいまの形を残す")}</span><input id="set-preset-name" maxlength="24" placeholder="${esc(t("名前"))}" autocomplete="off"><button class="set-btn">${t("残す")}</button></form>
+      ${own.length ? `<ul class="set-presets">${own.map(p => preset(p.name, p.gains)).join("")}</ul>` : ""}`)}`;
 }
 
 // モジュール: ホームに並んでいる順に。押すとそのモジュールの設定が開き、ホームでもそのモジュールに札が立つ
@@ -431,10 +433,6 @@ function wire(el: HTMLElement) {
   });
 
   // 音
-  on("[data-preset]", "click", b => {
-    const name = b.dataset.preset!, p = [...BUILTIN_PRESETS, ...userPresets()].find(x => x.name === name);
-    if (p) { h.player.eq.setAll(p.gains); again(); }
-  });
   on("[data-del-preset]", "click", b => { deletePreset(b.dataset.delPreset!); again(); });
   const save = el.querySelector<HTMLFormElement>("#set-save-preset");
   if (save) save.onsubmit = e => {

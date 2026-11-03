@@ -42,6 +42,7 @@ const EN: Record<string, string> = {
   "音の色（イコライザー）": "Tone (equalizer)", "棚板に暮らした跡を残す": "Let the shelves wear", "見た目": "Look", "部屋": "Room", "音": "Sound", "猫": "Cats", "データ": "Data", "キーボード": "Keyboard", "Kona について": "About Kona",
   "フォルダを追加": "Add a folder", "別のフォルダに入れ替える": "Replace with another folder", "外す": "Remove",
   "ボックス": "Box",
+  "プリセット": "Presets", "前のプリセット": "Previous preset", "次のプリセット": "Next preset", "調整中": "Custom", "オフ": "Off", "イコライザーのいまの形を残す": "Save the current EQ shape",
   "招待": "Invite", "リスニングパーティー: 流している音をいっしょに聴く": "Listening party: listen together to what's playing",
   "モジュール": "Modules", "ホームのモジュール": "Modules on home", "モジュールを足す": "Add a module", "遊ぶ": "Play",
   "猫じゃらしで遊ぶ": "Play with a cat wand", "猫じゃらしをしまう": "Put the wand away", "ランダムで1枚": "Pick one at random", "新しい棚": "New shelf",

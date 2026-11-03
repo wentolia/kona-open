@@ -2,7 +2,8 @@
 
 import type { Player } from "./player";
 import type { ModuleType } from "./shelves";
-import { BANDS, MAX_DB, type Eq } from "./eq";
+import { BANDS, MAX_DB, BUILTIN_PRESETS, userPresets, presetMatching, type Eq } from "./eq";
+import { t } from "./i18n";
 import { ctx, fmt, css, fit, everyFrame } from "./modctx";
 import { mountInfo } from "./mod-info";
 import { mountLog } from "./mod-log";
@@ -46,7 +47,11 @@ export function mountEq(body: HTMLElement, eq: Eq) {
       <div class="eq-bar">
         <button class="eq-power" aria-pressed="${eq.on}"><i></i>EQ</button>
         <span class="eq-pre"></span>
-        <button class="eq-flat">フラット</button>
+        <div class="eq-presets" role="group" aria-label="${t("プリセット")}">
+          <button class="eq-prev" aria-label="${t("前のプリセット")}"><svg viewBox="0 0 16 16"><path d="M10.5 3 5.5 8l5 5-1.2 1.2L3 8l6.3-6.2z"/></svg></button>
+          <span class="eq-preset-name" aria-live="polite"></span>
+          <button class="eq-next" aria-label="${t("次のプリセット")}"><svg viewBox="0 0 16 16"><path d="M5.5 3l5 5-5 5 1.2 1.2L13 8 6.7 1.8z"/></svg></button>
+        </div>
       </div>
       <div class="eq-stage">
         <canvas class="eq-curve" aria-hidden="true"></canvas>
@@ -65,7 +70,16 @@ export function mountEq(body: HTMLElement, eq: Eq) {
   const power = root.querySelector<HTMLButtonElement>(".eq-power")!;
 
   power.onclick = () => eq.toggle();
-  root.querySelector<HTMLButtonElement>(".eq-flat")!.onclick = () => eq.reset();
+  // プリセット: ‹ › で、用意したもの → 自分で残したもの の順にめぐる。いまの形に合うものがなければ「調整中」
+  const presets = () => [...BUILTIN_PRESETS, ...userPresets()];
+  const step = (d: number) => {
+    const list = presets(), name = eq.on ? presetMatching(eq.gains) : undefined;
+    const i = list.findIndex(p => p.name === name);
+    const next = i < 0 ? (d > 0 ? 0 : list.length - 1) : (i + d + list.length) % list.length;
+    eq.setAll(list[next].gains);
+  };
+  root.querySelector<HTMLButtonElement>(".eq-prev")!.onclick = () => step(-1);
+  root.querySelector<HTMLButtonElement>(".eq-next")!.onclick = () => step(1);
 
   // フェーダー: 溝のどこを押してもそこへ動く。ダブルクリックで 0 dB、矢印キーで 0.5 dB ずつ
   const dbAt = (slot: HTMLElement, y: number) => {
@@ -143,7 +157,9 @@ export function mountEq(body: HTMLElement, eq: Eq) {
       slot.title = `${BANDS[i].label} Hz  ${fmtDb(db)} dB`;
       slot.classList.toggle("eq-moved", db !== 0);
     });
-    root.querySelector<HTMLButtonElement>(".eq-flat")!.disabled = eq.flat;
+    const name = eq.on ? presetMatching(eq.gains) : undefined;
+    const own = userPresets().some(p => p.name === name);
+    root.querySelector(".eq-preset-name")!.textContent = name ? (own ? name : t(name)) : t(eq.on ? "調整中" : "オフ");
     draw();
   };
   const off = eq.subscribe(sync);
