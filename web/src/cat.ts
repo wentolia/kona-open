@@ -462,7 +462,7 @@ function measure(c: Cat): Plat[] {
     // モジュールの上。再生中・レコードの上は音が鳴っていると温かい。時計の上も好き
     const top = r.top - g.top;
     if (top > 40 * c.s) {
-      const pull = m.matches(".mod-player, .mod-turntable") ? (music ? 2.2 : 1.1) : m.matches(".mod-clock") ? 1.4 : m.matches(".mod-shelf") ? .7 : .9;
+      const pull = m.matches(".mod-player") ? (music ? 2.2 : 1.1) : m.matches(".mod-clock") ? 1.4 : m.matches(".mod-shelf") ? .7 : .9;
       out.push({ el: m, kind: "top", y: top, x0: x0 + 4, x1: x1 - 4, pull });
     }
     if (m.matches(".mod-shelf")) out.push({ el: m, kind: "shelf", y: r.bottom - g.top - board, x0: x0 + 11, x1: x1 - 11, pull: 1 });
@@ -1924,7 +1924,7 @@ function fetchStep(c: Cat): void {
     return travel(c, src, x, () => { face(c, { x } as Cat); go(c, "sit", 1); }, cancel);
   }
   // 頼まれた 1 枚は再生中のモジュールの上へ（なければ次に再生の棚、それもなければその場に置く）
-  const player = f.play ? c.plats.find(p => p.kind === "top" && p.el.matches(".mod-player, .mod-turntable")) : undefined;
+  const player = f.play ? c.plats.find(p => p.kind === "top" && p.el.matches(".mod-player")) : undefined;
   const dst = player ?? queueBoard(c) ?? (f.play ? c.cur : undefined);
   if (!dst) return cancel();
   return travel(c, dst, samePlat(dst, c.cur) && f.play ? c.x : rnd(lo(dst), hi(dst)), () => {
@@ -2276,7 +2276,7 @@ function learnTaste() {
   for (const c of cats) {
     if (!c.cur) continue;
     let d = 0;
-    const warm = c.cur.kind === "top" && c.cur.el.matches(".mod-player, .mod-turntable");
+    const warm = c.cur.kind === "top" && c.cur.el.matches(".mod-player");
     if (["sleep", "purr", "lie", "groomed"].includes(c.state) && ear.loud < .75) d += .004 * (warm ? 2 : 1);
     if (ear.loud > .75) d -= .005 * c.p.sleepy;
     if (c.state === "annoyed" || c.state === "flinch") d -= .006;
@@ -2300,7 +2300,7 @@ function learnTaste() {
   }
 }
 function goListen(c: Cat) {
-  const p = c.plats.find(p => p.kind === "top" && p.el.matches(".mod-player, .mod-turntable"));
+  const p = c.plats.find(p => p.kind === "top" && p.el.matches(".mod-player"));
   const purr = () => { if (c.state === "sleep") c.woke = true; go(c, "purr"); };
   if (!p || samePlat(p, c.cur)) return purr();
   travel(c, p, rnd(lo(p), hi(p)), purr, () => go(c, "sit"));

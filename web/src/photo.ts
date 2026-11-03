@@ -4,7 +4,6 @@
 
 import { domToCanvas } from "modern-screenshot";
 import { holdCats } from "./cat";
-import { setPlainLabel } from "./mod-turntable";
 import { esc } from "./dom";
 
 const HIDE_KEY = "kona.photoHideArt";
@@ -16,7 +15,6 @@ let open: { el: HTMLElement; close: () => void } | undefined;
 
 const hideArtPref = (key = HIDE_KEY, def = true) => { try { const v = localStorage.getItem(key); return v === null ? def : v !== "0"; } catch { return def; } };
 const setHideArtPref = (on: boolean, key = HIDE_KEY) => { try { localStorage.setItem(key, on ? "1" : "0"); } catch { /* 覚えられなくても撮れる */ } };
-const nextFrame = () => new Promise<void>(r => requestAnimationFrame(() => r()));
 
 // ---------- 画像の読み込みと平均色 ----------
 const loaded = new Map<string, Promise<HTMLImageElement | undefined>>();
@@ -116,7 +114,6 @@ async function fontCss(): Promise<string> {
 async function shoot(hideArt: boolean): Promise<HTMLCanvasElement> {
   const w = innerWidth, h = innerHeight;
   const scale = Math.min(Math.max(2, devicePixelRatio || 1), Math.sqrt(16e6 / (w * h)));
-  if (hideArt) { setPlainLabel(true); await nextFrame(); await nextFrame(); }
   try {
     return await domToCanvas(document.body, {
       width: w, height: h, scale,
@@ -145,7 +142,6 @@ async function shoot(hideArt: boolean): Promise<HTMLCanvasElement> {
       },
     });
   } finally {
-    if (hideArt) setPlainLabel(false);
   }
 }
 
