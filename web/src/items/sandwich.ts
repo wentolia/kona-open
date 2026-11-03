@@ -21,4 +21,4 @@ function art() {
     ${half([31, 4], 27, 20, 44, true)}${half([15, 6], 29, 3, 28)}`;
 }
 
-export default { key: "sandwich", label: "サンドイッチ", at: "shelf", w: 48, h: 32, cat: "食べ物", order: 415, draft: true, note: "卵・レタス・トマト・ハムの断面", art } satisfies ItemDef;
+export default { key: "sandwich", label: "サンドイッチ", at: "shelf", w: 48, h: 32, cat: "食べ物", order: 415, note: "卵・レタス・トマト・ハムの断面", art } satisfies ItemDef;

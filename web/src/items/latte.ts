@@ -15,4 +15,4 @@ function art() {
 
 const live: Live = svg => { const steam = wisps(svg, 20, 6, 3); return s => steam(s, .6); };
 
-export default { key: "latte", label: "カフェラテ", at: "shelf", w: 44, h: 30, cat: "食べ物", order: 410, draft: true, note: "ハートのラテアート。湯気が立つ", art, live } satisfies ItemDef;
+export default { key: "latte", label: "カフェラテ", at: "shelf", w: 44, h: 30, cat: "食べ物", order: 410, note: "ハートのラテアート。湯気が立つ", art, live } satisfies ItemDef;

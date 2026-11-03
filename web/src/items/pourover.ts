@@ -26,4 +26,4 @@ const live: Live = svg => {
   };
 };
 
-export default { key: "pourover", label: "ハンドドリップ", at: "shelf", w: 40, h: 57, cat: "食べ物", order: 411, draft: true, note: "ドリッパーからぽたぽた落ちる。湯気が立つ", art, live } satisfies ItemDef;
+export default { key: "pourover", label: "ハンドドリップ", at: "shelf", w: 40, h: 57, cat: "食べ物", order: 411, note: "ドリッパーからぽたぽた落ちる。湯気が立つ", art, live } satisfies ItemDef;

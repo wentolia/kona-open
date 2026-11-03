@@ -16,4 +16,4 @@ function art() {
 
 const live: Live = svg => bubbles(svg, 6, 26, 43, 16, 9, "rgba(255,240,200,.7)", .7);
 
-export default { key: "beer", label: "ビールジョッキ", at: "shelf", w: 38, h: 48, cat: "食べ物", order: 419, draft: true, note: "泡の帽子。細かな泡がのぼる", art, live } satisfies ItemDef;
+export default { key: "beer", label: "ビールジョッキ", at: "shelf", w: 38, h: 48, cat: "食べ物", order: 419, note: "泡の帽子。細かな泡がのぼる", art, live } satisfies ItemDef;

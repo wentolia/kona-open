@@ -13,4 +13,4 @@ function art() {
     ${grapes.map(([x, y, i]) => poly([V.hi, V.mid, V.lo][i], ngon(x, y, 2.3, 7))).join("")}`;
 }
 
-export default { key: "cheese", label: "チーズの盛り合わせ", at: "shelf", w: 56, h: 27, cat: "食べ物", order: 420, draft: true, note: "穴あきのチーズ・白かびのチーズ・ぶどうを木の板に", art } satisfies ItemDef;
+export default { key: "cheese", label: "チーズの盛り合わせ", at: "shelf", w: 56, h: 27, cat: "食べ物", order: 420, note: "穴あきのチーズ・白かびのチーズ・ぶどうを木の板に", art } satisfies ItemDef;

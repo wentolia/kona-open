@@ -27,4 +27,4 @@ const live: Live = svg => {
   };
 };
 
-export default { key: "pancakes", label: "パンケーキ", at: "shelf", w: 48, h: 34, cat: "食べ物", order: 414, draft: true, note: "三段重ね。シロップがゆっくり垂れる", art, live } satisfies ItemDef;
+export default { key: "pancakes", label: "パンケーキ", at: "shelf", w: 48, h: 34, cat: "食べ物", order: 414, note: "三段重ね。シロップがゆっくり垂れる", art, live } satisfies ItemDef;

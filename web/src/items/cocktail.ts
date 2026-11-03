@@ -26,4 +26,4 @@ const live: Live = svg => {
   };
 };
 
-export default { key: "cocktail", label: "カクテルグラス", at: "shelf", w: 30, h: 45, cat: "食べ物", order: 416, draft: true, note: "オリーブのマティーニ。液面がかすかに揺れる", art, live } satisfies ItemDef;
+export default { key: "cocktail", label: "カクテルグラス", at: "shelf", w: 30, h: 45, cat: "食べ物", order: 416, note: "オリーブのマティーニ。液面がかすかに揺れる", art, live } satisfies ItemDef;
