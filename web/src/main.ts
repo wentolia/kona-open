@@ -55,8 +55,11 @@ const hidden = new Set<string>((() => { try { return JSON.parse(localStorage.get
 // 棚・ライブラリ・検索に出すアルバム: 外していないもので、上の帯で選んだセット（タグ）に入るもの
 const shown = (a: Album) => !hidden.has(a.key) && inSet(a);
 let rootName = "";
-let savedRoot: FileSystemDirectoryHandle | undefined;
-let liveRoot: FileSystemDirectoryHandle | undefined;   // いま開いているフォルダのハンドル（ファイル選択で開いたときはなし）
+// この端末のフォルダはいくつでも足せる。最初のフォルダの中はそのままのパス、足したフォルダは「フォルダ名/…」で並べる
+// （最初のフォルダのアルバムの覚え（再生回数・タグなど）が、足したり外したりしても変わらないように）
+type Root = { h: FileSystemDirectoryHandle; prefix: string };
+let savedRoots: Root[] = [];
+let liveRoots: Root[] | undefined;   // いま開いているフォルダ（ファイル選択で開いたときはなし）
 let liveDrive: string | undefined;                      // いま開いている Google Drive のフォルダ（id）
 let pop: { rowId: string; key: string; anchor: HTMLElement } | undefined; // 曲目パネルを開いているアルバム
 const featured = new Map<string, string>(); // 棚ごとに面陳しているアルバム（背表紙のホバーで切り替わる）
@@ -76,13 +79,79 @@ setModuleContext({
   colorOf: a => a.color ?? fallbackColor(a),
 });
 
-// ---------- フォルダを開く ----------
+// ---------- フォルダを開く・足す・外す ----------
 const canPickDir = "showDirectoryPicker" in window;
-
+async function* walkRoots(roots: Root[]): AsyncGenerator<Entry> { for (const r of roots) yield* walkHandle(r.h, r.prefix); }
+const rootsName = (roots: Root[]) => roots.length > 1 ? `${roots[0].h.name} ほか ${roots.length - 1}` : roots[0]?.h.name ?? "";
+const saveRoots = () => kvSet("roots", savedRoots.map(r => ({ h: r.h, prefix: r.prefix })));
+async function loadRoots() {
+  const list = await kvGet<Root[]>("roots").catch(() => undefined);
+  if (Array.isArray(list)) return list.filter(r => r?.h?.kind === "directory");
+  const one = await kvGet<FileSystemDirectoryHandle>("root").catch(() => undefined); // 以前の版は 1 つだけ覚えていた
+  return one ? [{ h: one, prefix: "" }] : [];
+}
+/** どのフォルダも読めるか。request なら尋ねる（クリックの中で呼ぶ） */
+async function rootsPermitted(roots: Root[], request: boolean) {
+  for (const r of roots) {
+    // @ts-expect-error requestPermission / queryPermission は DOM 型定義に未収録
+    const p = await (request ? r.h.requestPermission({ mode: "read" }) : r.h.queryPermission({ mode: "read" })).catch(() => "denied");
+    if (p !== "granted") return false;
+  }
+  return roots.length > 0;
+}
+async function openRoots(roots: Root[]) {
+  liveRoots = roots; liveDrive = undefined;
+  await load(rootsName(roots), walkRoots(roots));
+}
+/** 別のフォルダを開く（いまのフォルダとは入れ替える） */
 async function openHandle(handle: FileSystemDirectoryHandle) {
-  await kvSet("root", handle);
-  savedRoot = liveRoot = handle; liveDrive = undefined;
-  await load(handle.name, walkHandle(handle));
+  savedRoots = [{ h: handle, prefix: "" }];
+  await saveRoots();
+  await openRoots(savedRoots);
+}
+/** フォルダを足す: いま開いているフォルダはそのままに、棚へ加える */
+async function addFolder() {
+  if (!canPickDir) { openFolder(); return; }
+  let h: FileSystemDirectoryHandle;
+  // @ts-expect-error showDirectoryPicker は一部ブラウザの DOM 型定義に未収録
+  try { h = await window.showDirectoryPicker({ id: "kona", mode: "read" }); } catch { return; }
+  for (const r of savedRoots) {
+    if (await r.h.isSameEntry(h).catch(() => false)) { toast(`「${h.name}」はもう入っています`); return; }
+  }
+  const taken = new Set([...savedRoots.map(r => r.prefix), ...allAlbums.map(a => a.key.split("/")[0])]);
+  let prefix = savedRoots.length ? h.name : "";
+  for (let i = 2; prefix && taken.has(prefix); i++) prefix = `${h.name} ${i}`;
+  savedRoots = [...savedRoots, { h, prefix }];
+  await saveRoots();
+  if (liveRoots && !locked) { liveRoots = savedRoots; rootName = rootsName(savedRoots); await rescan(false); showRescan(); }
+  else if (await rootsPermitted(savedRoots, true)) await openRoots(savedRoots);
+}
+/** 覚えているフォルダ（と Google Drive のフォルダ）を忘れて、はじめの画面に戻る。ファイルや聴いた記録は消さない
+ *  onlyLocal: この端末のフォルダだけ（最後のフォルダを外したとき） */
+async function forgetSource(onlyLocal = false) {
+  savedRoots = [];
+  await kvSet("roots", []); await kvSet("root", null);
+  if (!onlyLocal) {
+    const c = driveConfig();
+    if (c) saveDriveConfig({ clientId: c.clientId });
+    signOut(); forgetSpotifyOpen();
+  }
+  try { localStorage.removeItem(NOW_KEY); localStorage.removeItem(QUEUE_KEY); } catch { /* ignore */ }
+  location.hash = "#home"; location.reload();
+}
+/** フォルダを外す: 棚から消えるだけで、ファイルや聴いた記録は消さない */
+async function removeFolder(i: number) {
+  const r = savedRoots[i];
+  if (!r) return;
+  savedRoots = savedRoots.filter(x => x !== r);
+  await saveRoots();
+  if (!savedRoots.length) { if (liveRoots || locked) await forgetSource(true); return; }
+  if (liveRoots) {
+    liveRoots = savedRoots; rootName = rootsName(savedRoots);
+    if (await rootsPermitted(savedRoots, true)) await rescan(false);
+    else { allAlbums = allAlbums.filter(a => !(r.prefix ? a.key === r.prefix || a.key.startsWith(r.prefix + "/") : !savedRoots.some(o => a.key === o.prefix || a.key.startsWith(o.prefix + "/")))); albums = allAlbums.filter(shown); showCount(); renderShelves(); }
+  }
+  toast(`「${r.h.name}」を外しました`);
 }
 
 async function openFolder() {
@@ -103,34 +172,44 @@ $<HTMLInputElement>("#picker").addEventListener("change", e => {
   const files = (e.target as HTMLInputElement).files;
   if (!files?.length) return;
   const name = files[0].webkitRelativePath.split("/")[0] || "音楽";
-  liveRoot = liveDrive = undefined;
+  liveRoots = liveDrive = undefined;
   load(name, walkFiles(files));
 });
-// 上の「開く」: この端末のフォルダか、Google Drive か
+// 上の「フォルダ」: 読んでいるフォルダの一覧（外す）、フォルダを足す、読み直す。Google Drive・Spotify に切り替える
 function openSourceMenu(anchor: HTMLElement) {
+  const had = document.getElementById("source-menu");
   closeSourceMenu();
   const el = document.createElement("div");
-  el.id = "source-menu"; el.className = "pop-menu"; el.setAttribute("role", "menu");
+  el.id = "source-menu"; el.className = "pop-menu src-menu"; el.setAttribute("role", "menu");
   const saved = driveSaved();
-  el.innerHTML = `<button role="menuitem" data-s="local"><b>${t("この端末のフォルダ")}</b></button>
+  const local = !!liveRoots || locked, x = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.2 3 8 6.8 11.8 3 13 4.2 9.2 8 13 11.8 11.8 13 8 9.2 4.2 13 3 11.8 6.8 8 3 4.2z"/></svg>`;
+  el.innerHTML = `
+    ${local ? savedRoots.map((r, i) => `<div class="src-folder"><span title="${esc(r.h.name)}">${esc(r.h.name)}</span><button data-rm="${i}" aria-label="${esc(r.h.name)}を外す" title="外す">${x}</button></div>`).join("")
+      : rootName ? `<div class="src-folder"><span>${esc(rootName)}</span></div>` : ""}
+    ${rootName ? "<hr>" : ""}
+    <button role="menuitem" data-s="add"><b>${canPickDir && local ? t("フォルダを追加") : t("フォルダを開く")}</b></button>
+    ${canRescan() ? `<button role="menuitem" data-s="rescan"${rescanning ? " disabled" : ""}><b>${rescanning ? t("読み直しています") : t("読み直す")}</b></button>` : ""}
+    ${local && canPickDir ? `<button role="menuitem" data-s="local"><b>${t("別のフォルダに入れ替える")}</b></button>` : ""}
+    ${driveConfig() || spotifyConfigured() ? "<hr>" : ""}
     ${driveConfig() ? `<button role="menuitem" data-s="drive"><b>Google Drive</b>${saved ? `<span>${esc(saved.name)}</span>` : ""}</button>` : ""}
-    ${spotifyConfigured() ? `<button role="menuitem" data-s="spotify"><b>Spotify</b><span>${t("保存したアルバム")}</span></button>` : ""}
-    ${partySupported() ? `<hr>
-    <button role="menuitem" data-s="party"><b>リスニングパーティー</b><span>流している音をいっしょに聴く</span></button>` : ""}`;
+    ${spotifyConfigured() ? `<button role="menuitem" data-s="spotify"><b>Spotify</b><span>${t("保存したアルバム")}</span></button>` : ""}`;
   el.onclick = e => {
-    const s = (e.target as HTMLElement).closest<HTMLElement>("[data-s]")?.dataset.s;
+    const rm = (e.target as HTMLElement).closest<HTMLElement>("[data-rm]")?.dataset.rm;
+    if (rm !== undefined) { void removeFolder(Number(rm)).then(() => { if (document.getElementById("source-menu")) openSourceMenu(anchor); }); return; }
+    const s = (e.target as HTMLElement).closest<HTMLElement>("[data-s]:not([disabled])")?.dataset.s;
     if (!s) return;
+    if (s === "rescan") { void (locked ? unlock() : rescan()); return; } // メニューは開いたまま（進み具合を出す）
     closeSourceMenu();
-    if (s === "local") openFolder();
+    if (s === "add") { if (local) addFolder(); else openFolder(); }
+    else if (s === "local") openFolder();
     else if (s === "drive") openDrive();
     else if (s === "spotify") openSpotify();
-    else if (s === "party") openParty();
   };
   document.body.append(el);
   const r = anchor.getBoundingClientRect();
   el.style.right = `${Math.max(16, innerWidth - r.right)}px`;
   el.style.top = `${r.bottom + 6}px`;
-  el.querySelector<HTMLButtonElement>("button")?.focus();
+  if (!had) el.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus();
 }
 // 読み込んだ設定は、画面を開き直して全体に反映する（フォルダは読み直さずに済むよう、開き直す前に今の再生を保存）
 async function loadSettingsFile() {
@@ -143,8 +222,11 @@ async function loadSettingsFile() {
   } catch (e) { toast(`読み込めませんでした: ${(e as Error).message}`); }
 }
 const closeSourceMenu = () => document.getElementById("source-menu")?.remove();
-addEventListener("pointerdown", e => { if (!(e.target as HTMLElement).closest("#source-menu, #open")) closeSourceMenu(); });
+addEventListener("pointerdown", e => { if (!(e.target as HTMLElement).closest("#source-menu, #open, .dlg-back")) closeSourceMenu(); });
 addEventListener("keydown", e => { if (e.key === "Escape") closeSourceMenu(); });
+// リスニングパーティーの入口: ヘッダーの「招待」
+$<HTMLButtonElement>("#invite").hidden = !partySupported();
+$("#invite").addEventListener("click", () => openParty());
 $("#open").addEventListener("click", e => document.getElementById("source-menu") ? closeSourceMenu() : openSourceMenu(e.currentTarget as HTMLElement));
 
 // フォルダを画面に落としても開ける（ハンドルが取れるブラウザでは、次回もそのまま開ける）
@@ -164,26 +246,23 @@ addEventListener("drop", async e => {
   const entry = item.webkitGetAsEntry();
   const handle = await handleP?.catch(() => null);
   if (handle?.kind === "directory") { await openHandle(handle as FileSystemDirectoryHandle); return; }
-  if (entry?.isDirectory) { liveRoot = liveDrive = undefined; await load(entry.name, walkDropped(entry as FileSystemDirectoryEntry)); return; }
+  if (entry?.isDirectory) { liveRoots = liveDrive = undefined; await load(entry.name, walkDropped(entry as FileSystemDirectoryEntry)); return; }
   toast("フォルダを落とすと、その中の音楽を開きます");
 });
 
 async function reopenSaved() {
-  if (!savedRoot) return;
-  // @ts-expect-error requestPermission は DOM 型定義に未収録
-  const perm = await savedRoot.requestPermission({ mode: "read" });
-  if (perm === "granted") { liveRoot = savedRoot; liveDrive = undefined; await load(savedRoot.name, walkHandle(savedRoot)); }
+  if (await rootsPermitted(savedRoots, true)) await openRoots(savedRoots);
 }
 
 // 開き直したとき: 前のフォルダを読む許可が切れていても、覚えているタグで棚と部屋をすぐに出す。
 // 許可は、最初に再生するとき（クリックの中なので、ブラウザが許可を尋ねられる）にもらい、本物のアルバムに入れ替える
 let locked = false;
-async function showCached(root: FileSystemDirectoryHandle): Promise<boolean> {
+async function showCached(roots: Root[]): Promise<boolean> {
   const started = loads;
   await loadTagCache();
   const found = cachedAlbums();
   if (!found.length || loads !== started) return false;
-  locked = true; liveRoot = liveDrive = undefined; rootName = root.name;
+  locked = true; liveRoots = liveDrive = undefined; rootName = rootsName(roots);
   allAlbums = found;
   albums = found.filter(shown);
   showCount(); renderSetTabs();
@@ -198,11 +277,10 @@ async function showCached(root: FileSystemDirectoryHandle): Promise<boolean> {
 /** 覚えている棚を、本物のフォルダに切り替える。false: 許可がもらえなかった */
 async function unlock(): Promise<boolean> {
   if (!locked) return true;
-  // @ts-expect-error requestPermission は DOM 型定義に未収録
-  const perm = savedRoot && await savedRoot.requestPermission({ mode: "read" }).catch(() => "denied");
+  const ok = await rootsPermitted(savedRoots, true);
   if (!locked) return true;   // 尋ねている間に、別のフォルダが開かれた
-  if (perm !== "granted") { toast("フォルダを読む許可をもらえると、再生できます"); return false; }
-  locked = false; liveRoot = savedRoot; liveDrive = undefined;
+  if (!ok) { toast("フォルダを読む許可をもらえると、再生できます"); return false; }
+  locked = false; liveRoots = savedRoots; liveDrive = undefined;
   await rescan(true, true);
   showRescan();
   return true;
@@ -264,9 +342,9 @@ async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry
 
 // ---------- フォルダを読み直す: 増えた・減った・中身が替わったアルバムだけを反映する（棚はそのまま） ----------
 let rescanning = false;
+const canRescan = () => !!liveRoots || !!liveDrive || locked;
 function showRescan() {
-  const b = $<HTMLButtonElement>("#rescan");
-  b.hidden = !liveRoot && !liveDrive && !locked;
+  if (document.getElementById("source-menu")) openSourceMenu($("#open")); // 開いているメニューを今の状態に
   watchFolder();
 }
 
@@ -280,17 +358,17 @@ let observer: Observer | undefined, pollTimer = 0, changeTimer = 0;
 function watchFolder() {
   observer?.disconnect(); observer = undefined;
   clearInterval(pollTimer); pollTimer = 0;
-  const root = liveRoot;
+  const roots = liveRoots;
   const FSO = (window as unknown as { FileSystemObserver?: new (cb: () => void) => Observer }).FileSystemObserver;
-  if (root && FSO) {
+  if (roots && FSO) {
     try {
       const o = new FSO(() => { clearTimeout(changeTimer); changeTimer = window.setTimeout(() => rescan(true), 3000); });
-      o.observe(root, { recursive: true }).then(() => { observer = o; }, () => { o.disconnect(); startPolling(3); });
+      Promise.all(roots.map(r => o.observe(r.h, { recursive: true }))).then(() => { observer = o; }, () => { o.disconnect(); startPolling(3); });
       observer = o;
       return;
     } catch { /* 見張れなければ、ときどき読み直す */ }
   }
-  if (root) startPolling(3);
+  if (roots) startPolling(3);
   else if (liveDrive) startPolling(10);
 }
 function startPolling(minutes: number) {
@@ -301,22 +379,18 @@ let lastScan = 0;
 /** quiet: 画面に戻ってきたときの自動の読み直し。許可を求めず、変わりがなければ何も出さない
  *  replace: 覚えている棚から本物に入れ替える（今のアルバムは使い回さない） */
 async function rescan(quiet = false, replace = false) {
-  const root = liveRoot, drive = liveDrive;
+  const root = liveRoots, drive = liveDrive;
   if ((!root && !drive) || rescanning || document.body.dataset.state !== "ready") return;
   if (root) {
-    // @ts-expect-error requestPermission / queryPermission は DOM 型定義に未収録
-    const perm = await (quiet ? root.queryPermission({ mode: "read" }) : root.requestPermission({ mode: "read" })).catch(() => "denied");
-    if (perm !== "granted") return;
+    if (!await rootsPermitted(root, !quiet)) return;
   } else if (!driveToken()) {
     if (!quiet) toast("Google Drive のサインインが切れています。開き直してください");
     return;
   }
-  const btn = $<HTMLButtonElement>("#rescan");
-  rescanning = true; lastScan = Date.now(); btn.disabled = true;
-  if (!quiet) btn.textContent = "読み直しています";
+  rescanning = true; lastScan = Date.now(); showRescan();
   try {
     let found: Album[];
-    try { found = await scan(root ? walkHandle(root) : walkDrive(drive!)); }
+    try { found = await scan(root ? walkRoots(root) : walkDrive(drive!)); }
     catch { if (!quiet) toast("読み直せませんでした。通信の具合を確かめて、もう一度どうぞ"); return; }
     const old = new Map(allAlbums.map(a => [a.key, a]));
     const files = (a: Album) => [...a.tracks.map(t => t.entry.path)].sort().join("\n") + "\n" + (a.coverEntry?.path ?? "");
@@ -324,7 +398,7 @@ async function rescan(quiet = false, replace = false) {
     const next = found.map(f => { const o = replace ? undefined : old.get(f.key); return o && files(o) === files(f) ? o : f; });
     const fresh = next.filter(a => old.get(a.key) !== a);
     await eachLimited(fresh, 4, a => enrichHead(a).catch(() => {}));
-    if (liveRoot !== root || liveDrive !== drive) return; // 読み直しの途中で別のフォルダを開いた
+    if (liveRoots !== root || liveDrive !== drive) return; // 読み直しの途中で別のフォルダを開いた
     const keep = new Set(next);
     for (const a of allAlbums) if (!keep.has(a) && a !== player.album && a.cover) URL.revokeObjectURL(a.cover);
     const added = next.filter(a => !old.has(a.key)).length;
@@ -338,10 +412,9 @@ async function rescan(quiet = false, replace = false) {
     const parts = [added && `${added} 枚増えました`, removed && `${removed} 枚減りました`, changed && `${changed} 枚の中身が替わりました`].filter(Boolean);
     if (parts.length || !quiet) toast(parts.length ? parts.join("、") : "変わりはありませんでした");
   } finally {
-    rescanning = false; btn.disabled = false; btn.textContent = "読み直す";
+    rescanning = false; showRescan();
   }
 }
-$("#rescan").addEventListener("click", () => locked ? unlock() : rescan());
 // ほかのアプリでフォルダに曲を足して戻ってきたら、ひとりでに反映する（1 分に 1 回まで）
 addEventListener("focus", () => { if (prefs().autoRescan && Date.now() - lastScan > 60_000) rescan(true); });
 
@@ -427,9 +500,9 @@ function toast(text: string, action?: string, run?: () => void) {
 }
 
 // Drive のフォルダは、開いたフォルダ（設定に残る id）をあとで読み直せるように覚えておく
-initDriveUI({ load: (name, entries) => { liveRoot = undefined; liveDrive = driveConfig()?.folderId; return load(name, entries); }, toast });
+initDriveUI({ load: (name, entries) => { liveRoots = undefined; liveDrive = driveConfig()?.folderId; return load(name, entries); }, toast });
 // Spotify: 保存したアルバムを棚に並べ、Web Playback SDK で鳴らす（spotify-ui.ts）
-initSpotifyUI({ player, load: (name, fetch) => { liveRoot = liveDrive = undefined; return load(name, fetch); }, toast });
+initSpotifyUI({ player, load: (name, fetch) => { liveRoots = liveDrive = undefined; return load(name, fetch); }, toast });
 
 // Drive のアルバムを端末に残す（電波のないところでも聴ける・通信量を使わない）
 const driveFiles = (a: Album) => [...a.tracks.map(t => t.entry), ...(a.coverEntry ? [a.coverEntry] : [])].filter(isDriveEntry) as DriveEntry[];
@@ -481,9 +554,9 @@ function setState(state: AppState, note = "") {
         <p class="start-progress" id="start-progress"></p>`
       : `${note ? `<p class="start-note start-warn">${esc(note)}</p>` : ""}
         <div class="start-actions">
-          ${savedRoot ? `<button class="btn primary" id="s-reopen">「${esc(savedRoot.name)}」を開く</button>` : ""}
-          ${!savedRoot && driveSaved() ? `<button class="btn primary" id="s-drive-reopen">Drive の「${esc(driveSaved()!.name)}」を開く</button>` : ""}
-          <button class="btn ${savedRoot || driveSaved() ? "" : "primary"}" id="s-open">${savedRoot ? "別のフォルダを選ぶ" : "フォルダを選ぶ"}</button>
+          ${savedRoots.length ? `<button class="btn primary" id="s-reopen">「${esc(rootsName(savedRoots))}」を開く</button>` : ""}
+          ${!savedRoots.length && driveSaved() ? `<button class="btn primary" id="s-drive-reopen">Drive の「${esc(driveSaved()!.name)}」を開く</button>` : ""}
+          <button class="btn ${savedRoots.length || driveSaved() ? "" : "primary"}" id="s-open">${savedRoots.length ? "別のフォルダを選ぶ" : "フォルダを選ぶ"}</button>
           ${driveConfig() ? `<button class="btn" id="s-drive">Google Drive から</button>` : ""}
           ${spotifyConfigured() ? `<button class="btn" id="s-spotify">Spotify から</button>` : ""}
         </div>
@@ -495,7 +568,7 @@ function setState(state: AppState, note = "") {
   $("#s-drive")?.addEventListener("click", openDrive);
   $("#s-drive-reopen")?.addEventListener("click", openDriveSaved);
   $("#s-spotify")?.addEventListener("click", openSpotify);
-  $<HTMLButtonElement>(savedRoot ? "#s-reopen" : driveSaved() ? "#s-drive-reopen" : "#s-open")?.focus();
+  $<HTMLButtonElement>(savedRoots.length ? "#s-reopen" : driveSaved() ? "#s-drive-reopen" : "#s-open")?.focus();
 }
 
 // ---------- 部品 ----------
@@ -1687,19 +1760,12 @@ initSettings($("#view-settings"), {
     placeCats();
   },
   source: () => {
-    const kind = !rootName ? "none" : liveRoot ? "local" : allAlbums[0]?.remote === "spotify" ? "spotify" : driveSaved()?.name === rootName ? "drive" : "files";
-    return { name: rootName, kind, canRescan: !!liveRoot };
+    const kind = !rootName ? "none" : liveRoots ? "local" : allAlbums[0]?.remote === "spotify" ? "spotify" : driveSaved()?.name === rootName ? "drive" : "files";
+    return { name: rootName, kind, canRescan: !!liveRoots };
   },
   rescan: () => rescan(),
   openSource: anchor => openSourceMenu(anchor),
-  forgetSource: async () => {
-    await kvSet("root", null);
-    const c = driveConfig();
-    if (c) saveDriveConfig({ clientId: c.clientId });
-    signOut(); forgetSpotifyOpen();
-    try { localStorage.removeItem(NOW_KEY); localStorage.removeItem(QUEUE_KEY); } catch { /* ignore */ }
-    location.hash = "#home"; location.reload();
-  },
+  forgetSource: () => forgetSource(),
   drive: () => { const c = driveConfig(); return { configured: !!c, folder: c?.folderName, signedIn: !!driveToken() }; },
   driveSignOut: () => signOut(),
   keptAlbums: () => allAlbums.filter(a => isKept(a.key)).map(a => {
@@ -1757,19 +1823,18 @@ async function boot() {
   navigator.storage?.persist?.().catch(() => {});
   renderHomeFrame(); renderShelves(); route();
   const started = loads;
-  savedRoot = await kvGet<FileSystemDirectoryHandle>("root").catch(() => undefined);
+  savedRoots = await loadRoots();
   // 許可が残っていれば（Chrome の「毎回許可」など）そのまま読み込む。なければ開始画面でフォルダを選んでもらう
-  // @ts-expect-error queryPermission は DOM 型定義に未収録
-  const perm = savedRoot && await savedRoot.queryPermission?.({ mode: "read" }).catch(() => "denied");
+  const granted = await rootsPermitted(savedRoots, false);
   // 起動の準備中に、もうフォルダが選ばれていたらそちらを優先する（開始画面に戻さない）
   if (loads !== started) return;
-  if (savedRoot && perm === "granted") { liveRoot = savedRoot; liveDrive = undefined; await load(savedRoot.name, walkHandle(savedRoot)); }
+  if (granted) await openRoots(savedRoots);
   else {
     setState("start");
     // サインインから戻ってきたところなら続きを。同じタブで開き直したなら、前の Drive のフォルダをそのまま
     if (await resumeSpotify()) return;
     if (await resumeDrive()) return;
-    if (savedRoot) await showCached(savedRoot);
+    if (savedRoots.length) await showCached(savedRoots);
     else if (driveReady()) await openDriveSaved();
   }
 }

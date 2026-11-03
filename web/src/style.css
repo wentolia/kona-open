@@ -236,6 +236,13 @@ body.arranging, body.arranging * { cursor: grabbing !important; user-select: non
 .pop-menu b { font-weight: 500; font-size: 13px; }
 .pop-menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
 .pop-menu span { font-size: 11px; color: var(--muted); }
+/* 「フォルダ」のメニュー: 読んでいるフォルダの一覧（× で外す） */
+.src-menu { min-width: 220px; }
+.src-folder { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; font-size: 13px; }
+.pop-menu .src-folder span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--ink); }
+.pop-menu .src-folder button { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; flex: none; }
+.src-folder svg { width: 11px; height: 11px; fill: var(--muted); }
+.src-folder button:hover svg { fill: var(--danger); }
 
 .spine-tex { display: none; }
 
