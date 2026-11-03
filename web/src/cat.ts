@@ -3,6 +3,7 @@ import { reduceMotion, onMotionChange, prefs } from "./prefs";
 import { SILL, windowRain, roomLightOn } from "./mod-window";
 import { markNap, markClaw } from "./shelf-marks";
 import { esc } from "./dom";
+import { accArt } from "./cat-acc";
 import { type Shades, seeded, breedOf, nameOf, randomPersona, type Coat, type Persona, randomCoat } from "./cat-coat";
 export { BREEDS, randomCoat, breedCoat, isCoat, type Coat, type Persona, type Pattern } from "./cat-coat";
 
@@ -375,6 +376,7 @@ function art(C: Coat): string {
   ${poly(C.ink, "17.9,-28.6 19.7,-28.9 20.3,-27.6 18.4,-27.3", "eye-o")}
   ${poly(C.pat === "point" ? P.deep : C.deep, "17.6,-27.9 19,-27 20.5,-27.9 19,-27.4", "eye-c")}
   <polygon class="cat-mouth" fill="#4a2027" visibility="hidden"/><polygon class="cat-jaw" fill="${C.cream}" stroke="${C.cream}" stroke-width=".4" stroke-linejoin="round" visibility="hidden"/>
+  <g class="cat-acc">${C.stray ? "" : accArt(C.acc)}</g>
 </g>`;
   FUR = 0;
   return out;
@@ -1607,13 +1609,16 @@ function openCard(c: Cat) {
   const el = document.createElement("div");
   el.className = "cat-card"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", `${nameOf(C)}のこと`);
   el.innerHTML = `
-    <input class="cat-name" value="${esc(nameOf(C))}" maxlength="12" aria-label="名前" spellcheck="false">
-    <p class="cat-breed">${esc(breedOf(C).name)}・${esc(DOING[c.state] ?? "")}</p>
+    <input class="cat-name" value="${esc(nameOf(C))}" maxlength="12" aria-label="名前" spellcheck="false"${C.stray ? " readonly" : ""}>
+    <p class="cat-breed">${esc(breedOf(C).name)}・${esc(DOING[c.state] ?? "")}${C.stray ? `・通りすがり` : ""}</p>
     <dl>${TRAITS.map(([k, label]) => `<dt>${label}</dt><dd>${dots(c.p[k])}</dd>`).join("")}<dt>毛づや</dt><dd>${dots(.1 + .9 * (C.gloss ?? 0))}</dd></dl>
     <p><span>今日の機嫌</span>${esc(moodOf(c))}</p>
     ${title ? `<p><span>好きなアルバム</span>${esc(title)}</p>` : ""}
     ${(() => { const t = tastes(c); return (t.love ? `<p><span>好きな音楽</span>${esc(t.love)}</p>` : "") + (t.hate ? `<p><span>苦手な音楽</span>${esc(t.hate)}</p>` : ""); })()}
-    ${best && best[1] > .45 ? `<p><span>仲良し</span>${esc(nameOf(best[0].coat))}</p>` : ""}`;
+    ${best && best[1] > .45 ? `<p><span>仲良し</span>${esc(nameOf(best[0].coat))}</p>` : ""}
+    ${C.stray ? (() => { const r = hooks?.room?.(), full = !!r && r.pets >= r.cap;
+      return `<button type="button" class="cat-adopt"${full ? " disabled" : ""}>飼い猫にする</button>${full ? `<p class="cat-full">いまは ${r!.cap} 匹まで飼えます</p>` : ""}`; })()
+    : hooks?.accs ? `<p><span>アクセサリー</span><select class="cat-acc-pick" aria-label="アクセサリー"><option value="">なし</option>${hooks.accs().map(a => `<option value="${esc(a.key)}"${a.key === C.acc ? " selected" : ""}>${esc(a.label)}</option>`).join("")}</select></p>` : ""}`;
   // 猫の頭の上あたりに出す（画面からはみ出さないように）
   const g = c.grid.getBoundingClientRect();
   c.layer.append(el);
@@ -1627,6 +1632,8 @@ function openCard(c: Cat) {
     else name.value = nameOf(C);
   });
   name.addEventListener("keydown", e => { if (e.key === "Enter") name.blur(); if (e.key === "Escape") closeCard(); });
+  el.querySelector(".cat-adopt")?.addEventListener("click", () => { if (hooks?.adopt?.(C)) { closeCard(); openCard(c); } });
+  el.querySelector<HTMLSelectElement>(".cat-acc-pick")?.addEventListener("change", e => { C.acc = (e.target as HTMLSelectElement).value || undefined; hooks?.saveCoats?.(); restyleCat(C); });
   card = el;
 }
 addEventListener("pointerdown", e => { if (card && !(e.target as Element).closest(".cat-card, .cat-tag")) closeCard(); });
@@ -1856,6 +1863,12 @@ export interface CatHooks {
   saveCoats?(): void;
   /** いまの音の大きさ（0〜1 くらい、左右の平均）。拍とテンポを拾うのに使う */
   level?(): number;
+  /** 通りすがりの猫を飼い猫にする（上限で飼えなければ false） */
+  adopt?(coat: Coat): boolean;
+  /** いま飼い猫をもう 1 匹ふやせるか（いまの数・上限） */
+  room?(): { pets: number; cap: number };
+  /** 持っているアクセサリー */
+  accs?(): { key: string; label: string }[];
 }
 let hooks: CatHooks | undefined;
 export function setCatHooks(h: CatHooks) { hooks = h; }
@@ -2404,6 +2417,14 @@ document.addEventListener("kona:bird", e => {
 
 /** 開発時の確認用: いまいる猫たち */
 /** いる猫の名前（呼んだ順） */
+/** 毛並みの持ち物（アクセサリー・通りすがりかどうか）が変わったら、描き直す */
+export function restyleCat(coat: Coat) {
+  for (const c of cats) if (c.coat === coat) {
+    const g = c.el.querySelector(".cat-acc");
+    if (g) g.innerHTML = coat.stray ? "" : accArt(coat.acc);
+    c.el.classList.toggle("stray", !!coat.stray);
+  }
+}
 export const catNames = () => cats.filter(c => !c.stage).map(c => nameOf(c.coat));
 export const debugCats = () => cats;
 export const debugEar = () => ear;
