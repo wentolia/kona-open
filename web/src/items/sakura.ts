@@ -1,4 +1,4 @@
-// 桜の枝（試作）。春
+// 桜の枝。春
 import { cylinder, poly, tone, ngon } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -10,4 +10,4 @@ function art() {
   return s + cylinder(V, 26, 60, 96, 11, 6);
 }
 
-export default { key: "sakura", label: "桜の枝", at: "shelf", w: 52, h: 96, cat: "季節", order: 300, draft: true, note: "春", art } satisfies ItemDef;
+export default { key: "sakura", label: "桜の枝", at: "shelf", w: 52, h: 96, cat: "季節", order: 300, note: "春", art } satisfies ItemDef;

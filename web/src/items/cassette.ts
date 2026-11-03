@@ -1,4 +1,4 @@
-// カセットテープ（試作）。★ 再生中はリールが回る予定
+// カセットテープ。★ 再生中はリールが回る予定
 import { poly, slab, tone, ngon } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -9,4 +9,4 @@ function art() {
     ${poly(T.deep, [[14, 30], [42, 30], [44, 36], [12, 36]])}`;
 }
 
-export default { key: "cassette", label: "カセットテープ", at: "shelf", w: 56, h: 36, cat: "音楽", order: 202, draft: true, note: "★ 再生中はリールが回る予定", art } satisfies ItemDef;
+export default { key: "cassette", label: "カセットテープ", at: "shelf", w: 56, h: 36, cat: "音楽", order: 202, note: "★ 再生中はリールが回る予定", art } satisfies ItemDef;

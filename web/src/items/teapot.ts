@@ -1,4 +1,4 @@
-// ティーポット（試作）。
+// ティーポット。
 import { poly, puff, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -9,4 +9,4 @@ function art() {
     ${poly(T.hi, [[22, 12], [40, 12], [36, 8], [26, 8]])}${poly(T.mid, [[29, 3], [33, 3], [34, 8], [28, 8]])}${poly(T.deep, [[16, 44], [46, 44], [44, 48], [18, 48]])}`;
 }
 
-export default { key: "teapot", label: "ティーポット", at: "shelf", w: 62, h: 48, cat: "小物", order: 201, draft: true, note: "", art } satisfies ItemDef;
+export default { key: "teapot", label: "ティーポット", at: "shelf", w: 62, h: 48, cat: "小物", order: 201, note: "", art } satisfies ItemDef;

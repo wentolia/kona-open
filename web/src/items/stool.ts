@@ -1,4 +1,4 @@
-// スツール（試作）。猫が上に座る
+// スツール。猫が上に座る
 import { cylinder, poly, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -11,4 +11,4 @@ function art() {
     <i data-cat-plat="bed" data-sink="2" style="left:10%;width:80%;top:16%"></i>`;
 }
 
-export default { key: "stool", label: "スツール", at: "floor", w: 62, h: 64, cat: "家具", order: 32, draft: true, note: "猫が上に座る", art } satisfies ItemDef;
+export default { key: "stool", label: "スツール", at: "floor", w: 62, h: 64, cat: "家具", order: 32, note: "猫が上に座る", art } satisfies ItemDef;

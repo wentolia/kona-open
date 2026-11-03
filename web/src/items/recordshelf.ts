@@ -1,4 +1,4 @@
-// レコード棚（試作）。★ 背の色を自分のアルバムのジャケットの色にする予定
+// レコード棚。★ 背の色を自分のアルバムのジャケットの色にする予定
 import { poly, slab, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -13,4 +13,4 @@ function art() {
     <i data-cat-plat="perch" data-sink="1" style="left:3%;width:94%;top:1%"></i>`;
 }
 
-export default { key: "recordshelf", label: "レコード棚", at: "floor", w: 160, h: 100, cat: "音楽", order: 34, draft: true, note: "★ 背の色を自分のアルバムのジャケットの色にする予定", art } satisfies ItemDef;
+export default { key: "recordshelf", label: "レコード棚", at: "floor", w: 160, h: 100, cat: "音楽", order: 34, note: "★ 背の色を自分のアルバムのジャケットの色にする予定", art } satisfies ItemDef;

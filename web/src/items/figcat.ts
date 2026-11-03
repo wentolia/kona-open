@@ -1,4 +1,4 @@
-// 陶器の猫（試作）。自分の猫の毛色で焼く予定
+// 陶器の猫。自分の猫の毛色で焼く予定
 import { poly, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -11,4 +11,4 @@ function art() {
     ${poly(T.lo, [[26, 46], [30, 40], [30, 30], [28, 30], [27, 40], [24, 44]])}`;
 }
 
-export default { key: "figcat", label: "陶器の猫", at: "shelf", w: 32, h: 48, cat: "猫", order: 211, draft: true, note: "自分の猫の毛色で焼く予定", art } satisfies ItemDef;
+export default { key: "figcat", label: "陶器の猫", at: "shelf", w: 32, h: 48, cat: "猫", order: 211, note: "自分の猫の毛色で焼く予定", art } satisfies ItemDef;

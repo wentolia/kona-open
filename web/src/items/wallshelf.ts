@@ -1,4 +1,4 @@
-// 壁掛けの小さな棚（試作）。上に小物を置ける予定。猫が飛び乗る
+// 壁掛けの小さな棚。上に小物を置ける予定。猫が飛び乗る
 import { poly, slab, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -9,4 +9,4 @@ function art() {
     <i data-cat-plat="perch" data-sink="1" style="left:2%;width:96%;top:0%"></i>`;
 }
 
-export default { key: "wallshelf", label: "壁掛けの小さな棚", at: "wall", w: 140, h: 40, cat: "家具", order: 111, draft: true, note: "上に小物を置ける予定。猫が飛び乗る", art } satisfies ItemDef;
+export default { key: "wallshelf", label: "壁掛けの小さな棚", at: "wall", w: 140, h: 40, cat: "家具", order: 111, note: "上に小物を置ける予定。猫が飛び乗る", art } satisfies ItemDef;

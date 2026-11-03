@@ -1,4 +1,4 @@
-// フロアランプ（試作）。押すと点く予定（部屋の明かりと連動）
+// フロアランプ。押すと点く予定（部屋の明かりと連動）
 import { poly, tone, BRASS } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -10,4 +10,4 @@ function art() {
     ${poly("#fff1c8", [[10, 60], [62, 60], [58, 64], [14, 64]])}${poly(BRASS.lo, [[20, 4], [52, 4], [52, 7], [20, 7]])}`;
 }
 
-export default { key: "floorlamp", label: "フロアランプ", at: "floor", w: 72, h: 232, cat: "灯り", order: 36, draft: true, note: "押すと点く予定（部屋の明かりと連動）", art } satisfies ItemDef;
+export default { key: "floorlamp", label: "フロアランプ", at: "floor", w: 72, h: 232, cat: "灯り", order: 36, note: "押すと点く予定（部屋の明かりと連動）", art } satisfies ItemDef;

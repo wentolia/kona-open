@@ -1,4 +1,4 @@
-// ローテーブル（試作）。上に棚の小物を置ける予定。猫が上に乗る
+// ローテーブル。上に棚の小物を置ける予定。猫が上に乗る
 import { poly, slab, tone, WOOD } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -12,4 +12,4 @@ function art() {
     <i data-cat-plat="perch" data-sink="1" style="left:6%;width:88%;top:20%"></i>`;
 }
 
-export default { key: "lowtable", label: "ローテーブル", at: "floor", w: 200, h: 58, cat: "家具", order: 30, draft: true, note: "上に棚の小物を置ける予定。猫が上に乗る", art } satisfies ItemDef;
+export default { key: "lowtable", label: "ローテーブル", at: "floor", w: 200, h: 58, cat: "家具", order: 30, note: "上に棚の小物を置ける予定。猫が上に乗る", art } satisfies ItemDef;

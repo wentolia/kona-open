@@ -1,4 +1,4 @@
-// キャットウォーク（試作）。壁に段を並べ、猫が登って移る予定
+// キャットウォーク。壁に段を並べ、猫が登って移る予定
 import { poly, slab, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -9,4 +9,4 @@ function art() {
     <i data-cat-plat="perch" data-sink="1" style="left:0%;width:28%;top:73%"></i><i data-cat-plat="perch" data-sink="1" style="left:36%;width:28%;top:38%"></i><i data-cat-plat="perch" data-sink="1" style="left:72%;width:28%;top:4%"></i>`;
 }
 
-export default { key: "catwalk", label: "キャットウォーク", at: "wall", w: 120, h: 52, cat: "猫", order: 113, draft: true, note: "壁に段を並べ、猫が登って移る予定", art } satisfies ItemDef;
+export default { key: "catwalk", label: "キャットウォーク", at: "wall", w: 120, h: 52, cat: "猫", order: 113, note: "壁に段を並べ、猫が登って移る予定", art } satisfies ItemDef;

@@ -14,6 +14,7 @@
 //    押すと水を替える。替えずに日が経つと少しずつうなだれる
 //  夏の夜に灯りを点けていると、小さな虫が寄ってくる
 
+import { ITEMS } from "./items";
 import "./mod-objects.css";
 import { ctx, everyFrame, esc, fmt, onDocument, stored } from "./modctx";
 import { playLog, listenedSeconds } from "./store";
@@ -32,7 +33,9 @@ export const OBJECTS = [
   { key: "award", label: "賞状（聴いた距離の証書）", w: 52 },
   { key: "cactus", label: "サボテン", w: 40 }, { key: "vase", label: "季節の切り花", w: 46 },
   { key: "aclock", label: "アナログ時計", w: 60 },
-] as const;
+  // items/ の棚のもの（1 品 1 ファイル。描いた高さを 100 の箱の下に立てる）
+  ...ITEMS.filter(d => d.at === "shelf").map(d => ({ key: d.key, label: d.label, w: d.w })),
+] as readonly { key: string; label: string; w: number }[];
 const CANDLE_MIN = 30;
 // placed: 置き場所を棚ごとに持つようになってから true（以前の hide は、そのときに一度だけ棚へ移す）
 // size: 小物ごとの大きさ（1 が標準。0.5〜1.5）
@@ -449,6 +452,7 @@ function mountObjects() {
   <svg class="cactus" viewBox="0 0 40 100"><title></title><g class="cc"></g></svg>
   <svg class="vase" viewBox="0 0 46 100" role="button" tabindex="0" aria-label="季節の切り花（押すと水を替える）"><title></title><g class="vs"></g></svg>
   <svg class="aclock" viewBox="0 0 60 100" role="img"><title></title>${aclockArt()}</svg>
+  ${ITEMS.filter(d => d.at === "shelf").map(d => `<svg class="${d.key} item" viewBox="0 ${d.h - 100} ${d.w} 100" aria-hidden="true">${d.art()}</svg>`).join("")}
 </div>`;
 
   const root = stash;

@@ -1,4 +1,4 @@
-// 木彫りの鳥（試作）。窓辺に来る鳥と同じ種類を彫る予定
+// 木彫りの鳥。窓辺に来る鳥と同じ種類を彫る予定
 import { poly, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -9,4 +9,4 @@ function art() {
     ${poly("#6a4a30", [[12, 24], [36, 24], [36, 32], [12, 32]])}${poly("#8a6544", [[12, 24], [36, 24], [35, 26], [13, 26]])}`;
 }
 
-export default { key: "woodbird", label: "木彫りの鳥", at: "shelf", w: 48, h: 32, cat: "小物", order: 212, draft: true, note: "窓辺に来る鳥と同じ種類を彫る予定", art } satisfies ItemDef;
+export default { key: "woodbird", label: "木彫りの鳥", at: "shelf", w: 48, h: 32, cat: "小物", order: 212, note: "窓辺に来る鳥と同じ種類を彫る予定", art } satisfies ItemDef;

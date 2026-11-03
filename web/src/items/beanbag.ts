@@ -1,4 +1,4 @@
-// ビーズクッション（試作）。猫が沈み込んで寝る
+// ビーズクッション。猫が沈み込んで寝る
 import { puff, tone } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -8,4 +8,4 @@ function art() {
     <i data-cat-plat="bed" data-sink="7" style="left:16%;width:66%;top:28%"></i>`;
 }
 
-export default { key: "beanbag", label: "ビーズクッション", at: "floor", w: 130, h: 82, cat: "家具", order: 39, draft: true, note: "猫が沈み込んで寝る", art } satisfies ItemDef;
+export default { key: "beanbag", label: "ビーズクッション", at: "floor", w: 130, h: 82, cat: "家具", order: 39, note: "猫が沈み込んで寝る", art } satisfies ItemDef;

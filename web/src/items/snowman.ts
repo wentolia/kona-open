@@ -1,4 +1,4 @@
-// 雪だるまの置物（試作）。冬
+// 雪だるまの置物。冬
 import { poly, tone, ngon } from "./lowpoly";
 import type { ItemDef } from "./types";
 
@@ -10,4 +10,4 @@ function art() {
     ${poly("#2c2a28", [[12, 8], [30, 8], [28, 6], [27, 0], [15, 0], [14, 6]])}`;
 }
 
-export default { key: "snowman", label: "雪だるまの置物", at: "shelf", w: 42, h: 58, cat: "季節", order: 302, draft: true, note: "冬", art } satisfies ItemDef;
+export default { key: "snowman", label: "雪だるまの置物", at: "shelf", w: 42, h: 58, cat: "季節", order: 302, note: "冬", art } satisfies ItemDef;
