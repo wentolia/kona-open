@@ -34,7 +34,7 @@ const EN: Record<string, string> = {
   "三毛（日本猫）": "Calico (Japanese)", "アメリカンショートヘア": "American Shorthair", "ロシアンブルー": "Russian Blue",
   "ベンガル": "Bengal", "スフィンクス": "Sphynx", "ペルシャ": "Persian",
   // 棚の素材
-  "床に置く": "On the floor", "置くもの": "Things to place", "時計が正時に鐘を鳴らす": "Clocks chime on the hour", "アナログ時計": "Analog clock", "デジタル時計": "Digital clock", "棚に置く": "On a shelf", "ホームの棚や床へドラッグして置く。ここへ戻すとしまう": "Drag onto a shelf or the floor. Drag back here to put away.", "ソファ": "Sofa", "ひとりがけ": "Armchair", "クッション": "Floor cushion", "キリム": "Kilim", "丸いラグ": "Round rug", "位置": "Position", "大きさ": "Size",
+  "床に置く": "On the floor", "置くもの": "Things to place", "時計が正時に鐘を鳴らす": "Clocks chime on the hour", "アナログ時計": "Analog clock", "デジタル時計": "Digital clock", "棚に置く": "On a shelf", "ホームの棚や床へドラッグして置く。ここへ戻すとしまう": "Drag onto a shelf or the floor. Drag back here to put away.", "ホームの棚・床・壁へドラッグして置く（家具はいくつでも）。ここへ戻すとしまう。ダブルクリックで左右を反転": "Drag onto a shelf, the floor or the wall (furniture as many as you like). Drag back here to put away. Double-click to flip.", "壁に掛ける": "On the wall", "置いた": "Placed", "額（夜の丘）": "Frame (night hills)", "額（静物）": "Frame (still life)", "丸い鏡": "Round mirror", "壁のランプ": "Wall lamp", "ガーランド": "Garland", "ドライフラワー": "Dried flowers", "ソファ": "Sofa", "ひとりがけ": "Armchair", "クッション": "Floor cushion", "キリム": "Kilim", "丸いラグ": "Round rug", "位置": "Position", "大きさ": "Size",
   "壁": "Wall", "床": "Floor", "無地": "Plain", "漆喰": "Plaster", "板壁": "Wood panels", "レンガ": "Brick",
   "ウォールナット": "Walnut", "オーク": "Oak", "スチール": "Steel", "アクリル": "Acrylic", "欅": "Zelkova", "パイン": "Pine", "白樺": "Birch", "黒檀": "Ebony", "石": "Stone", "苔": "Moss", "雪": "Snow",
   // 設定ページ

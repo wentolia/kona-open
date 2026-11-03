@@ -1,8 +1,9 @@
 // 置くもの: 設定の「部屋」→「置くもの」の見本を、ホームへドラッグして置く。
-// 小物は落とした棚に（その棚の小物の中で、落とした位置の順に）、家具は床の落とした左右の位置に置く。
+// 小物は落とした棚に（その棚の小物の中で、落とした位置の順に）、家具は床の落とした左右の位置に、壁のものは落とした場所に置く。
+// 家具と壁のものは、ドラッグするたびにもうひとつ置く（猫の家具はひとつだけなので、置いてあれば動かす）。
 // ホームの小物はドラッグで別の棚へ移せる。小物も家具も、設定の上へ戻して落とすとしまう。
 import { objectArt } from "./mod-objects";
-import { thingThumb, toggleThing, setThing, placedThings } from "./room-things";
+import { thingThumb, toggleThing, addThing, countOf, defOf } from "./room-things";
 import { roomSurface, setRoomSurface } from "./room-surface";
 import { renderSettings } from "./settings";
 
@@ -16,7 +17,7 @@ export interface PlaceHooks {
 }
 
 type Src = { kind: "obj" | "thing"; key: string; from: HTMLElement | SVGElement; placed: boolean };
-type Drop = { to: "shelf"; id: string; mod: HTMLElement } | { to: "floor" } | { to: "away" } | undefined;
+type Drop = { to: "shelf"; id: string; mod: HTMLElement } | { to: "floor" } | { to: "wall" } | { to: "away" } | undefined;
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
@@ -25,7 +26,7 @@ function sourceOf(n: EventTarget | null, h: PlaceHooks): Src | undefined {
   const tile = n.closest<HTMLElement>("#view-settings [data-put]");
   if (tile) {
     const [kind, key] = tile.dataset.put!.split(":") as ["obj" | "thing", string];
-    return { kind, key, from: tile, placed: kind === "obj" ? !!h.shelfOf(key) : (placedThings() as string[]).includes(key) };
+    return { kind, key, from: tile, placed: kind === "obj" ? !!h.shelfOf(key) : countOf(key) > 0 };
   }
   const svg = n.closest<SVGSVGElement>("#view-home .goods > svg"); // 棚の右端の小物も、アルバムのあいだの小物も
   if (svg?.dataset.goods) return { kind: "obj", key: svg.dataset.goods, from: svg, placed: true };
@@ -36,7 +37,7 @@ function dropAt(x: number, y: number, src: Src, h: PlaceHooks): Drop {
   const at = document.elementsFromPoint(x, y);
   if (at.some(e => e.closest("#view-settings .set"))) return { to: "away" };
   if (!at.some(e => e.closest("#view-home"))) return undefined;
-  if (src.kind === "thing") return { to: "floor" };
+  if (src.kind === "thing") return { to: defOf(src.key)?.at === "wall" ? "wall" : "floor" };
   for (const e of at) {
     const mod = e.closest<HTMLElement>(".mod[data-id]");
     if (mod && h.isShelf(mod.dataset.id!)) return { to: "shelf", id: mod.dataset.id!, mod };
@@ -75,7 +76,7 @@ export function initPlaceDrag(h: PlaceHooks) {
       drop = dropAt(ev.clientX, ev.clientY, src, h);
       const mod = drop?.to === "shelf" ? drop.mod : undefined;
       if (mod !== over) { over?.classList.remove("put-over"); mod?.classList.add("put-over"); over = mod; }
-      ghost!.dataset.to = drop?.to ?? "";
+      ghost!.dataset.to = drop?.to === "wall" ? "floor" : drop?.to ?? "";
       document.querySelector("#view-settings .set")?.classList.toggle("put-away", drop?.to === "away" && src.placed);
     };
     const up = (ev: PointerEvent) => {
@@ -95,15 +96,20 @@ export function initPlaceDrag(h: PlaceHooks) {
         return;
       }
       if (drop.to === "away") { if (src.placed) { toggleThing(src.key, false); renderSettings(); } return; }
-      // 家具: 床を敷いていなければ木の床を敷いてから、落とした左右の位置に置く
-      if (roomSurface().floor === "none") setRoomSurface({ floor: "oak" });
-      if (!(placedThings() as string[]).includes(src.key)) toggleThing(src.key, true);
-      const el = document.querySelector<HTMLElement>(`#view-home .room-things [data-thing="${src.key}"]`);
-      const L = el?.parentElement?.getBoundingClientRect();
-      if (el && L) {
-        const w = el.getBoundingClientRect().width;
-        setThing(src.key, { x: clamp((ev.clientX - w / 2 - L.left) / Math.max(1, L.width - w), 0, 1) }, true);
+      const grid = document.querySelector<HTMLElement>("#view-home .grid"), def = defOf(src.key);
+      if (!grid || !def) return;
+      // 落とした場所: 影の大きさ（標準の大きさ）で、左右と（壁なら）上下の割合にする
+      const G = grid.getBoundingClientRect(), pad = Math.max(16, parseFloat(getComputedStyle(grid).marginLeft) || 16);
+      const L = { left: G.left - pad, width: G.width + pad * 2 }, x = clamp((ev.clientX - def.w / 2 - L.left) / Math.max(1, L.width - def.w), 0, 1);
+      if (drop.to === "wall") {
+        const floorH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--floor-h")) || 0, H = G.height - floorH - 8;
+        addThing(src.key, { x, y: clamp((ev.clientY - def.h / 2 - G.top) / Math.max(1, H - def.h), 0, 1) });
+      } else {
+        // 家具: 床を敷いていなければ木の床を敷いてから置く
+        if (roomSurface().floor === "none") setRoomSurface({ floor: "oak" });
+        addThing(src.key, { x });
       }
+      dispatchEvent(new Event("resize"));
       renderSettings();
     };
     addEventListener("pointermove", move, { passive: false }); addEventListener("pointerup", up); addEventListener("pointercancel", up);

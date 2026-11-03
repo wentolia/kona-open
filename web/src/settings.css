@@ -173,7 +173,7 @@ body { transition: background-color .6s ease, color .6s ease; }
 /* 置くもの: 小物と家具の見本。ホームへドラッグして置く。置いてあるものは印がつき、押すとしまう */
 .set-puts-head { font-size: 11px; color: var(--muted); margin: 6px 0 4px; }
 .set-puts { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
-.set-put { display: grid; grid-template-rows: 48px auto; gap: 2px; justify-items: center; padding: 6px 4px 5px; border: 1px solid var(--line); border-radius: 6px; cursor: grab; touch-action: none; user-select: none; }
+.set-put { position: relative; display: grid; grid-template-rows: 48px auto; gap: 2px; justify-items: center; padding: 6px 4px 5px; border: 1px solid var(--line); border-radius: 6px; cursor: grab; touch-action: none; user-select: none; }
 .set-put:hover { background: var(--soft); }
 .set-put-art { width: 100%; height: 48px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; pointer-events: none; }
 .set-put-art > svg { height: 44px; width: auto; max-width: 100%; overflow: visible; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .4)); }
@@ -192,3 +192,4 @@ body { transition: background-color .6s ease, color .6s ease; }
 .set-noise-row { display: grid; grid-template-columns: 6em minmax(0, 1fr); align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
 .set-noise-row input { accent-color: var(--accent); width: 100%; }
 #set-sink { max-width: 100%; }
+.set-put-n { position: absolute; top: 3px; right: 5px; font: 10px/1 var(--font-mono); color: var(--accent); }

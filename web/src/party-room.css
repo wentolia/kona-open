@@ -122,4 +122,4 @@
 .pr-mic { display: inline-flex; align-items: center; gap: 6px; }
 .pr-mic select { font: inherit; font-size: 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; }
 #pr-mic { touch-action: none; user-select: none; }
-.pr-home .room-things .thing { pointer-events: none; cursor: default; }
+.pr-home :is(.room-things, .room-wall) .thing { pointer-events: none; cursor: default; }

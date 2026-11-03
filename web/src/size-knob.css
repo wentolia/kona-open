@@ -15,7 +15,7 @@
 .size-knob:hover::after, .size-knob.active::after { opacity: 1; }
 body.arranging .size-knob:not(.active) { display: none; }
 /* 床の家具は左右に動かせる */
-.room-things .thing.moving { cursor: grabbing; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .5)); }
+:is(.room-things, .room-wall) .thing.moving { cursor: grabbing; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .5)); }
 
 /* 置くものをドラッグしている間: 影が指についてくる。落とせる棚は縁が光る */
 body.putting, body.putting * { cursor: grabbing !important; user-select: none; }

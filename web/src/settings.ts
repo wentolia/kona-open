@@ -6,7 +6,7 @@ import { PALETTES, CUSTOM, themePrefs, setThemePrefs, paletteColors, toHex, type
 import { roomLightOn, setRoomLight } from "./mod-window";
 import { SHELF_SKINS, shelfSkin, setShelfSkin } from "./shelf-skin";
 import { WALLS, FLOORS, roomSurface, setRoomSurface } from "./room-surface";
-import { THINGS, placedThings, toggleThing, thingThumb } from "./room-things";
+import { THINGS, countOf, toggleThing, thingThumb } from "./room-things";
 import { OBJECTS, objectAvailable, objectArt } from "./mod-objects";
 import { chimeOn, setChime } from "./mod-clock";
 import { prefs, setPrefs, type Prefs } from "./prefs";
@@ -135,14 +135,17 @@ function roomTab() {
 function putBlock(h: SettingsHooks) {
   const tile = (id: string, label: string, at: string | undefined, art: string) =>
     `<button type="button" class="set-put${at ? " placed" : ""}" data-put="${id}" aria-pressed="${!!at}" title="${esc(at ? `${label}（${at}）。押すとしまう` : `${label}: ホームへドラッグして置く`)}">
-      <span class="set-put-art">${art}</span><span class="set-put-label">${esc(label)}</span></button>`;
-  const things = placedThings();
+      <span class="set-put-art">${art}</span><span class="set-put-label">${esc(label)}</span>${at && /^\d+$/.test(at) ? `<span class="set-put-n">×${at}</span>` : ""}</button>`;
+  const placed = (k: string) => { const n = countOf(k); return n ? (n > 1 ? `${n}` : t("置いた")) : undefined; };
+  const things = (at: string) => THINGS.filter(x => x.at === at).map(x => tile(`thing:${x.key}`, t(x.label), placed(x.key), "")).join("");
   return `
-    <p class="set-note">${t("ホームの棚や床へドラッグして置く。ここへ戻すとしまう")}</p>
+    <p class="set-note">${t("ホームの棚・床・壁へドラッグして置く（家具はいくつでも）。ここへ戻すとしまう。ダブルクリックで左右を反転")}</p>
     <div class="set-puts-head">${t("棚に置く")}</div>
     <div class="set-puts">${OBJECTS.filter(o => objectAvailable(o.key)).map(o => tile(`obj:${o.key}`, t(o.label.replace(/（.*）/, "")), h.goods.shelfOf(o.key), "")).join("")}</div>
     <div class="set-puts-head">${t("床に置く")}</div>
-    <div class="set-puts">${THINGS.map(x => tile(`thing:${x.key}`, t(x.label), things.includes(x.key) ? t("床") : undefined, "")).join("")}</div>`;
+    <div class="set-puts">${things("floor")}</div>
+    <div class="set-puts-head">${t("壁に掛ける")}</div>
+    <div class="set-puts">${things("wall")}</div>`;
 }
 
 // 音: モジュールを置かなくても、出力先・イコライザー・重ねる音をここで変えられる（モジュールと同じものを動かす）
