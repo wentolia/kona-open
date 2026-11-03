@@ -282,15 +282,24 @@ $("#invite").addEventListener("click", () => openParty());
 $("#open").addEventListener("click", e => document.getElementById("source-menu") ? closeSourceMenu() : openSourceMenu(e.currentTarget as HTMLElement));
 
 // フォルダを画面に落としても開ける（ハンドルが取れるブラウザでは、次回もそのまま開ける）
-const carriesFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes("Files");
+// 画面の中から持ち出したもの（ジャケットの画像など。Chrome では Files を含むことがある）は、フォルダとして扱わない
+let innerDrag = false;
+addEventListener("dragstart", () => { innerDrag = true; }, true);
+const carriesFiles = (e: DragEvent) => !innerDrag && !!e.dataTransfer?.types.includes("Files");
 let dragDepth = 0;
+// 点線の枠を外す。数え違い（ドラッグ中に下の要素が描き直されて dragleave が来ない、Esc で取りやめた など）で枠が残らないよう、
+// ドラッグが終わった合図（dragend・drop・マウスが動いた・ウィンドウから離れた）でも必ず外す
+const endDrop = () => { dragDepth = 0; document.body.classList.remove("drop-folder"); };
+addEventListener("dragend", () => { innerDrag = false; endDrop(); }, true);
+addEventListener("drop", endDrop, true);
+addEventListener("pointermove", () => { if (dragDepth || innerDrag) { innerDrag = false; endDrop(); } }); // ドラッグ中はマウスのイベントが来ない
+addEventListener("blur", endDrop);
 addEventListener("dragenter", e => { if (carriesFiles(e)) { dragDepth++; document.body.classList.add("drop-folder"); } });
-addEventListener("dragleave", e => { if (carriesFiles(e) && --dragDepth <= 0) { dragDepth = 0; document.body.classList.remove("drop-folder"); } });
+addEventListener("dragleave", e => { if (carriesFiles(e) && --dragDepth <= 0) endDrop(); });
 addEventListener("dragover", e => { if (carriesFiles(e)) { e.preventDefault(); e.dataTransfer!.dropEffect = "copy"; } });
 addEventListener("drop", async e => {
   if (!carriesFiles(e)) return;
   e.preventDefault();
-  dragDepth = 0; document.body.classList.remove("drop-folder");
   const item = [...e.dataTransfer!.items].find(i => i.kind === "file");
   if (!item) return;
   // 非同期の処理より先に、落とされたものを取り出しておく（イベントが終わると読めなくなる）
