@@ -3,6 +3,7 @@
 // 猫はソファやクッションの上で丸くなり、ソファの背もたれにも乗る（data-cat-plat を cat.ts が足場として測る）。
 // ラグの上は暖かいので、床にいる猫はラグの上で横になりたがる（data-cat-rug）。床を敷いているときだけ見える。
 import "./room-things.css";
+import { stored, currentOver, mountingWith } from "./modctx";
 import { mountCatTower, mountScratcher, mountCatFood, mountCatBox } from "./mod-cat";
 
 const KEY = "kona.things";
@@ -31,7 +32,7 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const known = (k: unknown) => THINGS.some(t => t.key === k);
 function load(): Saved {
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) || "{}");
+    const v = JSON.parse(stored(KEY) || "{}");
     const num = (o: unknown) => Object.fromEntries(Object.entries(o && typeof o === "object" ? o : {}).filter(([k, n]) => known(k) && typeof n === "number"));
     return { on: Array.isArray(v.on) ? v.on.filter(known) : [], x: num(v.x), s: num(v.s) };
   } catch { return { on: [], x: {}, s: {} }; }
@@ -191,8 +192,14 @@ const made = new Map<string, HTMLElement>();
 function thingEl(k: string) {
   let el = made.get(k);
   if (el) return el;
+  el = build(k);
+  made.set(k, el);
+  return el;
+}
+// 家具をひとつ作る。猫の家具は床に置いて大きさが決まってから描く（部屋の写しでは、ホストの設定のまま描く）
+function build(k: string) {
   const t = THINGS.find(x => x.key === k)!;
-  el = document.createElement("div");
+  const el = document.createElement("div");
   el.className = `thing thing-${k}${t.flat ? " flat" : ""}${MOUNT[k] ? " cat-thing" : ""}`;
   el.dataset.thing = k;
   if (t.flat) el.dataset.catRug = "";
@@ -200,13 +207,12 @@ function thingEl(k: string) {
     const body = document.createElement("div");
     body.className = "thing-mod";
     el.append(body);
-    made.set(k, el);
-    requestAnimationFrame(() => MOUNT[k](body)); // 床に置いて大きさが決まってから描く
+    const o = currentOver();
+    requestAnimationFrame(() => mountingWith(o, () => MOUNT[k](body)));
     return el;
   }
   const art = ART[k](), plats = art.match(/<i [^>]*><\/i>/g) ?? [];
   el.innerHTML = `<svg viewBox="${VB[k]}" preserveAspectRatio="${t.flat ? "none" : "xMidYMax meet"}">${art.replace(/<i [^>]*><\/i>/g, "")}</svg>${plats.join("")}`;
-  made.set(k, el);
   return el;
 }
 function place(el: HTMLElement, k: string) {
@@ -221,6 +227,20 @@ function room() {
   const tall = Math.max(0, ...placedThings().map(k => { const t = THINGS.find(x => x.key === k)!; return t.flat ? 0 : t.h * thingSize(k); }));
   document.documentElement.style.setProperty("--things-h", `${Math.max(0, Math.round(tall - 52))}px`);
 }
+/** 床の家具の層（部屋の写しでも使う。組み立てる間はホストの設定で読む） */
+export function thingsLayer(): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "room-things";
+  el.setAttribute("aria-hidden", "true");
+  fill(el);
+  return el;
+}
+const wanted = () => placedThings().sort((a, b) => Number(!THINGS.find(t => t.key === a)!.flat) - Number(!THINGS.find(t => t.key === b)!.flat)); // 敷くものを下に
+function fill(el: HTMLElement) {
+  const want = wanted();
+  el.replaceChildren(...want.map(build));
+  el.querySelectorAll<HTMLElement>(":scope > [data-thing]").forEach(e => place(e, e.dataset.thing!));
+}
 function paint(remeasure = false) {
   const grid = document.querySelector<HTMLElement>("#view-home .grid");
   if (!grid) return;
@@ -231,7 +251,7 @@ function paint(remeasure = false) {
     layer.setAttribute("aria-hidden", "true");
     grid.prepend(layer);
   }
-  const want = placedThings().sort((a, b) => Number(!THINGS.find(t => t.key === a)!.flat) - Number(!THINGS.find(t => t.key === b)!.flat)); // 敷くものを下に
+  const want = wanted();
   // 一度作ったものは作り直さない（猫の家具のごはんの量・ぽんぽんの揺れなどは動き続けている）
   layer.replaceChildren(...want.map(thingEl));
   want.forEach(k => place(made.get(k)!, k));

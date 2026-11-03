@@ -6,7 +6,7 @@
 
 import { Eq } from "./eq";
 import type { Album, Track } from "./library";
-import type { Player } from "./player";
+import type { Player, PlayMode } from "./player";
 import type { HistorySource } from "./modctx";
 import type { PlayEvent, PlayStat } from "./store";
 
@@ -16,7 +16,7 @@ export interface NowState {
   album?: { t: string; a: string; y?: number; g?: string; c?: string; r?: number; tr: { t: string; no: number; d: number; f?: string }[] };
   i: number; pos: number; dur: number; on: boolean;
   eq: { on: boolean; g: number[] };
-  sr?: number; nz?: "off" | "track" | "album"; ng?: number;
+  sr?: number; nz?: "off" | "track" | "album"; ng?: number; md?: PlayMode;
 }
 
 type Listener = () => void;
@@ -31,7 +31,7 @@ export class MirrorPlayer {
   readonly sink = "";
   readonly volume = 1;
   readonly isMuted = false;
-  readonly mode = "album";
+  mode: PlayMode = "normal";
   sampleRate?: number;
   normalize: "off" | "track" | "album" = "off";
   normGain?: number;
@@ -72,6 +72,7 @@ export class MirrorPlayer {
     }
     this.index = Math.max(0, Math.min(s.i, (this.album?.tracks.length ?? 1) - 1));
     this.pos = s.pos; this.dur = s.dur; this.at = performance.now(); this.playing = s.on;
+    this.mode = s.md ?? "normal";
     this.sampleRate = s.sr; this.normalize = s.nz ?? "off"; this.normGain = s.ng;
     if (this.eq.on !== s.eq.on || this.eq.gains.some((g, i) => g !== s.eq.g[i])) this.eq.show(s.eq.on, s.eq.g);
     this.emit();

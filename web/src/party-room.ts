@@ -4,9 +4,10 @@
 // 猫は音を出さない。画面の文字はすべて textContent か esc() で入れる
 
 import "./party-room.css";
+import { randomPersona } from "./cat-coat";
 import { BREEDS, breedCoat, isCoat, puppetCat, randomCoat, EMOTES, type Coat, type Emote, type Puppet } from "./cat";
 import { esc, fmt } from "./modctx";
-import { buildHome, type HomeSource, type HomeView, type SnapAlbum, type SnapRow, type SnapTrack } from "./party-home";
+import { applyLook, buildHome, type HomeSource, type HomeView, type SnapAlbum, type SnapLook, type SnapRow, type SnapTrack } from "./party-home";
 
 const CAT_KEY = "kona.party.cat";
 export const MAX_SAY = 200;
@@ -14,8 +15,8 @@ export interface RoomCat { id: string; name: string; coat: Coat; plat: number; f
 export interface Req { id: string; i?: number; t: string; a: string; tr?: string }
 export interface Line { from: string; text: string; to: string[]; at: number; req?: Req }
 /** 参加者ができること。ホストが部屋の既定を決め、人ごとに上書きできる */
-export interface Perms { chat: boolean; request: boolean }
-export const PERMS: [keyof Perms, string][] = [["chat", "チャット"], ["request", "リクエスト"]];
+export interface Perms { chat: boolean; request: boolean; voice: boolean }
+export const PERMS: [keyof Perms, string][] = [["chat", "チャット"], ["request", "リクエスト"], ["voice", "通話（話す）"]];
 export const isPerms = (x: unknown): x is Perms => !!x && typeof x === "object" && PERMS.every(([k]) => typeof (x as Record<string, unknown>)[k] === "boolean");
 
 // ---------- 届いた猫を確かめる ----------
@@ -39,6 +40,8 @@ export const cleanName = (x: unknown) => typeof x === "string" ? x.replace(/[\u0
 export const cleanText = (x: unknown) => typeof x === "string" ? x.replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, "").trim().slice(0, MAX_SAY) : "";
 export const isEmote = (x: unknown): x is Emote => typeof x === "string" && (EMOTES as string[]).includes(x);
 
+const MIC_KEY = "kona.party.mic";   // マイクの使い方（切り替え / 押している間だけ）
+
 // ---------- 自分の猫 ----------
 export function myCat(): Coat {
   try { const c = cleanCoat(JSON.parse(localStorage.getItem(CAT_KEY) ?? "null")); if (c) return c; } catch { /* ignore */ }
@@ -52,7 +55,7 @@ const TRAITS: [keyof NonNullable<Coat["p"]>, string, number, number][] = [
   ["energy", "元気さ", 0, 1], ["sleepy", "眠たがり", 0, 1], ["social", "人なつこさ", 0, 1], ["playful", "遊び好き", 0, 1],
   ["curious", "好奇心", 0, 1], ["speed", "足の速さ", .85, 1.25], ["size", "体の大きさ", .86, 1.26],
 ];
-/** 猫を選ぶ欄（ランダムに作る・品種・毛色・性格）。name は名札に出す名前を返す */
+/** 猫を選ぶ欄（ランダムに作る・品種・毛色・性格をランダムに変える）。性格は細かく決められない。name は名札に出す名前を返す */
 export function editorHtml(): string {
   const c = myCat();
   return `<div class="pe">
@@ -64,7 +67,8 @@ export function editorHtml(): string {
       <button class="btn" id="pe-coat">毛色を変える</button>
     </div>
     <details class="pe-traits"><summary>性格（動き方のくせになります）</summary>
-      ${TRAITS.map(([k, label, a, b]) => `<label><span>${label}</span><input type="range" data-trait="${k}" min="${a}" max="${b}" step="0.01" value="${c.p?.[k] ?? (a + b) / 2}"></label>`).join("")}
+      <div class="party-row"><button class="btn" id="pe-persona">性格を変える</button><span class="dlg-note">性格は選べません。押すたびにランダムに決まります</span></div>
+      ${TRAITS.map(([k, label, a, b]) => `<label><span>${label}</span><meter data-trait="${k}" min="${a}" max="${b}" value="${c.p?.[k] ?? (a + b) / 2}"></meter></label>`).join("")}
     </details>
   </div>`;
 }
@@ -79,20 +83,50 @@ export function wireEditor(root: HTMLElement, name: () => string) {
   const set = (c: Coat) => { const ok = cleanCoat(c)!; saveCat(ok); show(ok); sync(ok); };
   const sync = (c: Coat) => {
     root.querySelector<HTMLSelectElement>("#pe-breed")!.value = c.breed ?? "mix";
-    root.querySelectorAll<HTMLInputElement>("[data-trait]").forEach(i => { i.value = String(c.p?.[i.dataset.trait as keyof NonNullable<Coat["p"]>] ?? i.value); });
+    root.querySelectorAll<HTMLMeterElement>("[data-trait]").forEach(i => { i.value = c.p?.[i.dataset.trait as keyof NonNullable<Coat["p"]>] ?? i.value; });
   };
   root.querySelector<HTMLButtonElement>("#pe-random")!.onclick = () => set(randomCoat());
   root.querySelector<HTMLSelectElement>("#pe-breed")!.onchange = e => set({ ...breedCoat((e.target as HTMLSelectElement).value), p: myCat().p });
   root.querySelector<HTMLButtonElement>("#pe-coat")!.onclick = () => set({ ...breedCoat(myCat().breed ?? "mix"), p: myCat().p });
-  root.querySelectorAll<HTMLInputElement>("[data-trait]").forEach(i => i.onchange = () => {
+  // 性格は選べない。押すたびにランダムに決め直す（体の大きさは品種のものなので、そのまま）
+  root.querySelector<HTMLButtonElement>("#pe-persona")!.onclick = () => {
     const c = myCat();
-    set({ ...c, p: { ...c.p!, [i.dataset.trait!]: Number(i.value) } });
-  });
+    set({ ...c, p: { ...randomPersona(), size: c.p?.size ?? 1 } });
+  };
   root.querySelector<HTMLInputElement>("#party-name")?.addEventListener("change", () => show(myCat()));
   // 部屋の大きさが決まってから置く
   requestAnimationFrame(() => show(myCat()));
 }
 
+
+// ---------- ホストのホームに猫の足場を付ける ----------
+// 参加者の写しと同じ順・同じ所（各モジュールの天板・棚板）に足場の印を置く。猫の居場所は「何番目の足場の何割の所」で
+// やり取りするので、ホストのホームと写しで足場の並びをそろえる
+export function markHome(grid?: HTMLElement): boolean {
+  if (!grid) return false;
+  let changed = false;
+  for (const m of grid.querySelectorAll<HTMLElement>(":scope > .lrow > .lcol > .mod")) {
+    let i = m.querySelector<HTMLElement>(":scope > i[data-pr-mark]");
+    if (i && i === m.lastElementChild) continue;
+    if (!i) {
+      i = document.createElement("i");
+      i.className = m.classList.contains("mod-shelf") ? "pr-plat pr-plat-board" : "pr-plat";
+      i.dataset.catPlat = ""; i.dataset.prMark = "";
+    }
+    m.append(i); changed = true;
+  }
+  return changed;
+}
+export function unmarkHome() { document.querySelectorAll("[data-pr-mark]").forEach(e => e.remove()); }
+/** 入ったときの場所: 上から 3 段までのモジュールのどれか（足場がなければ床）の、ランダムな所。みんなが左上に固まらないように */
+export function startSpot(): { plat: number; fx: number } {
+  const grid = document.querySelector<HTMLElement>("#view-home .grid") ?? undefined;
+  markHome(grid);
+  const all = grid ? [...grid.querySelectorAll<HTMLElement>("[data-cat-plat]")] : [];
+  const top = grid ? [...grid.querySelectorAll<HTMLElement>(":scope > .lrow")].slice(0, 3).flatMap(r => [...r.querySelectorAll<HTMLElement>(":scope > .lcol > .mod > i[data-pr-mark]")]) : [];
+  const pick = top[Math.floor(Math.random() * top.length)];
+  return { plat: pick ? Math.max(0, all.indexOf(pick)) : 0, fx: .1 + Math.random() * .8 };
+}
 
 // ---------- 部屋の画面 ----------
 const EMOTE_LABEL: Record<Emote, string> = { stand: "立つ", sit: "座る", lie: "伏せる", sleep: "寝る", wag: "しっぽを振る", groove: "リズムをとる", groom: "毛づくろい", stretch: "伸び", yawn: "あくび" };
@@ -108,6 +142,9 @@ export interface RoomOpts {
   /** ホストから受け取りたいもの（参加者: 頼む。ホスト: 手元で用意する） */
   want(what: { t: "home" } | { t: "cover"; id: string } | { t: "tracks"; id: string } | { t: "find"; q: string }): void;
   request(id: string, i?: number): void;
+  toast?(text: string): void;
+  /** 通話のマイクを入れる・切る。入れられなかったら false */
+  mic(on: boolean): Promise<boolean>;
   /** ホストだけ: 権限を変える（guest を省くと部屋の既定。val が undefined なら既定に戻す） */
   perm?(perm: keyof Perms, val: boolean | undefined, guest?: string): void;
   permsOf?(): { defaults: Perms; guests: Map<string, Partial<Perms>> };
@@ -120,7 +157,7 @@ export interface RoomOpts {
 export class Room {
   cats = new Map<string, RoomCat>();
   log: Line[] = [];
-  perms: Perms = { chat: false, request: false };
+  perms: Perms = { chat: false, request: false, voice: false };
   now = "";
   nowId?: string;
   albums = new Map<string, SnapAlbum>();
@@ -134,20 +171,82 @@ export class Room {
   private stage?: HTMLElement;
   private space?: HTMLElement;    // 猫を置く所（ホームの写しの grid）
   private pups = new Map<string, Puppet>();
+  private entered = new Map<string, number>();   // 猫をはじめて部屋に置いた時刻（飛び込んでくるのは入った直後だけ）
   private lookT = 0;
   private lastLook?: [number, number];
   private panel: "" | "chat" | "perm" = "";
+  private hostLook?: SnapLook;            // ホストのホームの見た目（部屋を開いている間だけ、この画面に当てる）
+  private unlook?: () => void;
 
+  private surface?: HTMLElement;      // 押した所・カーソルを受け取る面（参加者は写しの舞台、ホストは自分のホーム）
+  private watch?: MutationObserver;
+  private markT = 0;
   constructor(private o: RoomOpts) {}
+  private onClick = (e: MouseEvent) => {
+    const t = e.target as Element;
+    // ホストのホームでは、棚・モジュールの操作はそのまま。何もない所を押したときだけ猫が行く
+    if (t.closest(this.o.host ? "button, a, input, select, textarea, label, canvas, svg, .spines, .face, .mod-head, [role=button], #pop, .party-room" : "button, a, input, .spines")) return;
+    const at = this.spot(e.clientX, e.clientY);
+    if (at) this.o.go(at[0], at[1]);
+  };
+  // 目線: 自分の猫は自分のカーソルを見る。ほかの人にも 0.1 秒おきに知らせる（猫を置いた面の中の割合で）
+  private onMove = (e: PointerEvent) => {
+    if (!this.space) return;
+    const r = this.space.getBoundingClientRect();
+    const p: [number, number] = [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))];
+    this.pups.get(this.o.me)?.look(p);
+    this.lastLook = p;
+    if (!this.lookT) this.lookT = window.setTimeout(() => { this.lookT = 0; this.o.look(this.lastLook); }, 100);
+  };
+  private onLeave = () => { this.lastLook = undefined; this.pups.get(this.o.me)?.look(); this.o.look(); };
+  // ---------- 通話 ----------
+  private micOn = false;
+  private talkers = new Set<string>();
+  private wireMic(el: HTMLElement) {
+    const btn = el.querySelector<HTMLButtonElement>("#pr-mic")!, mode = el.querySelector<HTMLSelectElement>("#pr-mic-mode")!;
+    try { mode.value = localStorage.getItem(MIC_KEY) === "hold" ? "hold" : "toggle"; } catch { /* ignore */ }
+    const paint = () => {
+      const hold = mode.value === "hold";
+      btn.textContent = hold ? (this.micOn ? "話しています…" : "押している間だけ話す") : (this.micOn ? "マイク オン" : "マイク オフ");
+      btn.setAttribute("aria-pressed", String(this.micOn));
+      btn.classList.toggle("primary", this.micOn);
+    };
+    this.paintMic = paint;
+    mode.onchange = () => { try { localStorage.setItem(MIC_KEY, mode.value); } catch { /* ignore */ } this.setMic(false); paint(); };
+    btn.onclick = () => { if (mode.value === "toggle") this.setMic(!this.micOn); };
+    const down = (e: PointerEvent) => { if (mode.value !== "hold" || e.button !== 0) return; btn.setPointerCapture(e.pointerId); this.setMic(true); };
+    const up = () => { if (mode.value === "hold") this.setMic(false); };
+    btn.addEventListener("pointerdown", down);
+    btn.addEventListener("pointerup", up); btn.addEventListener("pointercancel", up); btn.addEventListener("lostpointercapture", up);
+    paint();
+  }
+  private paintMic = () => {};
+  private async setMic(on: boolean) {
+    if (on && !this.perms.voice) on = false;
+    this.micOn = on; this.paintMic();
+    const ok = await this.o.mic(on);
+    if (!ok && on) { this.micOn = false; this.paintMic(); this.o.toast?.("マイクを使えませんでした（ブラウザの設定でマイクを許可してください）"); }
+  }
+  /** 話している人の名札に印を出す */
+  setTalking(ids: string[]) {
+    const now = new Set(ids);
+    for (const id of new Set([...this.talkers, ...now])) this.pups.get(id)?.talk(now.has(id));
+    this.talkers = now;
+  }
+  /** 足場が変わったので、猫たちに測り直させる */
+  private remeasure() { dispatchEvent(new Event("resize")); }
   get shown() { return !!this.el; }
 
   open() {
     if (this.el) return;
     const el = this.el = document.createElement("div");
-    el.className = "party-room";
-    el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", "リスニングパーティーの部屋");
+    // ホストは自分のホームのまま（部屋の操作の帯だけを重ねる）。参加者はホストのホームの写しを開く
+    const inline = this.o.host;
+    el.className = "party-room" + (inline ? " pr-inline" : "");
+    if (!inline) { el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); }
+    el.setAttribute("aria-label", "リスニングパーティーの部屋");
     el.innerHTML = `
-      <div class="pr-stage" id="pr-stage"></div>
+      ${inline ? "" : `<div class="pr-stage" id="pr-stage"></div>`}
       <aside class="pr-side" id="pr-side" hidden>
         <div class="pr-chat-head"><b id="pr-side-title"></b><button class="dlg-x" id="pr-side-x" aria-label="閉じる">×</button></div>
         <div class="pr-side-body" id="pr-chat-body">
@@ -171,33 +270,40 @@ export class Room {
         <div class="pr-emotes">${EMOTES.map(e => `<button class="btn" data-emote="${e}">${EMOTE_LABEL[e]}</button>`).join("")}</div>
         <div class="pr-tools">
           ${this.o.volume ? `<label class="pr-vol"><span>音量</span><input id="pr-vol" type="range" min="0" max="1" step="0.01" value="${this.o.volume.get()}"></label>` : ""}
+          <span class="pr-mic" id="pr-mic-box" hidden>
+            <button class="btn" id="pr-mic" aria-pressed="false">マイク オフ</button>
+            <select id="pr-mic-mode" aria-label="マイクの使い方"><option value="toggle">押して切り替え</option><option value="hold">押している間だけ</option></select>
+          </span>
           <span class="pr-people" id="pr-people"></span>
           ${this.o.host ? `<button class="btn" id="pr-perm-btn">権限</button>` : ""}
           <button class="btn" id="pr-chat-btn" hidden>チャット</button>
-          <button class="btn" id="pr-exit">${this.o.host ? "いつもの画面に戻る" : "抜ける"}</button>
+          ${inline ? "" : `<button class="btn" id="pr-exit">抜ける</button>`}
         </div>
       </div>`;
     document.body.append(el);
-    this.stage = el.querySelector<HTMLElement>("#pr-stage")!;
+    if (this.hostLook) { this.unlook?.(); this.unlook = applyLook(this.hostLook); }
+    this.stage = el.querySelector<HTMLElement>("#pr-stage") ?? undefined;
     const $ = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
+    const surface = this.stage ?? document.querySelector<HTMLElement>("#view-home") ?? el;
+    this.surface = surface;
     // 押した所へ行く: 棚・モジュールの上（の近く）ならそこ、そうでなければ床
-    this.stage.addEventListener("click", e => {
-      if ((e.target as Element).closest("button, a, input, .spines")) return;
-      const at = this.spot(e.clientX, e.clientY);
-      if (at) this.o.go(at[0], at[1]);
-    });
-    // 目線: 自分の猫は自分のカーソルを見る。ほかの人にも 0.1 秒おきに知らせる（猫を置いた面の中の割合で）
-    this.stage.addEventListener("pointermove", e => {
-      if (!this.space) return;
-      const r = this.space.getBoundingClientRect();
-      const p: [number, number] = [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))];
-      this.pups.get(this.o.me)?.look(p);
-      this.lastLook = p;
-      if (!this.lookT) this.lookT = window.setTimeout(() => { this.lookT = 0; this.o.look(this.lastLook); }, 100);
-    });
-    this.stage.addEventListener("pointerleave", () => { this.lastLook = undefined; this.pups.get(this.o.me)?.look(); this.o.look(); });
+    surface.addEventListener("click", this.onClick);
+    surface.addEventListener("pointermove", this.onMove);
+    surface.addEventListener("pointerleave", this.onLeave);
     el.querySelectorAll<HTMLButtonElement>("[data-emote]").forEach(b => b.onclick = () => this.o.emote(b.dataset.emote as Emote));
-    $<HTMLButtonElement>("#pr-exit").onclick = () => this.o.exit();
+    el.querySelector<HTMLButtonElement>("#pr-exit")?.addEventListener("click", () => this.o.exit());
+    if (inline) {
+      document.documentElement.dataset.partyBar = "";
+      requestAnimationFrame(() => { const h = el.querySelector<HTMLElement>(".pr-bar")?.offsetHeight; if (h) document.documentElement.style.setProperty("--pr-bar-h", `${h}px`); });
+      // ホームが描き直されたら（棚の並べ替えなど）、足場の印を付け直し、猫を置き直す
+      this.watch = new MutationObserver(() => {
+        if (this.markT) return;
+        this.markT = requestAnimationFrame(() => { this.markT = 0; if (this.space && !this.space.isConnected) this.drawSpace(); else if (markHome(this.space)) this.remeasure(); });
+      });
+      const view = document.querySelector("#view-home");
+      if (view) this.watch.observe(view, { childList: true, subtree: true });
+    }
+    this.wireMic(el);
     const vol = el.querySelector<HTMLInputElement>("#pr-vol");
     if (vol) vol.oninput = () => this.o.volume!.set(Number(vol.value));
     el.querySelector<HTMLButtonElement>("#pr-perm-btn")?.addEventListener("click", () => this.togglePanel("perm"));
@@ -218,15 +324,22 @@ export class Room {
       findT = window.setTimeout(() => { if (q) this.o.want({ t: "find", q }); else this.showFound([]); }, 300);
     };
     $<HTMLFormElement>("#pr-find").onsubmit = e => e.preventDefault();
-    addEventListener("keydown", this.onKey, true);
+    if (!inline) addEventListener("keydown", this.onKey, true);
     if (!this.rows) this.askHome();
-    if (!this.homeView) this.drawSpace();   // ホストは want の中で写しを描き終えている
+    if (!this.homeView) this.drawSpace();
     this.refresh();
   }
   close() {
+    this.surface?.removeEventListener("click", this.onClick);
+    this.surface?.removeEventListener("pointermove", this.onMove);
+    this.surface?.removeEventListener("pointerleave", this.onLeave);
+    this.surface = undefined;
+    this.watch?.disconnect(); this.watch = undefined; cancelAnimationFrame(this.markT); this.markT = 0;
+    if (this.o.host) { unmarkHome(); delete document.documentElement.dataset.partyBar; }
     for (const p of this.pups.values()) p.remove();
     this.pups.clear();
     this.homeView?.dispose();
+    this.unlook?.(); this.unlook = undefined;
     this.el?.remove(); this.el = this.stage = this.space = undefined; this.homeView = undefined;
     clearTimeout(this.lookT); this.lookT = 0;
     removeEventListener("keydown", this.onKey, true);
@@ -241,6 +354,16 @@ export class Room {
   // ---------- ホームの写し ----------
   private floorIndex() { return this.space ? this.space.querySelectorAll("[data-cat-plat]").length : 0; }
   private drawSpace() {
+    if (this.o.host) {
+      // ホスト: 自分のホームに猫を置く
+      if (!this.el) return;
+      for (const p of this.pups.values()) p.remove();
+      this.pups.clear();
+      this.space = document.querySelector<HTMLElement>("#view-home .grid") ?? undefined;
+      if (this.space) markHome(this.space);
+      requestAnimationFrame(() => { for (const c of this.cats.values()) this.place(c); });
+      return;
+    }
     if (!this.stage) return;
     for (const p of this.pups.values()) p.remove();
     this.pups.clear();
@@ -259,8 +382,9 @@ export class Room {
     requestAnimationFrame(() => { for (const c of this.cats.values()) this.place(c); });
   }
   /** ホストから届いたホームの形とアルバム */
-  setHome(rows: SnapRow[], albums: SnapAlbum[]) {
+  setHome(rows: SnapRow[], albums: SnapAlbum[], look?: SnapLook) {
     this.rows = rows;
+    if (look) { this.hostLook = look; if (this.el) { this.unlook?.(); this.unlook = applyLook(look); } }
     this.albums.clear();   // 送るアルバムのセットが変わったら、前のものは見せない
     for (const a of albums) this.albums.set(a.id, a);
     this.drawSpace();
@@ -378,12 +502,17 @@ export class Room {
     this.pups.get(c.id)?.remove(); this.pups.delete(c.id);
     if (!this.space) return;
     const floor = this.floorIndex();
-    this.pups.set(c.id, puppetCat(this.space, { ...c.coat, name: c.name || "名無し" }, { plat: Math.min(c.plat, floor), fx: c.fx, emote: c.emote }));
+    // はじめて置く猫（入ってきた猫・入ったときにいた猫）は、上から飛び込んでくる。描き直しのときはそのまま置く
+    // （入った直後はホームの写しが続けて描き直されることがあるので、少しの間は飛び込みをやり直す）
+    const t = performance.now(), first = this.entered.get(c.id) ?? t;
+    this.entered.set(c.id, first);
+    const enter = t - first < 2000;
+    this.pups.set(c.id, puppetCat(this.space, { ...c.coat, name: c.name || "名無し" }, { plat: Math.min(c.plat, floor), fx: c.fx, emote: c.emote }, 1, enter));
   }
 
   // ---------- 届いたことを部屋に映す ----------
   add(c: RoomCat) { this.cats.set(c.id, c); this.place(c); this.refresh(); }
-  remove(id: string) { this.cats.delete(id); this.pups.get(id)?.remove(); this.pups.delete(id); this.refresh(); }
+  remove(id: string) { this.cats.delete(id); this.entered.delete(id); this.pups.get(id)?.remove(); this.pups.delete(id); this.refresh(); }
   go(id: string, plat: number, fx: number) {
     const c = this.cats.get(id); if (!c) return;
     c.plat = plat; c.fx = fx; if (c.emote !== "groove" && c.emote !== "wag") c.emote = "stand";
@@ -399,6 +528,7 @@ export class Room {
   }
   setPerms(p: Perms) {
     this.perms = p;
+    if (!p.voice && this.micOn) this.setMic(false);   // 話せなくなったら、マイクを切る
     if (!p.chat && !p.request && this.panel === "chat") this.togglePanel("");
     if (this.card) this.drawCard();
     this.refresh();
@@ -454,6 +584,7 @@ export class Room {
       .map(c => `<option value="${esc(c.id)}">${esc(c.name || "名無し")}さんだけへ</option>`).join("");
     to.value = [...to.options].some(o => o.value === was) ? was : "";
     const n = this.el.querySelector<HTMLElement>("#pr-now"); if (n) n.textContent = this.now;
+    this.el.querySelector<HTMLElement>("#pr-mic-box")!.hidden = !this.perms.voice;
     this.drawPerms();
   }
   private refreshLog() {
