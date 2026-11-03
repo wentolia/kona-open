@@ -32,6 +32,7 @@ import { initShelfMarks } from "./shelf-marks";
 import "./photo.css";
 import "./room-light.css";
 import "./header.css";
+import { mountThings } from "./room-things";
 import { OBJECTS, placeObjects, legacyShown, markPlaced, objectAvailable, objectSize, setObjectSize, SIZE_MIN, SIZE_MAX } from "./mod-objects";
 import { spectrumPrefs, setSpectrumPrefs, type SpectrumPrefs } from "./mod-spectrum";
 import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeDrive } from "./drive-ui";
@@ -1470,6 +1471,7 @@ function renderLibrary() {
 function renderHomeFrame() {
   $("#view-home").innerHTML = `<div class="home"><div class="grid"></div></div>`;
   wireSplits($(".grid"));
+  mountThings();
 }
 
 function renderCenter() {
