@@ -19,7 +19,7 @@ import { mountModule } from "./modules";
 import { setModuleContext, fadeSwap } from "./modctx";
 import { setLiveSource } from "./items/live";
 import { stopAtAlbumEnd, albumEndArmed } from "./mod-clock";
-import { setCats, randomCoat, isCoat, breedCoat, setCatsMusic, setCatHooks, catPicksAlbum, toggleWand, wandOn, type Coat } from "./cat";
+import { setCats, randomCoat, isCoat, setCatsMusic, restyleCat, setCatHooks, catPicksAlbum, toggleWand, wandOn, type Coat } from "./cat";
 import { initNoise, roomTail } from "./noise";
 import { ritual, isPulled } from "./ritual";
 import { wakeCatHost, placeWakeCat, catAwake } from "./wakecat";
@@ -33,6 +33,8 @@ import { initShelfMarks } from "./shelf-marks";
 import "./photo.css";
 import "./room-light.css";
 import "./header.css";
+import { presentTick, seedPresents, catCap, achieve, ownedAccs } from "./presents";
+import { mountPresents } from "./presents-ui";
 import { mountThings, placedThings, toggleThing, setThing, THING_OF_MODULE } from "./room-things";
 import { roomSurface, setRoomSurface } from "./room-surface";
 import { placeObjects, legacyShown, markPlaced, objectAvailable, objectSize, OBJECTS } from "./mod-objects";
@@ -43,7 +45,7 @@ import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeD
 import { isDriveEntry, isKept, keepAlbum, forgetAlbum, driveConfig, driveToken, walkDrive, type DriveEntry } from "./drive";
 import { initMobile, renderMobile, mobileActive } from "./mobile";
 import { initSpotifyUI, openSpotify, spotifyConfigured, resumeSpotify, forgetSpotifyOpen } from "./spotify-ui";
-import { initParty, openParty, partySupported, partyVisit } from "./party";
+import { initParty, openParty, partySupported, partyVisit, partyIn } from "./party";
 import { regionalTick, locate, gotOf, landName } from "./region";
 import { itemOf } from "./items";
 import { type Drop, loadHome, saveHome, place, removeModule, addModule, MIN_W as MIN_COL, MIN_H as MIN_STACK } from "./layout";
@@ -1539,6 +1541,7 @@ function renderHomeFrame() {
   $("#view-home").innerHTML = `<div class="home"><div class="grid"></div></div>`;
   wireSplits($(".grid"));
   mountThings();
+  mountPresents();
 }
 
 function renderCenter() {
@@ -1748,7 +1751,16 @@ player.onLinger = (ctx, input) => roomTail(ctx, input, { rain: windowRain() });
 
 // 聴いた時間を数える（聴いた距離のモジュール用）
 // 目じるしに届いたら証書を作る（awards.ts）
-setInterval(() => { if (player.playing) { addListened(1); checkAwards(player.album); } regionalTick(player.playing, partyVisit()); }, 1000);
+setInterval(() => {
+  if (player.playing) { addListened(1); checkAwards(player.album); }
+  regionalTick(player.playing, partyVisit());
+  // プレゼント（presents.ts）: 音が出ているときだけ数える
+  presentTick(player.playing, !player.isMuted, player.album?.title);
+  const pr = partyIn();
+  if (pr === "guest") achieve("party-join");
+  if (pr === "host") achieve("party-host");
+}, 1000);
+
 // ご当地の品（region.ts）: オンなら開いたときに土地を調べる（1 日 1 回まで）。品が届いたら知らせる
 locate();
 document.addEventListener("kona:regional", e => {
@@ -1802,12 +1814,33 @@ let coats: Coat[] = (() => {
     return localStorage.getItem("kona.cat") === "off" ? [] : [randomCoat()];
   } catch { return [randomCoat()]; }
 })();
+// はじめて開いたとき: いまの飼い猫の数と、置いている品を手元に（何も取り上げない）
+seedPresents(coats.length, [...placedThings(), ...modules.flatMap(m => m.goods ?? [])]);
 document.addEventListener("kona:cats-away", () => placeCats(true));
+function savePets() { try { localStorage.setItem(CATS_KEY, JSON.stringify(coats)); } catch { /* ignore */ } }
 function placeCats(animate = false) {
-  try { localStorage.setItem(CATS_KEY, JSON.stringify(coats)); } catch { /* ignore */ }
+  savePets();
   const grid = $(".grid");
   // スマホ版ではホームを出さないので猫も休ませる。「猫を出さない」のときも
-  if (grid) setCats(grid, mobileActive() || prefs().catsHidden ? [] : coats, animate);
+  if (grid) setCats(grid, mobileActive() || prefs().catsHidden ? [] : stray ? [...coats, stray] : coats, animate);
+}
+// 通りすがりの猫: 気まぐれにやってきて、しばらくすると去り、また別の猫がランダムに来る（ひとりずつ）。飼い猫にすると残る
+let stray: Coat | undefined, strayAt = Date.now() + (2 + Math.random() * 4) * 60_000, strayUntil = 0;
+setInterval(() => {
+  const now = Date.now();
+  if (stray && now > strayUntil) { stray = undefined; placeCats(true); strayAt = now + (6 + Math.random() * 14) * 60_000; return; }
+  if (!stray && now > strayAt && !document.hidden && !prefs().catsHidden) {
+    stray = { ...randomCoat(), stray: true };
+    strayUntil = now + (8 + Math.random() * 17) * 60_000;
+    placeCats(true);
+  }
+}, 20_000);
+function adoptStray(): boolean {
+  if (!stray || coats.length >= catCap()) return false;
+  const c = stray;
+  delete c.stray; stray = undefined;
+  coats.push(c); savePets(); restyleCat(c);
+  return true;
 }
 // 猫がよく聴くアルバムをくわえて、「次に再生」へ運んでくる
 setCatHooks({
@@ -1837,7 +1870,10 @@ setCatHooks({
   nowPlaying: () => player.album?.key,
   albumTitle: key => byKey(key)?.title,
   tasteOf: key => { const a = byKey(key); return a ? a.genre?.trim() || a.artist?.trim() || a.title : undefined; },
-  saveCoats: () => { try { localStorage.setItem(CATS_KEY, JSON.stringify(coats)); } catch { /* ignore */ } },
+  saveCoats: () => savePets(),
+  adopt: c => c === stray && adoptStray(),
+  room: () => ({ pets: coats.length, cap: catCap() }),
+  accs: () => ownedAccs().map(a => ({ key: a.key, label: tr(a.label) })),
   level: () => { const [l, r] = player.levels(); return (l + r) / 2; },
 });
 
@@ -1863,14 +1899,14 @@ initSettings($("#view-settings"), {
     toggleWand: () => { toggleWand(); },
   },
   cats: () => coats,
-  addCat: () => { coats.push(randomCoat()); placeCats(true); },
+  stray: () => stray,
+  adoptStray: () => adoptStray(),
   removeCat: i => { coats.splice(i, 1); placeCats(true); },
   changeCat: (i, ch) => {
     const c = coats[i];
     if (!c) return;
     if (ch.name !== undefined) c.name = ch.name || undefined;
-    // 品種を替えると毛並みも選び直す（性格・お気に入り・名前はそのまま）
-    if (ch.breed && ch.breed !== (c.breed ?? "mix")) coats[i] = { ...breedCoat(ch.breed), p: c.p, fav: c.fav, name: c.name };
+    if (ch.acc !== undefined) { c.acc = ch.acc || undefined; restyleCat(c); }
     placeCats();
   },
   source: () => {

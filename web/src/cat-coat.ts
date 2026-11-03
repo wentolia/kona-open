@@ -17,6 +17,8 @@ export interface Coat {
   hi: string; mid: string; lo: string; deep: string; cream: string; ink: string; p?: Persona; fav?: string;
   breed?: string;            // 品種（BREEDS のキー）。ないものは雑種
   name?: string;             // 名前（名札から変えられる）
+  acc?: string;              // 飼い猫のアクセサリー（cat-acc.ts）
+  stray?: boolean;           // 通りすがりの猫（保存しない。飼い猫にすると外れる）
   gloss?: number;            // 毛づや（0〜1）。撫でてもらうほど、毛づくろいしてもらうほど少しずつ増す
   likes?: Record<string, number>; // 音楽の好き嫌い（ジャンルかアーティストごとに -1〜1）。聴くうちに育つ
   pat?: Pattern;             // 柄
@@ -39,6 +41,7 @@ export function isCoat(x: unknown): x is Coat {
   if (c.pat !== undefined && !["tabby", "spots", "calico", "point"].includes(c.pat)) return false;
   if (c.name !== undefined && typeof c.name !== "string") return false;
   if (c.breed !== undefined && typeof c.breed !== "string") return false;
+  if (c.acc !== undefined && typeof c.acc !== "string") return false;
   return true;
 }
 export const randomPersona = (r: () => number = Math.random): Persona => ({

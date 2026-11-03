@@ -13,6 +13,7 @@ import { prefs, setPrefs, type Prefs } from "./prefs";
 import { NOISES, noiseLevel, setNoiseLevel } from "./noise";
 import { BANDS, BUILTIN_PRESETS, userPresets, savePreset, deletePreset, presetMatching } from "./eq";
 import { BREEDS, type Coat } from "./cat";
+import { nameOf } from "./cat-coat";
 import { ACTIONS, keyFor, keyLabel } from "./shortcuts";
 import { SORTS } from "./shelves";
 import { t } from "./i18n";
@@ -24,6 +25,7 @@ import pkg from "../package.json";
 import { esc } from "./dom";
 import { regionAllows, regionalOn, setRegionalOn, hereLand, hereProgress, locate, locateStatus, landName, nextOf, gotList, regionalItems, GIFT_SEC } from "./region";
 import { itemOf } from "./items";
+import { catCap, ownedAccs, presentAllows, presentStats } from "./presents";
 
 export interface KeptAlbum { key: string; title: string; bytes: number; forget(): Promise<void> }
 export interface ModItem { id: string; title: string; label: string }
@@ -46,10 +48,13 @@ export interface SettingsHooks {
   modules: ModuleHooks;
   /** 猫と遊ぶ（ホームの「＋」にあったもの） */
   play: { canPick(): boolean; pick(): void; wandOn(): boolean; toggleWand(): void };
+  /** 飼い猫 */
   cats(): Coat[];
-  addCat(): void;
+  /** 遊びに来ている通りすがりの猫 */
+  stray(): Coat | undefined;
+  adoptStray(): boolean;
   removeCat(i: number): void;
-  changeCat(i: number, change: { name?: string; breed?: string }): void;
+  changeCat(i: number, change: { name?: string; acc?: string }): void;
   /** いま開いているもの */
   source(): { name: string; kind: "local" | "drive" | "spotify" | "files" | "none"; canRescan: boolean };
   rescan(): void;
@@ -125,6 +130,7 @@ function roomTab() {
     ${sec(t("壁"), tiles("wall", WALLS, r.wall, "set-wall"))}
     ${sec(t("床"), tiles("floor", FLOORS, r.floor, "set-floor"))}
     ${sec(t("置くもの"), putBlock(hooks))}
+    ${sec(t("プレゼント"), presentBlock())}
     ${sec(t("ご当地の品"), regionalBlock())}
     ${fold("room-more", t("もっと見る"), `
       <div class="set-checks">
@@ -140,7 +146,7 @@ function putBlock(h: SettingsHooks) {
     `<button type="button" class="set-put${at ? " placed" : ""}" data-put="${id}" aria-pressed="${!!at}" title="${esc(at ? `${label}（${at}）。押すとしまう` : `${label}: ホームへドラッグして置く`)}">
       <span class="set-put-art">${art}</span><span class="set-put-label">${esc(label)}</span>${at && /^\d+$/.test(at) ? `<span class="set-put-n">×${at}</span>` : ""}</button>`;
   const placed = (k: string) => { const n = countOf(k); return n ? (n > 1 ? `${n}` : t("置いた")) : undefined; };
-  const things = (at: string) => THINGS.filter(x => x.at === at && regionAllows(x.key)).map(x => tile(`thing:${x.key}`, t(x.label), placed(x.key), "")).join("");
+  const things = (at: string) => THINGS.filter(x => x.at === at && regionAllows(x.key) && presentAllows(x.key)).map(x => tile(`thing:${x.key}`, t(x.label), placed(x.key), "")).join("");
   return `
     <p class="set-note">${t("ホームの棚・床・壁へドラッグして置く（家具はいくつでも）。ここへ戻すとしまう。ダブルクリックで左右を反転")}</p>
     <div class="set-puts-head">${t("棚に置く")}</div>
@@ -149,6 +155,15 @@ function putBlock(h: SettingsHooks) {
     <div class="set-puts">${things("floor")}</div>
     <div class="set-puts-head">${t("壁に掛ける")}</div>
     <div class="set-puts">${things("wall")}</div>`;
+}
+
+// プレゼント: 聴いていると包みが届く（presents.ts）。包みはホームの床に置かれ、押すと開く
+function presentBlock() {
+  const p = presentStats();
+  return `
+    <p class="set-note">${t("音楽を 30 分聴くごとに、その日はじめて聴いたときに、包みがひとつ届きます（1 日 5 つまで）。包みはホームの床に置かれ、押すと開きます")}</p>
+    <div class="set-row"><span>${t("今日届いた包み")} ${p.today} / ${p.cap}${p.today < p.cap ? ` · ${t("次まで")} ${t("あと")} ${p.left} ${t("分")}` : ""}</span></div>
+    <span class="set-sub">${t("届いた品")} ${p.owned} / ${p.all} · ${t("アクセサリー")} ${p.accs} / ${p.accAll} · ${t("飼える猫")} ${p.cats} / ${p.catMax} ${t("匹")}</span>`;
 }
 
 // ご当地の品: いる土地で聴くと、その土地の品が届く（region.ts）。届いた品は「置くもの」に出る
@@ -218,18 +233,20 @@ function modulesTab(h: SettingsHooks) {
 }
 
 function catsTab(h: SettingsHooks) {
-  const q = prefs(), cats = h.cats();
-  const breeds = Object.entries(BREEDS);
+  const q = prefs(), cats = h.cats(), stray = h.stray(), cap = catCap(), accs = ownedAccs();
+  const breed = (c: Coat) => t(BREEDS[c.breed ?? "mix"]?.name ?? BREEDS.mix.name);
   return `
-    ${sec(`${t("猫")} · ${cats.length} ${t("匹")}`, `
+    ${sec(`${t("飼い猫")} · ${cats.length} / ${cap} ${t("匹")}`, `
       <ul class="set-cats">${cats.map((c, i) => `
         <li data-cat="${i}">
-          <input class="set-cat-name" value="${esc(c.name ?? "")}" placeholder="${esc(t("名前"))}" maxlength="16" aria-label="${esc(t("名前"))}">
-          <select class="set-cat-breed" aria-label="${esc(t("品種"))}">${breeds.map(([k, b]) => opt(k, t(b.name), k === (c.breed ?? "mix"))).join("")}</select>
-          <button type="button" class="set-x set-cat-bye" aria-label="${esc(t("帰す"))}" title="${esc(t("帰す"))}">×</button>
+          <input class="set-cat-name" value="${esc(c.name ?? "")}" placeholder="${esc(nameOf(c))}" maxlength="16" aria-label="${esc(t("名前"))}">
+          <span class="set-cat-kind">${esc(breed(c))}</span>
+          <select class="set-cat-acc" aria-label="${esc(t("アクセサリー"))}"><option value="">${t("アクセサリーなし")}</option>${accs.map(a => opt(a.key, t(a.label), a.key === c.acc)).join("")}</select>
+          <button type="button" class="set-x set-cat-bye" aria-label="${esc(t("手放す"))}" title="${esc(t("手放す"))}">×</button>
         </li>`).join("")}
       </ul>
-      <div class="set-row"><button type="button" class="set-btn" id="set-cat-add">＋ ${t("猫を呼ぶ")}</button></div>
+      <p class="set-note">${t("通りすがりの猫が気まぐれに遊びに来ます。気に入ったら飼い猫にできます（猫の名札を押しても）。品種は変えられません。飼える数はプレゼントで増えます（10 匹まで）")}</p>
+      ${stray ? `<div class="set-row"><span>${t("遊びに来ている猫")}: <b>${esc(nameOf(stray))}</b>（${esc(breed(stray))}）</span><button type="button" class="set-btn" id="set-cat-adopt"${cats.length >= cap ? " disabled" : ""}>${t("飼い猫にする")}</button></div>` : ""}
       ${check("set-cats-hidden", q.catsHidden, t("猫を出さない"))}`)}
     ${sec(t("遊ぶ"), `
       <div class="set-row set-btns">
@@ -316,6 +333,7 @@ export function initSettings(el: HTMLElement, h: SettingsHooks) {
   // 外で変わったもの（EQ のつまみ、Drive のサインインなど）を、開いているときだけ映す
   h.player.eq.subscribe(() => { if (!el.hidden && !el.contains(document.activeElement)) renderSettings(); });
   document.addEventListener("kona:regional", () => { if (!el.hidden) renderSettings(); });
+  document.addEventListener("kona:presents", () => { if (!el.hidden && !el.contains(document.activeElement)) renderSettings(); });
 }
 
 export function renderSettings() {
@@ -499,10 +517,10 @@ function wire(el: HTMLElement) {
   on("#set-wand", "click", () => { h.play.toggleWand(); again(); });
   on("#set-pick", "click", () => h.play.pick());
   on<HTMLInputElement>("#set-cats-hidden", "change", c => setPrefs({ catsHidden: c.checked }));
-  on("#set-cat-add", "click", () => { h.addCat(); again(); });
+  on("#set-cat-adopt", "click", () => { h.adoptStray(); again(); });
   on("[data-cat] .set-cat-bye", "click", b => { h.removeCat(Number(b.closest<HTMLElement>("[data-cat]")!.dataset.cat)); again(); });
   on<HTMLInputElement>(".set-cat-name", "change", i => h.changeCat(Number(i.closest<HTMLElement>("[data-cat]")!.dataset.cat), { name: i.value.trim() }));
-  on<HTMLSelectElement>(".set-cat-breed", "change", s => h.changeCat(Number(s.closest<HTMLElement>("[data-cat]")!.dataset.cat), { breed: s.value }));
+  on<HTMLSelectElement>(".set-cat-acc", "change", s => h.changeCat(Number(s.closest<HTMLElement>("[data-cat]")!.dataset.cat), { acc: s.value }));
   on<HTMLInputElement>("#set-zoomies", "change", c => setP({ catZoomies: c.checked }));
 
   // ライブラリ

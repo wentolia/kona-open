@@ -23,6 +23,7 @@ import { reduceMotion } from "./prefs";
 import { awards, openCertificate } from "./awards";
 import { chimeOn, chimeHour } from "./mod-clock";
 import { regionAllows } from "./region";
+import { presentAllows } from "./presents";
 
 const KEY = "kona.objects";
 let uid = 0;
@@ -842,7 +843,7 @@ export function objectArt(key: string): SVGSVGElement | undefined {
   return el;
 }
 /** 置ける小物か（賞状は届いてから立つ） */
-export const objectAvailable = (key: string) => (key !== "award" || awards().length > 0) && regionAllows(key);
+export const objectAvailable = (key: string) => (key !== "award" || awards().length > 0) && regionAllows(key) && presentAllows(key);
 
 /** その棚に置く小物を、並べた順に立てる。ほかの棚にあったものはこちらへ移る */
 export function placeObjects(box: HTMLElement, keys: readonly string[]) {

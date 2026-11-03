@@ -1007,3 +1007,9 @@ export function partyVisit(): { land: string; host: string } | undefined {
   return role === "guest" && room && last?.playing && last.land ? { land: last.land, host: cleanName(hostName) } : undefined;
 }
 export const partySupported = () => "RTCPeerConnection" in window && "crypto" in window && !!crypto.subtle;
+/** パーティーに入っているか（実績用）: ホストで参加者がいる / 参加者で部屋に入れた */
+export function partyIn(): "host" | "guest" | undefined {
+  if (role === "host" && guestNames.length > 0) return "host";
+  if (role === "guest" && room && guestStep === "in") return "guest";
+  return undefined;
+}
