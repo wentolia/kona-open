@@ -25,7 +25,7 @@ const EN: Record<string, string> = {
   "アルバム名": "Album title", "年（新しい順）": "Year (newest first)", "年（古い順）": "Year (oldest first)", "再生回数": "Play count", "最近聴いた順": "Recently played",
   "名前": "Name", "中身": "Contents", "並び順": "Sort by", "ジャンル": "Genre", "すべて": "All", "検索語": "Search terms",
   "ホームから外す": "Remove from home", "閉じる": "Close", "雨を降らせる": "Make it rain", "景色": "View", "置く小物": "Objects",
-  "部屋の明かりも時刻で変える": "Change the room light with the time of day",
+  "部屋の明かり": "Room light", "時刻に合わせる": "Follow the time of day",
   // 窓の外・小物・猫の品種
   "街": "City", "海辺": "Seaside", "山と森": "Mountains", "田園": "Countryside", "雪国": "Snow country", "川沿いの街": "Riverside town", "日替わり": "Changes daily",
   "灯り": "Lamp", "鉢植え": "Potted plant", "ろうそく（おやすみタイマー）": "Candle (sleep timer)", "砂時計": "Hourglass",
