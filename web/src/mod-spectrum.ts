@@ -97,6 +97,8 @@ export function mountSpectrum(body: HTMLElement) {
     const { style, shape, dir, size } = prefs;
     const ratio = player.duration ? player.position / player.duration : 0;
 
+    // 隠れている間（ホームとライブラリの切り替えの途中など）は大きさが 0 になるので、描かずに待つ
+    if (w < 24 * d || h < 24 * d) { quiet = false; return; }
     // 形の決まり: 土台（円の半径 / 直線の高さ）、伸びる長さ、点の置き方
     const cx = w / 2, cy = h / 2, m = Math.min(w, h) / 2 - 4 * d;
     const reachMax = shape === "circle" ? m * size : 0;

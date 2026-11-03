@@ -31,7 +31,8 @@ export function fit(c: HTMLCanvasElement) {
 export function everyFrame(root: HTMLElement, fn: () => void) {
   requestAnimationFrame(function frame() {
     if (!root.isConnected) { setTimeout(() => root.isConnected ? everyFrame(root, fn) : undefined, 1000); return; }
-    fn();
+    // 1 コマの失敗で描き続けるのをやめない（止まると、そのモジュールは二度と動かない）
+    try { fn(); } catch (e) { console.error(e); }
     requestAnimationFrame(frame);
   });
 }
