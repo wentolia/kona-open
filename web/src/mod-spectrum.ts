@@ -1,5 +1,7 @@
 // スペクトラム: いま鳴っている音の周波数ごとの強さを描く。
-// 並べ方は「円」（上から時計回りに低音 → 高音、左半分は右の鏡写し）と「直線」（左から右へ低音 → 高音）。
+// 並べ方は「円」（真上から時計回りに一周で低音 → 高音）と「直線」（左から右へ低音 → 高音）。
+// 円を左右の鏡写しにすると、左右がほぼ同じ音のステレオでは形がいつも対称になって単調なので、一周に帯域を並べる。
+// 一周の継ぎ目（真上）は、高音の端を低音の端へなだらかにつないで段差を見せない。
 // 形は「バー」（波形と同じ細い柱）と「波」（イコライザーと同じ灯る線）。向きは外側・内側・両側（直線では上・下・上下）。
 // 聴いた分は波形と同じく灯り、まだの分は薄い。クリックした位置（円は角度）へ移る
 
@@ -34,6 +36,7 @@ const LO = 40, HI = 16000;   // 描く周波数の範囲（Hz）
 const FLOOR = -88, RANGE = 58; // この dB より小さい音は描かない / これだけの幅を 0〜1 に
 const TILT = 3;              // 1 オクターブごとに足す dB（高音ほど小さい音楽のスペクトルを平らに見せる）
 const GATE = .1;             // 細かいノイズを落とす下限
+const SEAM = .06;            // 円の継ぎ目で、高音の端を低音の端へつなぐ幅（一周に対する比率）
 
 export function mountSpectrum(body: HTMLElement) {
   const player = ctx().player;
@@ -112,7 +115,7 @@ export function mountSpectrum(body: HTMLElement) {
     // 柱の数は土台の長さに合わせる（波形と同じ 2px の柱と 1px の隙間）
     const along = shape === "circle" ? Math.PI * 2 * r : w;
     const total = Math.max(16, Math.min(shape === "circle" ? 320 : 480, Math.floor(along / (3 * d))));
-    const n = shape === "circle" ? Math.floor(total / 2) : total;   // 円は半周ぶんを測って左右に写す
+    const n = total;
     if (vals.length !== n) { const old = vals; vals = new Float32Array(n); for (let k = 0; k < n; k++) vals[k] = old.length ? old[Math.floor((k / n) * old.length)] : 0; }
     measure(n);
     // 上がるときは素早く、沈むときはゆっくり（止めたら静かに沈む）
@@ -130,12 +133,14 @@ export function mountSpectrum(body: HTMLElement) {
     if (!moving && !resized && !changed && quiet && hoverA === undefined && Math.abs(ratio - lastPos) < 1e-4) return;
     quiet = !moving; lastPos = ratio;
 
-    // 並べる点（位置 a と強さ v）。円は右半分を時計回りに、左半分はその鏡写し
+    // 並べる点（位置 a と強さ v）。円は一周の終わり（高音の端）を始まり（低音の端）へ寄せて、真上の継ぎ目をなめらかにする
     const pts: [number, number][] = [];
-    if (shape === "circle") {
-      for (let k = 0; k < n; k++) pts.push([(k + .5) / n / 2, vals[k]]);
-      for (let k = n - 1; k >= 0; k--) pts.push([1 - (k + .5) / n / 2, vals[k]]);
-    } else for (let k = 0; k < n; k++) pts.push([(k + .5) / n, vals[k]]);
+    const seam = shape === "circle" ? Math.max(3, Math.round(n * SEAM)) : 0;
+    for (let k = 0; k < n; k++) {
+      let v = vals[k];
+      if (k >= n - seam) { const t = (k - (n - seam) + 1) / (seam + 1), e = t * t * (3 - 2 * t); v = v * (1 - e) + vals[0] * e; }
+      pts.push([(k + .5) / n, v]);
+    }
 
     const g = canvas.getContext("2d")!;
     g.clearRect(0, 0, w, h);

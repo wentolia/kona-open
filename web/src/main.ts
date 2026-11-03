@@ -32,7 +32,7 @@ import { initShelfMarks } from "./shelf-marks";
 import "./photo.css";
 import "./room-light.css";
 import "./header.css";
-import { OBJECTS, objectShown, setObjectShown, mountObjects } from "./mod-objects";
+import { OBJECTS, placeObjects, legacyShown, markPlaced, objectAvailable } from "./mod-objects";
 import { spectrumPrefs, setSpectrumPrefs, type SpectrumPrefs } from "./mod-spectrum";
 import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeDrive } from "./drive-ui";
 import { isDriveEntry, isKept, keepAlbum, forgetAlbum, driveConfig, driveToken, walkDrive, type DriveEntry } from "./drive";
@@ -64,6 +64,16 @@ let liveDrive: string | undefined;                      // いま開いている
 let pop: { rowId: string; key: string; anchor: HTMLElement } | undefined; // 曲目パネルを開いているアルバム
 const featured = new Map<string, string>(); // 棚ごとに面陳しているアルバム（背表紙のホバーで切り替わる）
 let modules = loadLayout();
+// 以前は小物を「雑貨」の棚にしか置けなかった: そのとき置いていた小物を、最初の雑貨の棚（いまは「小物だけ」の棚）にそのまま移す
+{
+  const shown = legacyShown();
+  if (shown) {
+    const g = modules.find(m => m.type === "shelf" && m.kind === "goods" && !m.goods);
+    if (g) { g.goods = shown; saveLayout(modules); }
+    markPlaced();
+  }
+}
+document.addEventListener("kona:objects", () => renderShelves()); // 賞状が届いたら、置いてある棚に立てる
 const saveMods = () => saveLayout(modules);
 const home = loadHome(modules);
 const shelfById = (id: string) => modules.find((m): m is ShelfDef => m.id === id && isShelf(m));
@@ -1012,15 +1022,20 @@ function moduleEl(d: ModuleDef) {
 /** 棚の上の、その場で絞り込める検索窓: 名前や年で並べる棚で、項目指定（folder: など）もタグの棚でもないときだけ */
 const inlineSearch = (d: ShelfDef) => d.kind === "search" && !["plays", "last", "hue"].includes(d.sort ?? prefs().libSort) && !tagOfShelf(d) && !/(^|\s)-?\w+:/.test(d.query ?? "");
 function shelfBody(body: HTMLElement, d: ShelfDef) {
-  // 雑貨の棚: アルバムの代わりに小物を並べる。小物は動き続けるので、描き直しても作り直さない
+  // 小物: どの棚にも、アルバムの右に立てられる。「小物だけ」の棚では棚いっぱいに並べる。
+  // 小物は動き続けるので作り直さず、描き直す前に控えへ戻し、描き直したあとで置き直す
   if (d.kind === "goods") {
-    if (!body.querySelector(".objs")) { body.innerHTML = ""; mountObjects(body); }
+    if (!body.querySelector(":scope > .shelf-line.only")) body.innerHTML = `<div class="shelf-line only"><div class="goods"></div></div>`;
+    placeObjects($(".goods", body), d.goods ?? []);
     return;
   }
+  const old = body.querySelector<HTMLElement>(".goods");
+  if (old) placeObjects(old, []);
   const c = withFolderGaps(d, contentsOf(d));
   body.innerHTML = `
     ${inlineSearch(d) ? `<input class="mod-search" id="q-${esc(d.id)}" type="search" placeholder="検索" autocomplete="off" value="${esc(d.query ?? "")}" aria-label="${esc(d.title)}の中を検索">` : ""}
-    <div class="row"></div>`;
+    <div class="shelf-line"><div class="row"></div><div class="goods"></div></div>`;
+  placeObjects($(".goods", body), d.goods ?? []);
   const row = $(".row", body);
   // 次に再生の棚は、再生中を欄の左に置けるよう、欄を端に寄せきらない
   const pos = d.facePos ?? 0;
@@ -1066,7 +1081,11 @@ function moduleFormHTML(d: ModuleDef) {
     if (!isShelf(d)) return "";
     return `
     <label>中身<select id="sm-kind">${KINDS.map(k => opt(k.kind, k.label, k.kind === d.kind)).join("")}</select></label>
-    ${d.kind === "goods" ? `<fieldset class="sm-objects"><legend>置く小物</legend>${OBJECTS.map(o => `<label class="sm-check"><input type="checkbox" data-obj="${o.key}"${objectShown(o.key) ? " checked" : ""}>${o.label}</label>`).join("")}</fieldset>` : ""}
+    <fieldset class="sm-objects"><legend>置く小物</legend>${OBJECTS.filter(o => objectAvailable(o.key)).map(o => {
+      // ほかの棚に置いてある小物は、選ぶとこの棚へ移る
+      const at = modules.find(m => m !== d && m.goods?.includes(o.key));
+      return `<label class="sm-check"><input type="checkbox" data-obj="${o.key}"${d.goods?.includes(o.key) ? " checked" : ""}>${o.label}${at ? `<i class="sm-at">${esc(at.title)}</i>` : ""}</label>`;
+    }).join("")}</fieldset>
     ${d.kind !== "queue" && d.kind !== "goods" ? `<label class="sm-check"><input id="sm-folder-gaps" type="checkbox"${d.folderGaps ? " checked" : ""}>${libGroup() === "artist" ? "アーティスト" : "フォルダ"}ごとに隙間をあけて仕切る</label>` : ""}
     ${d.kind === "search" ? `
       <label>検索語<input id="sm-query" type="search" autocomplete="off" placeholder="folder:… artist:… tag:… mood:夜" value="${esc(d.query ?? "")}"></label>
@@ -1121,7 +1140,13 @@ function wireModuleForm(el: HTMLElement, d: ModuleDef, again: () => void) {
   if (specSize) specSize.oninput = () => setSpectrumPrefs({ size: Number(specSize.value) / 100 });
   const sceneSel = el.querySelector<HTMLSelectElement>("#sm-scene");
   if (sceneSel) sceneSel.onchange = () => setWindowScene(sceneSel.value);
-  el.querySelectorAll<HTMLInputElement>("[data-obj]").forEach(cb => cb.onchange = () => setObjectShown(cb.dataset.obj!, cb.checked));
+  // 小物はひとつの棚にだけ: 選ぶとほかの棚から外して、この棚の右端に足す
+  el.querySelectorAll<HTMLInputElement>("[data-obj]").forEach(cb => cb.onchange = () => {
+    const k = cb.dataset.obj!;
+    for (const m of modules) if (m.goods?.includes(k)) m.goods = m.goods.filter(x => x !== k);
+    if (cb.checked) d.goods = [...(d.goods ?? []), k];
+    save();
+  });
   $(".sm-delete", el).onclick = () => {
     modules = modules.filter(m => m !== d); removeModule(home, d.id); kept.delete(d.id);
     focusModule(undefined); saveMods(); saveHome(home); renderShelves(); again();

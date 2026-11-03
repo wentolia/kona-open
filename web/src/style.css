@@ -715,6 +715,8 @@ body { background: radial-gradient(120% 80% at 50% 45%, color-mix(in srgb, var(-
 .dist-bar em { position: absolute; top: 50%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 .dist-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
 .sm-form fieldset.sm-objects { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+.sm-form fieldset.sm-objects .sm-at { font-style: normal; font-size: 10px; color: var(--muted); }
+.sm-form fieldset.sm-objects .sm-at::before { content: "（"; } .sm-form fieldset.sm-objects .sm-at::after { content: "）"; }
 .sm-form fieldset.sm-objects legend { padding: 0; margin-bottom: 4px; font-size: 11px; color: var(--muted); }
 
 /* 曲・アルバムが変わったときの差し替え: 薄く消えて、ゆっくり現れる */

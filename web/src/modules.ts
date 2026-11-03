@@ -11,7 +11,6 @@ import { mountOutput } from "./mod-output";
 import { mountTurntable } from "./mod-turntable";
 import { mountWindow } from "./mod-window";
 import { mountDistance } from "./mod-distance";
-import { mountObjects } from "./mod-objects";
 import { mountSpectrum } from "./mod-spectrum";
 import { mountCatTower, mountScratcher, mountCatFood, mountCatBox } from "./mod-cat";
 import { fileSig, getPeaks, putPeaks } from "./tagcache";
@@ -28,7 +27,6 @@ export function mountModule(type: ModuleType, body: HTMLElement) {
     case "turntable": return mountTurntable(body);
     case "window": return mountWindow(body);
     case "distance": return mountDistance(body);
-    case "objects": return mountObjects(body);
     case "spectrum": return mountSpectrum(body);
     case "cattower": return mountCatTower(body);
     case "scratcher": return mountScratcher(body);

@@ -33,22 +33,22 @@ export const OBJECTS = [
   { key: "cactus", label: "サボテン", w: 40 }, { key: "pothos", label: "ポトス（吊り鉢）", w: 56 }, { key: "vase", label: "季節の切り花", w: 46 },
 ] as const;
 const CANDLE_MIN = 30;
-type Saved = { lamp: boolean; hide: string[]; candle?: number; water?: number };
+// placed: 置き場所を棚ごとに持つようになってから true（以前の hide は、そのときに一度だけ棚へ移す）
+type Saved = { lamp: boolean; hide: string[]; placed?: boolean; candle?: number; water?: number };
 const load = (): Saved => {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || "{}");
-    return { lamp: !!v.lamp, hide: Array.isArray(v.hide) ? v.hide : [], ...(typeof v.candle === "number" ? { candle: v.candle } : {}), ...(typeof v.water === "number" ? { water: v.water } : {}) };
+    return { lamp: !!v.lamp, hide: Array.isArray(v.hide) ? v.hide : [], ...(v.placed ? { placed: true } : {}), ...(typeof v.candle === "number" ? { candle: v.candle } : {}), ...(typeof v.water === "number" ? { water: v.water } : {}) };
   } catch { return { lamp: false, hide: [] }; }
 };
 const save = (s: Saved) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* 保存できなくても動く */ } };
 const patch = (p: Partial<Saved>) => { const s = { ...load(), ...p }; if (p.candle === undefined && "candle" in p) delete s.candle; save(s); };
-export const objectShown = (key: string) => !load().hide.includes(key);
-export function setObjectShown(key: string, on: boolean) {
+/** 以前の「雑貨の棚に置く小物」の選び方。棚ごとの置き場所に移したあとは undefined */
+export function legacyShown(): string[] | undefined {
   const s = load();
-  s.hide = s.hide.filter(k => k !== key).concat(on ? [] : [key]);
-  save(s);
-  document.dispatchEvent(new CustomEvent("kona:objects"));
+  return s.placed ? undefined : OBJECTS.map(o => o.key).filter(k => !s.hide.includes(k));
 }
+export function markPlaced() { const { hide: _, ...s } = load(); save({ ...s, hide: [], placed: true }); }
 
 // ---------- 描くための道具 ----------
 // 猫と同じく、多角形を同じ色の細い縁で塗って継ぎ目を消す
@@ -438,9 +438,17 @@ function vaseArt(month: number) {
   ${poly("rgba(255,255,255,.22)", "16,78 17.4,72 18,72.4 16.8,84")}`;
 }
 
-export function mountObjects(body: HTMLElement) {
+// 小物はひとつずつしかない（灯り・ろうそく・植物の育ちぐあいは部屋にひとつ）。はじめに一度だけ作り、
+// どの棚に置くかは placeObjects で決める。どこにも置かないものは、見えない控えの場所で動き続ける
+const els = new Map<string, SVGSVGElement>();
+let stash: HTMLElement | undefined;
+function mountObjects() {
+  if (stash) return;
   const id = `objs${++uid}`;
-  body.innerHTML = `<div class="objs"><div class="objs-row">
+  stash = document.createElement("div");
+  stash.className = "goods-stash"; stash.hidden = true;
+  document.body.append(stash);
+  stash.innerHTML = `<div class="goods">
   <svg class="lamp" viewBox="0 0 72 100" role="button" tabindex="0" aria-label="灯り"><title>灯り（押すと点く）</title>${lampArt(id)}</svg>
   <svg class="plant" viewBox="0 0 62 100" aria-hidden="true">${plantArt()}</svg>
   <svg class="candle" viewBox="0 0 44 100" role="button" tabindex="0" aria-label="ろうそく（おやすみタイマー）"><title></title>${candleArt()}</svg>
@@ -453,11 +461,11 @@ export function mountObjects(body: HTMLElement) {
   <svg class="cactus" viewBox="0 0 40 100"><title></title><g class="cc"></g></svg>
   <svg class="pothos" viewBox="0 0 56 100"><title></title><g class="pt"></g></svg>
   <svg class="vase" viewBox="0 0 46 100" role="button" tabindex="0" aria-label="季節の切り花（押すと水を替える）"><title></title><g class="vs"></g></svg>
-</div>
-<div class="objs-board"></div></div>`;
+</div>`;
 
-  const root = body.querySelector<HTMLElement>(".objs")!;
-  const $ = <T extends Element>(s: string) => root.querySelector<T>(s)!;
+  const root = stash;
+  root.querySelectorAll<SVGSVGElement>(".goods > svg").forEach(el => { const k = el.classList[0]; el.dataset.goods = k; els.set(k, el); });
+  const $ = <T extends Element>(sel: string) => root.querySelector<T>(sel)!;
   const press = (el: Element, fn: () => void) => {
     el.addEventListener("click", fn);
     el.addEventListener("keydown", e => { const k = (e as KeyboardEvent).key; if (k === "Enter" || k === " ") { e.preventDefault(); fn(); } });
@@ -466,7 +474,7 @@ export function mountObjects(body: HTMLElement) {
 
   // ---------- 灯り: 押すと点く・消える。覚えておく ----------
   const lamp = $<SVGSVGElement>(".lamp"), cone = $<SVGPolygonElement>(".lamp .cone");
-  const paintLamp = () => { lamp.classList.toggle("on", state.lamp); root.classList.toggle("lit", state.lamp); lamp.setAttribute("aria-pressed", String(state.lamp)); };
+  const paintLamp = () => { lamp.classList.toggle("on", state.lamp); document.documentElement.classList.toggle("lamp-lit", state.lamp); lamp.setAttribute("aria-pressed", String(state.lamp)); };
   press(lamp, () => { state.lamp = !state.lamp; patch({ lamp: state.lamp }); paintLamp(); });
   paintLamp();
 
@@ -611,7 +619,7 @@ export function mountObjects(body: HTMLElement) {
     atitle.textContent = n ? `賞状（${n} 枚。押すと証書を見る）` : "";
   };
   press(award, () => { award.classList.remove("new"); openCertificate(); });
-  const onAward = () => { if (!root.isConnected) { document.removeEventListener("kona:award", onAward); return; } award.classList.add("new"); paintAward(); arrange(); };
+  const onAward = () => { if (!root.isConnected) { document.removeEventListener("kona:award", onAward); return; } award.classList.add("new"); paintAward(); document.dispatchEvent(new CustomEvent("kona:objects")); }; // 賞状を置ける棚を描き直す
   document.addEventListener("kona:award", onAward);
   paintAward();
 
@@ -648,17 +656,6 @@ export function mountObjects(body: HTMLElement) {
   const mothG = $<SVGGElement>(".moths"), moths = [...mothG.querySelectorAll<SVGGElement>(".moth")];
   const mothNight = () => { const d = new Date(), h = d.getHours() + d.getMinutes() / 60; return seasonOf(d) === "summer" && (h >= 19.5 || h < 4.5); };
   let mothOn = 0;
-
-  // 設定で外した小物は置かない。並べる幅から大きさを決める
-  const arrange = () => {
-    let units = 0;
-    // 賞状は届いてから立つ
-    for (const o of OBJECTS) { const on = objectShown(o.key) && (o.key !== "award" || awards().length > 0); $<SVGSVGElement>(`.${o.key}`).style.display = on ? "" : "none"; if (on) units += o.w + 14; }
-    root.style.setProperty("--units", String(Math.max(60, units)));
-  };
-  const onChange = () => root.isConnected ? arrange() : document.removeEventListener("kona:objects", onChange);
-  document.addEventListener("kona:objects", onChange);
-  arrange();
 
   const calm = { get matches() { return reduceMotion(); } };
   let loud = 0, slow = 0, play = 0, last = performance.now(), lastMinute = -1;
@@ -830,4 +827,18 @@ export function mountObjects(body: HTMLElement) {
       mo.setAttribute("transform", `translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(.9 ${flap.toFixed(2)})`);
     });
   });
+}
+
+/** 置ける小物か（賞状は届いてから立つ） */
+export const objectAvailable = (key: string) => key !== "award" || awards().length > 0;
+
+/** その棚に置く小物を、並べた順に立てる。ほかの棚にあったものはこちらへ移る */
+export function placeObjects(box: HTMLElement, keys: readonly string[]) {
+  mountObjects();
+  const want = keys.filter(k => els.has(k) && objectAvailable(k));
+  for (const el of [...box.children]) if (!want.includes((el as SVGElement).dataset.goods ?? "")) stash!.firstElementChild!.append(el);
+  want.forEach((k, i) => { const el = els.get(k)!; if (box.children[i] !== el) box.insertBefore(el, box.children[i] ?? null); });
+  // 並べる幅から大きさを決める（w は高さ 100 に対する幅）
+  box.style.setProperty("--units", String(Math.max(60, want.reduce((n, k) => n + (OBJECTS.find(o => o.key === k)?.w ?? 50) + 14, 0))));
+  box.hidden = !want.length;
 }
