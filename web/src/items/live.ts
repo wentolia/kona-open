@@ -140,3 +140,25 @@ export function lamp(svg: SVGSVGElement, key: string, size = 10): LiveTick {
     for (const b of bulbs) b.style.filter = `brightness(${(.78 + .3 * k).toFixed(3)})`;
   };
 }
+
+/** 猫のおもちゃ: 中の <i data-cat-toy> を猫が叩いたとき（cat.ts が "kona:bat" を出す）と、押したときに fn(dir, power)。
+ *  dir は絵の中での向き（左右反転していれば逆にする）、power は 0〜1.3。
+ *  押すと叩いたのと同じように動き（転がるものは room-things.ts が床の上を転がす）、近くの遊び好きな猫が寄ってくる（"kona:toy"） */
+export function toy(svg: SVGSVGElement, fn: (dir: 1 | -1, power: number) => void) {
+  const host = svg.closest<HTMLElement>(".thing, .g-art") ?? svg.parentElement;
+  if (!host) return;
+  host.addEventListener("kona:bat", e => {
+    const d = (e as CustomEvent<{ dir?: number; power?: number }>).detail ?? {}, flip = host.classList.contains("flip") ? -1 : 1;
+    fn((d.dir ?? 1) * flip < 0 ? -1 : 1, Math.max(0, Math.min(1.3, d.power ?? 1)));
+  });
+  onPress(svg, () => {
+    const mark = host.querySelector<HTMLElement>("[data-cat-toy]");
+    (mark ?? host).dispatchEvent(new CustomEvent("kona:bat", { bubbles: true, detail: { dir: Math.random() < .5 ? -1 : 1, power: .7 } }));
+    if (mark) document.dispatchEvent(new CustomEvent("kona:toy", { detail: mark }));
+  });
+}
+/** ばねのように揺れて止まる値（叩くと v に勢いを足す）。k は硬さ、damp は減衰 */
+export function wobble(k = 60, damp = 4) {
+  const w = { x: 0, v: 0, step(dt: number, goal = 0) { w.v += (-(w.x - goal) * k - w.v * damp) * dt; w.x += w.v * dt; return w.x; } };
+  return w;
+}

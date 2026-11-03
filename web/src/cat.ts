@@ -434,6 +434,7 @@ interface Cat {
   hunger: number;              // お腹の空き具合（0〜1）。0.75 を超えるとごはんへ行く
   gs: { mode: number; from: number; until: number }; // 自分の毛づくろいの段取り（0: 前脚を舐める 1: 顔を洗う 2: 肩を舐める）
   stage?: { sleep: number; pup?: Pup };
+  toy?: { el: HTMLElement; until: number; n: number }; // 遊んでいるおもちゃ（[data-cat-toy]）。n は続けて叩いた回数
   napAcc?: number;             // 棚板で眠った秒数（跡を残すためにためておく）   // 起動画面の猫: ホームの外で、決まった段取り（眠る → あくび → 起きる）だけをする
 }
 let pointerAt = 0;             // カーソルが最後に動いた時刻
@@ -477,7 +478,7 @@ function measure(c: Cat): Plat[] {
   const PULL: Partial<Record<Plat["kind"], number>> = { perch: 1.9, bed: 1.5, pad: .8, deck: .6, box: 2.6 };
   for (const e of c.grid.querySelectorAll<HTMLElement>("[data-cat-plat]")) {
     const r = e.getBoundingClientRect(), kind = e.dataset.catPlat as Plat["kind"];
-    if (r.width < 40 || !(kind in PULL)) continue;
+    if (r.width < (kind === "perch" ? 28 : 40) || !(kind in PULL)) continue; // 高い段は細くても乗れる（キャットウォーク）
     out.push({ el: e, kind, y: r.top - g.top + Number(e.dataset.sink ?? 0), x0: r.left - g.left + 2, x1: r.right - g.left - 2, pull: PULL[kind]!, rim: kind === "box" ? r.top - g.top : undefined });
   }
   // 床（部屋の床を敷いているときは、その面の奥寄りに立つ）
@@ -675,7 +676,7 @@ function next(c: Cat): void {
       return go(c, Math.random() < .5 + P.sleepy * .4 ? "sleep" : "lie");
     }
     case "play": return endPlay(c);
-    case "poke": return endPoke(c);
+    case "poke": return c.toy ? endToy(c) : endPoke(c);
     case "stalk": return pounce(c);
     case "annoyed": return stalkOff(c);
     case "stretch": c.woke = false; return go(c, "stand", rnd(.8, 2));
@@ -715,6 +716,8 @@ function next(c: Cat): void {
     if (Math.random() < .05 + (c.woke ? .3 : 0) * (c.state === "stand" ? 1 : 0) && goScratch(c)) { c.woke = false; return; }
     if (c.state === "sit" && Math.random() < .12 + P.sleepy * .2 && goBed(c)) return;
     if (p.kind === "perch" && Math.random() < .1 + P.playful * .25 && batToy(c)) return;
+    // 床のおもちゃ（毛糸玉・ねずみ・ばね…）を見つけると、忍び寄って叩く。遊び好きな子ほどよく遊び、静かな曲ではあまり遊ばない
+    if (Math.random() < (.04 + P.playful * .12) * activity() * (1 - .7 * ear.calm) && goToy(c)) return;
   }
   // 箱を見つけると入りたくなる。昼間は日の当たる所へ移って、ぬくぬくする
   if ((c.state === "stand" || c.state === "sit") && !c.with && p.kind !== "box" && Math.random() < .06 + P.curious * .1 && goBox(c)) return;
@@ -1390,9 +1393,9 @@ function prey(c: Cat): boolean {
 // 忍び寄りの終わり: まだ獲物がそこにいたら、お尻を振って跳びかかり、前脚で押さえる
 function pounce(c: Cat) {
   const p = c.cur!;
-  if (!prey(c) || Math.abs(target(c)![0] - c.x) > REACH_X) return go(c, Math.random() < .5 ? "sit" : "stand");
+  if (!prey(c) || Math.abs(target(c)![0] - c.x) > REACH_X) { c.toy = undefined; return go(c, Math.random() < .5 ? "sit" : "stand"); }
   const tx = clamp(target(c)![0] - c.dir * 14 * c.s, lo(p), hi(p));
-  leap(c, p, tx, () => { go(c, "poke", rnd(1, 1.6)); kickFeather(c); }, { prep: .12, wig: rnd(.3, .55) });
+  leap(c, p, tx, () => { go(c, "poke", rnd(1, 1.6)); kickFeather(c); hitToy(c); }, { prep: .12, wig: rnd(.3, .55) });
 }
 // 撫ですぎて怒ったあと: その場を離れて、気を取り直すように身づくろいする
 function stalkOff(c: Cat) {
@@ -1477,8 +1480,8 @@ function goEat(c: Cat): boolean {
 }
 // 爪とぎ: 段ボールの上に乗って、前脚で引っかく
 function goScratch(c: Cat): boolean {
-  const pad = c.plats.find(p => p.kind === "pad");
-  if (!pad || occupied(c, pad)) return false;
+  const pads = c.plats.filter(p => p.kind === "pad" && !occupied(c, p)), pad = pads[Math.floor(Math.random() * pads.length)]; // 爪とぎ・波形の爪とぎ
+  if (!pad) return false;
   travel(c, pad, (lo(pad) + hi(pad)) / 2 + rnd(-10, 10), () => { go(c, "scratch"); tellFurniture("scratch"); }, () => go(c, "sit"));
   return true;
 }
@@ -1500,6 +1503,68 @@ function batToy(c: Cat): boolean {
   walkTo(c, x, () => { c.dir = tx < c.x ? -1 : 1; go(c, "poke", rnd(1.2, 2)); setTimeout(() => tellFurniture("toy"), 250); });
   return true;
 }
+// ---------- おもちゃ ----------
+// 床に置いたおもちゃ（items/ の <i data-cat-toy>）。遊び好きな子は離れた所から身を伏せて忍び寄り、お尻を振って跳びかかる。
+// のんびりした子は横まで歩いていって、前脚でちょいと叩く。叩くと "kona:bat" を出し、転がるものは転がっていく（room-things.ts）。
+// 転がったら追いかけて、また叩く（遊び好きほど続ける）
+const toyAt = (c: Cat): [number, number] | undefined => {
+  const t = c.toy;
+  if (!t || !t.el.isConnected || performance.now() > t.until) return undefined;
+  const g = c.grid.getBoundingClientRect(), r = t.el.getBoundingClientRect();
+  return [r.left + r.width / 2 - g.left, c.cur ? c.cur.y - 6 : r.top - g.top];
+};
+const toysOf = (c: Cat) => [...c.grid.querySelectorAll<HTMLElement>("[data-cat-toy]")].filter(e => e.getBoundingClientRect().width > 0 && !cats.some(o => o !== c && o.toy?.el === e));
+function goToy(c: Cat, el?: HTMLElement, n = 0): boolean {
+  const list = el ? [el] : toysOf(c), toy = list[Math.floor(Math.random() * list.length)];
+  if (!toy || !c.cur) return false;
+  const g = c.grid.getBoundingClientRect(), r = toy.getBoundingClientRect(), tx = r.left + r.width / 2 - g.left, ty = r.bottom - g.top;
+  // おもちゃの載っている足場: 真下の近いもの（床のおもちゃなら床）
+  const dest = c.plats.filter(p => p.kind !== "box" && tx >= p.x0 - 10 && tx <= p.x1 + 10 && Math.abs(p.y - ty) < 90)
+    .sort((a, b) => Math.abs(a.y - ty) - (a.kind === "floor" ? 20 : 0) - (Math.abs(b.y - ty) - (b.kind === "floor" ? 20 : 0)))[0];
+  if (!dest) return false;
+  const side = samePlat(c.cur, dest) ? (c.x < tx ? -1 : 1) : Math.random() < .5 ? -1 : 1;
+  let stalk = !c.reduced && Math.random() < .25 + .6 * c.p.playful;
+  let x = tx + side * (stalk ? rnd(130, 175) * c.s / S : 16 * c.s + r.width * .3);
+  if (x < lo(dest) || x > hi(dest)) { // 壁ぎわ: 反対側から
+    const o = tx - side * (stalk ? rnd(130, 175) * c.s / S : 16 * c.s + r.width * .3);
+    if (o >= lo(dest) && o <= hi(dest)) x = o; else { stalk = false; x = clamp(x, lo(dest), hi(dest)); }
+  }
+  c.toy = { el: toy, until: performance.now() + 25000, n };
+  travel(c, dest, x, () => {
+    const t = toyAt(c);
+    if (!t) { c.toy = undefined; return go(c, "sit"); }
+    c.dir = t[0] < c.x ? -1 : 1;
+    if (stalk && prey(c)) return go(c, "stalk");
+    go(c, "poke", rnd(1.1, 1.8)); setTimeout(() => hitToy(c), 250);
+  }, () => { c.toy = undefined; go(c, "sit"); }, 8, n > 0);
+  return true;
+}
+function hitToy(c: Cat) {
+  if (!toyAt(c)) return;
+  c.toy!.el.dispatchEvent(new CustomEvent("kona:bat", { bubbles: true, detail: { dir: c.dir, power: .55 + .6 * c.p.energy * Math.random() + .15 } }));
+}
+function endToy(c: Cat) {
+  const t = c.toy!;
+  c.toy = undefined;
+  release(c);
+  // 転がったおもちゃを追いかける。3 回ほどで気が済んで、座って身づくろい
+  if (t.el.isConnected && t.n < 3 && Math.random() < (.3 + .5 * c.p.playful) * Math.min(1, activity())) {
+    const el = t.el;
+    go(c, "stand", rnd(.4, 1.2));
+    setTimeout(() => { if (c.cur && c.state === "stand" && !c.with && !c.chase && !c.fetch) goToy(c, el, t.n + 1); }, rnd(300, 900));
+    return;
+  }
+  go(c, Math.random() < .5 ? "sit" : "selfgroom");
+}
+// おもちゃを押すと、起きている遊び好きな子が気づいて寄ってくる
+document.addEventListener("kona:toy", e => {
+  const el = (e as CustomEvent<HTMLElement>).detail;
+  const awake = cats.filter(c => c.cur && !c.stage && !c.reduced && !busy(c) && c.state !== "sleep" && !c.toy && Math.random() < .35 + .6 * c.p.playful);
+  const g = awake[0]?.grid.getBoundingClientRect(), r = el.getBoundingClientRect(), tx = g ? r.left + r.width / 2 - g.left : 0;
+  const c = awake.sort((a, b) => Math.abs(a.x - tx) - Math.abs(b.x - tx))[0];
+  if (c) setTimeout(() => { if (c.cur && !busy(c) && c.state !== "sleep") goToy(c, el); }, rnd(400, 1600));
+});
+
 // ごはんを入れた音で、お腹の空いた子（と、食いしん坊の好奇心旺盛な子）が寄ってくる
 document.addEventListener("kona:feed", () => {
   for (const c of cats) {
@@ -2132,7 +2197,7 @@ function wandMove(e: PointerEvent) { if (wand) { wand.px = e.clientX; wand.py = 
 addEventListener("keydown", e => { if (e.key === "Escape" && wand) toggleWand(false); });
 /** 狙う相手: 猫じゃらしを出していれば羽根、なければカーソル（grid の座標） */
 function target(c: Cat): [number, number] | undefined {
-  if (!wand) return c.mouse;
+  if (!wand) return toyAt(c) ?? c.mouse;
   const g = c.grid.getBoundingClientRect();
   return [wand.fx - g.left, wand.fy - g.top];
 }
