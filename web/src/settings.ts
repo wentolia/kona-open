@@ -6,7 +6,8 @@ import { PALETTES, CUSTOM, themePrefs, setThemePrefs, paletteColors, toHex, type
 import { roomLightOn, setRoomLight } from "./mod-window";
 import { SHELF_SKINS, shelfSkin, setShelfSkin } from "./shelf-skin";
 import { WALLS, FLOORS, roomSurface, setRoomSurface } from "./room-surface";
-import { THINGS, countOf, toggleThing, thingThumb } from "./room-things";
+import { THINGS, countOf, thingThumb } from "./room-things";
+import { stowObject, stowThing } from "./stow";
 import { OBJECTS, objectAvailable, objectArt } from "./mod-objects";
 import { chimeOn, setChime } from "./mod-clock";
 import { prefs, setPrefs, type Prefs } from "./prefs";
@@ -44,7 +45,7 @@ export interface ModuleHooks {
 export interface SettingsHooks {
   player: Player;
   /** 棚の小物: 置いてある棚の名前、しまう */
-  goods: { shelfOf(key: string): string | undefined; putAway(key: string): void };
+  goods: { shelfOf(key: string): string | undefined };
   modules: ModuleHooks;
   /** 猫と遊ぶ（ホームの「＋」にあったもの） */
   play: { canPick(): boolean; pick(): void; wandOn(): boolean; toggleWand(): void };
@@ -145,16 +146,16 @@ function roomTab() {
       </div>`)}`;
 }
 
-// 置くもの: 小物と家具の見本を並べ、ホームの棚・床へドラッグして置く。見本を押すか、ホームからここへ戻すとしまう。
+// 置くもの: 小物と家具の見本を並べ、ホームの棚・床へドラッグして置く。見本を押すか、ホームからここへ戻すとしまう（ホームのボタンでも。stow.ts）。
 // 位置は自動（家具は床で左右に動かせる）、大きさはホームで角のつまみを引いて変える（size-knob.ts）
 function putBlock(h: SettingsHooks) {
   const tile = (id: string, label: string, at: string | undefined, art: string) =>
-    `<button type="button" class="set-put${at ? " placed" : ""}" data-put="${id}" aria-pressed="${!!at}" title="${esc(at ? `${label}（${at}）。押すとしまう` : `${label}: ホームへドラッグして置く`)}">
+    `<button type="button" class="set-put${at ? " placed" : ""}" data-put="${id}" aria-pressed="${!!at}" title="${esc(at ? `${label}（${at}）。押すと${/^\d+$/.test(at) ? "すべて" : ""}しまう` : `${label}: ホームへドラッグして置く`)}">
       <span class="set-put-art">${art}</span><span class="set-put-label">${esc(label)}</span>${at && /^\d+$/.test(at) ? `<span class="set-put-n">×${at}</span>` : ""}</button>`;
   const placed = (k: string) => { const n = countOf(k); return n ? (n > 1 ? `${n}` : t("置いた")) : undefined; };
   const things = (at: string) => THINGS.filter(x => x.at === at && regionAllows(x.key) && presentAllows(x.key)).map(x => tile(`thing:${x.key}`, t(x.label), placed(x.key), "")).join("");
   return `
-    <p class="set-note">${t("ホームの棚・床・壁へドラッグして置く（家具はいくつでも）。ここへ戻すとしまう。ダブルクリックで左右を反転")}</p>
+    <p class="set-note">${t("ホームの棚・床・壁へドラッグして置く（家具はいくつでも）。しまうときは、ホームで品の左上の箱を押すか、ここへ戻す。ダブルクリックで左右を反転")}</p>
     <div class="set-puts-head">${t("棚に置く")}</div>
     <div class="set-puts">${OBJECTS.filter(o => objectAvailable(o.key)).map(o => tile(`obj:${o.key}`, t(o.label.replace(/（.*）/, "")), h.goods.shelfOf(o.key), "")).join("")}</div>
     <div class="set-checks">${check("set-chime", chimeOn(), t("時計が正時に鐘を鳴らす"))}</div>
@@ -492,7 +493,7 @@ function wire(el: HTMLElement) {
     if (b.dataset.dragged) { delete b.dataset.dragged; return; }
     if (b.getAttribute("aria-pressed") !== "true") return;
     const [kind, k] = b.dataset.put!.split(":");
-    if (kind === "obj") h.goods.putAway(k); else toggleThing(k, false);
+    if (kind === "obj") stowObject(k); else stowThing({ kind: k });
     again();
   });
 

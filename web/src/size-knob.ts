@@ -1,11 +1,13 @@
 // ホームで直接さわる: 棚の小物と床の家具にカーソルを乗せると、右上の角につまみが出る。
 // つまみを右上へ引くと大きく、左下へ押すと小さくなる（50〜150%。ダブルクリックで 100% に戻す）。
 // 床の家具は左右と奥行き（上下）に、壁のものは上下左右にドラッグして置き場所を変えられる。ダブルクリックで左右を反転。
+// 左上の角には「しまう」ボタンが出る。動かしている間は画面の上に受け皿が出て、そこ（か設定の上）で放すとしまう（stow.ts）。
 // 何を置くかは設定で選ぶ。位置（棚の小物）は自動
 import "./size-knob.css";
 import { objectSize, setObjectSize, SIZE_MIN, SIZE_MAX } from "./mod-objects";
-import { thingSize, thingOf, setThing, removeThing, flipThing, canFlip, defOf, THING_MIN, THING_MAX } from "./room-things";
-import { renderSettings } from "./settings";
+import { thingSize, thingOf, setThing, flipThing, canFlip, defOf, THING_MIN, THING_MAX } from "./room-things";
+import { stowObject, stowThing, showTray, overTray, BOX_SVG } from "./stow";
+import { t as tr } from "./i18n";
 import { clamp } from "./dom";
 
 type Target = { el: HTMLElement | SVGElement; kind: "obj" | "thing"; key: string };
@@ -22,7 +24,7 @@ const sizeOf = (t: Target) => t.kind === "obj" ? objectSize(t.key) : thingSize(t
 const range = (t: Target) => t.kind === "obj" ? [SIZE_MIN, SIZE_MAX] : [THING_MIN, THING_MAX];
 const setSize = (t: Target, v: number, done = false) => t.kind === "obj" ? setObjectSize(t.key, v) : setThing(t.key, { s: v }, done);
 
-let knob: HTMLButtonElement | undefined;
+let knob: HTMLButtonElement | undefined, stow: HTMLButtonElement | undefined;
 let cur: Target | undefined;
 let busy = false, hideT = 0;
 
@@ -32,15 +34,17 @@ function place() {
   const r = cur.el.getBoundingClientRect();
   knob.style.left = `${Math.round(r.right - 8)}px`;
   knob.style.top = `${Math.round(r.top - 8)}px`;
+  if (stow) { stow.style.left = `${Math.round(r.left - 11)}px`; stow.style.top = `${Math.round(r.top - 11)}px`; }
 }
 function show(t: Target) {
   if (!knob) return;
   cur = t;
   knob.dataset.v = `${Math.round(sizeOf(t) * 100)}%`;
   knob.hidden = false;
+  if (stow) stow.hidden = false;
   place();
 }
-function hide() { if (knob && !busy) { knob.hidden = true; knob.classList.remove("active"); cur = undefined; } }
+function hide() { if (knob && !busy) { knob.hidden = true; knob.classList.remove("active"); if (stow) stow.hidden = true; cur = undefined; } }
 
 export function initSizeKnob() {
   if (knob) return;
@@ -48,12 +52,24 @@ export function initSizeKnob() {
   knob.type = "button"; knob.className = "size-knob"; knob.hidden = true;
   knob.setAttribute("aria-label", "大きさを変える"); knob.title = "引いて大きさを変える（ダブルクリックで元の大きさ）";
   document.body.append(knob);
+  // しまうボタン: 押すとその 1 つだけをしまう（元に戻せる）
+  stow = document.createElement("button");
+  stow.type = "button"; stow.className = "stow-btn"; stow.hidden = true; stow.innerHTML = BOX_SVG;
+  stow.setAttribute("aria-label", tr("しまう")); stow.dataset.label = tr("しまう");
+  document.body.append(stow);
+  stow.addEventListener("click", e => {
+    e.stopPropagation();
+    const c = cur;
+    if (!c) return;
+    busy = false; hide();
+    if (c.kind === "obj") stowObject(c.key); else stowThing({ id: c.key });
+  });
 
   document.addEventListener("pointerover", e => {
     if (busy || (e as PointerEvent).pointerType === "touch") return;
     const t = targetOf(e.target);
     if (t) { clearTimeout(hideT); show(t); }
-    else if (e.target !== knob) { clearTimeout(hideT); hideT = window.setTimeout(hide, 500); }
+    else if (e.target !== knob && !(e.target as Element)?.closest?.(".stow-btn")) { clearTimeout(hideT); hideT = window.setTimeout(hide, 500); }
   });
   addEventListener("scroll", () => place(), true);
   addEventListener("resize", () => place());
@@ -91,19 +107,22 @@ export function initSizeKnob() {
     let moving = false, x = it.x, y = it.y ?? 0, d = d0;
     const move = (ev: PointerEvent) => {
       if (!moving && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
-      if (!moving) { moving = true; busy = true; el.classList.add("moving"); document.body.classList.add("arranging"); }
+      if (!moving) { moving = true; busy = true; el.classList.add("moving"); document.body.classList.add("arranging"); showTray(true); }
       const L = layer.getBoundingClientRect(), r = el.getBoundingClientRect();
       x = clamp((ev.clientX - offX - L.left) / Math.max(1, L.width - r.width), 0, 1);
       if (wall) y = clamp((ev.clientY - offY - L.top) / Math.max(1, L.height - r.height), 0, 1);
       if (deep) d = Math.round(clamp(d0 - (ev.clientY - sy) / 60, 0, 1) * 20) / 20;
       setThing(t.key, wall ? { x, y } : deep ? { x, d } : { x }); place();
+      overTray(ev.clientX, ev.clientY);
     };
     const up = (ev: PointerEvent) => {
       removeEventListener("pointermove", move); removeEventListener("pointerup", up); removeEventListener("pointercancel", up);
       if (!moving) return;
       busy = false; el.classList.remove("moving"); document.body.classList.remove("arranging");
-      // 設定の上で放したらしまう
-      if (document.elementsFromPoint(ev.clientX, ev.clientY).some(n => n.closest("#view-settings .set"))) { hide(); removeThing(t.key); renderSettings(); return; }
+      const away = overTray(ev.clientX, ev.clientY) || document.elementsFromPoint(ev.clientX, ev.clientY).some(n => n.closest("#view-settings .set"));
+      showTray(false);
+      // 受け皿か設定の上で放したらしまう。動かす前の場所を覚えてから（元に戻すと、そこへ戻る）
+      if (away) { hide(); setThing(t.key, { x: it.x, y: it.y, d: d0 }); stowThing({ id: t.key }); return; }
       setThing(t.key, wall ? { x, y } : deep ? { x, d } : { x }, true); place();
     };
     addEventListener("pointermove", move); addEventListener("pointerup", up); addEventListener("pointercancel", up);

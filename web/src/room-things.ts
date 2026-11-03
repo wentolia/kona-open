@@ -102,11 +102,19 @@ export function addThing(k: string, p: { x?: number; d?: number; y?: number } = 
   save(items); paint(true);
   return id;
 }
-export function removeThing(id: string) { save(load().filter(i => i.id !== id)); paint(true); }
-/** 種類ごと置く / しまう（しまうときは、その種類をすべて） */
-export function toggleThing(k: string, on: boolean) {
-  if (on) { if (!countOf(k)) addThing(k); return; }
-  save(load().filter(i => i.k !== k)); paint(true);
+/** ひとつしまう。しまったものを返す（元に戻すため） */
+export function removeThing(id: string): Item[] { const all = load(), out = all.filter(i => i.id === id); save(all.filter(i => i.id !== id)); paint(true); return out; }
+/** 種類ごと置く / しまう（しまうときは、その種類をすべて）。しまったものを返す */
+export function toggleThing(k: string, on: boolean): Item[] {
+  if (on) { if (!countOf(k)) addThing(k); return []; }
+  const all = load(), out = all.filter(i => i.k === k);
+  save(all.filter(i => i.k !== k)); paint(true);
+  return out;
+}
+/** しまったものを、同じ場所・大きさ・向きのまま置き直す（元に戻す） */
+export function restoreThings(items: Item[]) {
+  const all = load();
+  save(clean([...all, ...items.filter(i => !all.some(a => a.id === i.id))])); paint(true);
 }
 export function flipThing(id: string) {
   const items = load(), it = items.find(i => i.id === id);

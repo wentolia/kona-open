@@ -1,0 +1,27 @@
+/* しまうボタン: 小物・家具にカーソルを乗せると、左上の角に出る（右上は大きさのつまみ） */
+.stow-btn {
+  position: fixed; z-index: 40; width: 22px; height: 22px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+  cursor: pointer; opacity: .85; transition: opacity .15s, transform .15s, color .15s;
+}
+.stow-btn[hidden] { display: none; }
+.stow-btn:hover, .stow-btn:focus-visible { opacity: 1; transform: scale(1.1); color: var(--accent); border-color: var(--accent); }
+.stow-btn::after {
+  content: attr(data-label); position: absolute; right: 28px; top: 1px; padding: 1px var(--sp-1h); border-radius: var(--r-sm);
+  font-size: 11px; line-height: 1.5; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s;
+}
+.stow-btn:hover::after { opacity: 1; }
+body.arranging .stow-btn, body.putting .stow-btn { display: none; }
+
+/* 受け皿: ドラッグの間だけ、画面の上の真ん中（見出しのすぐ下）に出る。床の家具を左右に動かしても重ならないように上に。上に来ると光る */
+.stow-tray {
+  position: fixed; left: 50%; top: 80px; z-index: 65; transform: translate(-50%, -12px); opacity: 0;
+  display: flex; align-items: center; gap: var(--sp-1h); padding: var(--sp-1h) var(--sp-3);
+  font-size: 12px; color: var(--muted); background: var(--panel); border: 1.5px dashed var(--line); border-radius: var(--r-md);
+  box-shadow: 0 8px 24px -10px rgba(0, 0, 0, .6); transition: opacity .15s, transform .15s, color .15s, border-color .15s;
+}
+.stow-tray.in { opacity: 1; transform: translate(-50%, 0); }
+.stow-tray.over { color: var(--accent); border-color: var(--accent); border-style: solid; transform: translate(-50%, 0) scale(1.06); }
+.stow-tray svg { width: 16px; height: 16px; }

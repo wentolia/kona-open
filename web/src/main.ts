@@ -36,6 +36,7 @@ import { roomSurface, setRoomSurface } from "./room-surface";
 import { placeObjects, legacyShown, markPlaced, objectAvailable, objectSize, OBJECTS } from "./mod-objects";
 import { initSizeKnob } from "./size-knob";
 import { initPlaceDrag } from "./place-drag";
+import { initStow } from "./stow";
 import { spectrumPrefs, setSpectrumPrefs, type SpectrumPrefs } from "./mod-spectrum";
 import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeDrive } from "./drive-ui";
 import { isDriveEntry, isKept, keepAlbum, forgetAlbum, driveConfig, driveToken, walkDrive, type DriveEntry } from "./drive";
@@ -1908,7 +1909,7 @@ setCatHooks({
 // ---------- 設定ページ ----------
 initSettings($("#view-settings"), {
   player,
-  goods: { shelfOf: k => modules.find(m => m.goods?.includes(k))?.title, putAway: k => putObject(k) },
+  goods: { shelfOf: k => modules.find(m => m.goods?.includes(k))?.title },
   modules: {
     tree: () => {
       const item = (d: ModuleDef) => ({ id: d.id, title: d.title, label: tr(isShelf(d) ? kindLabel(d.kind) : moduleInfo(d.type).label) });
@@ -2020,6 +2021,10 @@ async function boot() {
 boot();
 
 // ホームで直接: 小物・家具の大きさのつまみ、設定の「置くもの」からドラッグで置く
+initStow({
+  putObject: (k, shelf, at) => putObject(k, shelf, at), toast,
+  placeOf: k => { const m = modules.find(x => x.goods?.includes(k)); return m ? { shelf: m.id, at: m.goods!.indexOf(k) } : undefined; },
+});
 initSizeKnob();
 initPlaceDrag({ putObject, isShelf: id => !!shelfById(id), shelfOf: k => modules.find(m => m.goods?.includes(k))?.id });
 // 小物の大きさを変えたら、アルバムのあいだの隙間も合わせる
