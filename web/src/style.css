@@ -360,9 +360,8 @@ body:is([data-view="home"], [data-view="settings"]) .np-footer { display: none; 
 .np-art > .art-blank { display: grid; place-items: center; font-size: 11px; padding: 8px; text-align: center; overflow: hidden; }
 .np-main { min-width: 0; display: grid; gap: 8px; align-content: center; }
 .np-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-/* 曲目は横に段組みして、段の高さに収める */
-.np-tracks { height: 128px; columns: 220px; column-gap: 20px; column-fill: auto; overflow-x: auto; overflow-y: hidden; border-left: 1px solid var(--soft); padding-left: 20px; }
-.np-tracks li { break-inside: avoid; }
+/* 曲目は縦に 1 列。収まらないときは下へスクロールして一覧する */
+.np-tracks { height: 128px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; border-left: 1px solid var(--soft); padding-left: 20px; }
 .np-meta { min-width: 0; display: grid; gap: 2px; }
 .np-album { font-size: 17px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .np-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
