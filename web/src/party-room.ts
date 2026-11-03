@@ -218,12 +218,13 @@ export class Room {
     $<HTMLFormElement>("#pr-find").onsubmit = e => e.preventDefault();
     addEventListener("keydown", this.onKey, true);
     if (!this.rows) this.o.want({ t: "home" });
-    this.drawSpace();
+    if (!this.homeView) this.drawSpace();   // ホストは want の中で写しを描き終えている
     this.refresh();
   }
   close() {
     for (const p of this.pups.values()) p.remove();
     this.pups.clear();
+    this.homeView?.dispose();
     this.el?.remove(); this.el = this.stage = this.space = undefined; this.homeView = undefined;
     clearTimeout(this.lookT); this.lookT = 0;
     removeEventListener("keydown", this.onKey, true);
@@ -241,7 +242,7 @@ export class Room {
     if (!this.stage) return;
     for (const p of this.pups.values()) p.remove();
     this.pups.clear();
-    this.homeView = undefined;
+    this.homeView?.dispose(); this.homeView = undefined;
     this.stage.replaceChildren();
     if (this.rows) {
       this.homeView = buildHome(this.rows, this.albums, { cover: id => this.wantCover(id), open: id => this.openCard(id) });

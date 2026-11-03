@@ -16,7 +16,7 @@
 //  夏の夜に灯りを点けていると、小さな虫が寄ってくる
 
 import "./mod-objects.css";
-import { ctx, everyFrame, esc, fmt } from "./modctx";
+import { ctx, everyFrame, esc, fmt, onDocument } from "./modctx";
 import { playLog, listenedSeconds } from "./store";
 import { reduceMotion } from "./prefs";
 import { awards, openCertificate } from "./awards";
@@ -619,8 +619,7 @@ function mountObjects() {
     atitle.textContent = n ? `賞状（${n} 枚。押すと証書を見る）` : "";
   };
   press(award, () => { award.classList.remove("new"); openCertificate(); });
-  const onAward = () => { if (!root.isConnected) { document.removeEventListener("kona:award", onAward); return; } award.classList.add("new"); paintAward(); document.dispatchEvent(new CustomEvent("kona:objects")); }; // 賞状を置ける棚を描き直す
-  document.addEventListener("kona:award", onAward);
+  onDocument(root, "kona:award", () => { award.classList.add("new"); paintAward(); document.dispatchEvent(new CustomEvent("kona:objects")); }); // 賞状を置ける棚を描き直す
   paintAward();
 
   // ---------- サボテン・ポトス・季節の切り花 ----------

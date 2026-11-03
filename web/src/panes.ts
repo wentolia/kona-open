@@ -27,6 +27,11 @@ export function unwatchRow(row: HTMLElement) {
   row.querySelectorAll(".spines").forEach(el => watch.unobserve(el));
 }
 
+/** container の中の窓の見張りをすべて外す（container を捨てる前に呼ぶ） */
+export function unwatchIn(container: HTMLElement) {
+  container.querySelectorAll<HTMLElement>(".spines, .row.two-panes").forEach(el => watch.unobserve(el));
+}
+
 /** 窓が1つの段 */
 export function mountSingle(pane: HTMLElement) {
   pane.addEventListener("scroll", () => hidePartials(pane), { passive: true });

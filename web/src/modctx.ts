@@ -27,6 +27,20 @@ export function fit(c: HTMLCanvasElement) {
   c.width = w; c.height = h; return true;
 }
 
+/** モジュールが document に付ける聞き耳。root が DOM から外れていたら、次に届いたときに外す。
+ *  まとめて捨てる写し（パーティーの部屋のホームの写しなど）は、捨てるときに releaseIn で外す */
+const docListeners = new Set<{ root: HTMLElement; type: string; h: (e: Event) => void }>();
+export function onDocument(root: HTMLElement, type: string, fn: (e: Event) => void) {
+  const entry = { root, type, h: (e: Event) => { if (!root.isConnected) { off(); return; } fn(e); } };
+  const off = () => { document.removeEventListener(type, entry.h); docListeners.delete(entry); };
+  docListeners.add(entry);
+  document.addEventListener(type, entry.h);
+}
+/** container の中のモジュールが付けた聞き耳を外す（container を捨てる前に呼ぶ） */
+export function releaseIn(container: HTMLElement) {
+  for (const e of [...docListeners]) if (container.contains(e.root)) { document.removeEventListener(e.type, e.h); docListeners.delete(e); }
+}
+
 /** 表示されている間だけ毎フレーム呼ぶ */
 export function everyFrame(root: HTMLElement, fn: () => void) {
   requestAnimationFrame(function frame() {

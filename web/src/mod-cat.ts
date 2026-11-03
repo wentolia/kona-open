@@ -4,6 +4,7 @@
 // ごはんを入れると "kona:feed" を出し、お腹の空いた猫が寄ってくる
 
 import "./mod-cat.css";
+import { onDocument } from "./modctx";
 
 const FOOD = "kona.catfood", SCRATCH = "kona.scratch";
 const num = (k: string, d: number) => { try { const v = Number(localStorage.getItem(k)); return Number.isFinite(v) && localStorage.getItem(k) !== null ? v : d; } catch { return d; } };
@@ -114,8 +115,7 @@ function bagArt(w: number, h: number) {
 type CatEvent = CustomEvent<{ kind: "eat" | "scratch" | "toy"; amount?: number }>;
 /** 家具が DOM から外れたら、聞くのをやめる */
 function listen(root: HTMLElement, f: (e: CatEvent) => void) {
-  const h = (e: Event) => { if (!root.isConnected) document.removeEventListener("kona:cat", h); else f(e as CatEvent); };
-  document.addEventListener("kona:cat", h);
+  onDocument(root, "kona:cat", e => f(e as CatEvent));
 }
 
 // ---------- キャットタワー ----------

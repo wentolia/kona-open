@@ -1296,7 +1296,8 @@ function addCat(grid: HTMLElement, coat: Coat, stage?: Cat["stage"], size = 1): 
       addEventListener("pointermove", onHoldMove); addEventListener("pointerup", onHoldEnd); addEventListener("pointercancel", onHoldEnd);
     }, 450);
   });
-  addEventListener("pointerup", () => clearTimeout(holdT));
+  const onUp = () => clearTimeout(holdT);
+  addEventListener("pointerup", onUp);
   el.addEventListener("click", e => {
     if (stage?.pup) return;
     if ((e.target as Element).closest(".cat-tag")) { e.stopPropagation(); openCard(c); return; }
@@ -1316,6 +1317,8 @@ function addCat(grid: HTMLElement, coat: Coat, stage?: Cat["stage"], size = 1): 
     removeEventListener("pointermove", onMove);
     document.documentElement.removeEventListener("pointerleave", onLeave);
     removeEventListener("resize", onResize);
+    removeEventListener("pointerup", onUp);
+    clearTimeout(holdT); clearTimeout(tagT);
     offMq();
   };
   if (!stage) cats.push(c);
@@ -2415,6 +2418,6 @@ export function puppetCat(room: HTMLElement, coat: Coat, at: { plat: number; fx:
     get where() {
       return { plat: pup.plat, fx: pup.fx, emote: pup.emote };
     },
-    remove() { clearTimeout(sayT); c.layer.remove(); },
+    remove() { clearTimeout(sayT); removeCat(c); },
   };
 }
