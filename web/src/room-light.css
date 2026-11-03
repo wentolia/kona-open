@@ -4,7 +4,7 @@
 .room-tint { mix-blend-mode: multiply; }
 .room-spill { mix-blend-mode: screen; }
 /* 窓から差し込む日差し: 加えて明るくし、ぼかして影のふちをやわらかく */
-.room-beam { width: 100vw; height: 100vh; filter: blur(5px); }
+.room-beam { width: 100vw; height: 100vh; filter: blur(14px); }
 .room-beam-air { mix-blend-mode: screen; }
 .room-beam-patch { mix-blend-mode: color-dodge; }
 body[data-mini] .room-light, body:not([data-state="ready"]) .room-light { display: none; }
