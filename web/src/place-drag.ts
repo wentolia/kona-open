@@ -44,17 +44,6 @@ function dropAt(x: number, y: number, src: Src, h: PlaceHooks): Drop {
   return undefined;
 }
 
-/** アルバムの並ぶ所に落としたなら、その棚の中の左右の位置（0 左端〜1 右端）。棚の右端の小物の所や、アルバムのない棚なら undefined */
-function anchorIn(mod: HTMLElement, x: number, y: number): number | undefined {
-  if (mod.dataset.kind === "goods") return undefined;
-  const end = mod.querySelector(".goods:not(.goods-float)");
-  if (end && !(end as HTMLElement).hidden) { const r = end.getBoundingClientRect(); if (x >= r.left - 4 && y >= r.top && y <= r.bottom) return undefined; }
-  const row = mod.querySelector<HTMLElement>(".shelf-line > .row");
-  if (!row || !row.querySelector(".spine")) return undefined;
-  const r = row.getBoundingClientRect();
-  return Math.round(Math.max(0.02, Math.min(0.98, (x - r.left) / Math.max(1, r.width))) * 1000) / 1000;
-}
-
 /** 落とした位置が、その棚の小物の中で何番目か（ドラッグしている小物自身は数えない） */
 function indexIn(mod: HTMLElement, x: number, self: Element) {
   const kids = [...mod.querySelectorAll(".goods > svg")].filter(e => e !== self);
@@ -101,7 +90,7 @@ export function initPlaceDrag(h: PlaceHooks) {
       setTimeout(() => removeEventListener("click", eat, { capture: true }), 300);
       if (ev.type === "pointercancel" || !drop) return;
       if (src.kind === "obj") {
-        if (drop.to === "shelf") h.putObject(src.key, drop.id, indexIn(drop.mod, ev.clientX, src.from), anchorIn(drop.mod, ev.clientX, ev.clientY));
+        if (drop.to === "shelf") h.putObject(src.key, drop.id, indexIn(drop.mod, ev.clientX, src.from));
         else if (drop.to === "away" && src.placed) h.putObject(src.key);
         return;
       }
