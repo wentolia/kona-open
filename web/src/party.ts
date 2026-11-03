@@ -230,10 +230,18 @@ function musicSdp(sdp: string): string {
     return `a=fmtp:${pt} ${[...kept, "stereo=1", "sprop-stereo=1", `maxaveragebitrate=${BITRATE}`, "usedtx=0"].join(";")}`;
   });
 }
+// 自分の側は作られたままの内容で設定し、相手に送る内容だけを音楽向けに書き換える
+// （作った内容を書き換えて自分に設定するのは、ブラウザーによっては受け付けない。Safari など）
 async function describe(pc: RTCPeerConnection, d: RTCSessionDescriptionInit) {
-  await pc.setLocalDescription({ type: d.type, sdp: musicSdp(d.sdp ?? "") });
+  await pc.setLocalDescription(d);
   await gathered(pc);
-  return pc.localDescription!.sdp;
+  return musicSdp(pc.localDescription!.sdp);
+}
+/** つながらなかった理由（参加者に見せる）。どんな経路の候補が出ていたかも添える（原因を調べる手がかり） */
+const NO_ROUTE = "つながりませんでした（おたがいの回線のあいだに通り道が見つかりませんでした。同じ Wi-Fi どうしなら Mac の「ローカルネットワーク」で Chrome を許可、別の回線どうしなら、つなぎ方の設定で TURN を足すとつながることがあります）";
+function routes(pc: RTCPeerConnection) {
+  const kinds = (sdp?: string) => { const n = { host: 0, srflx: 0, relay: 0 }; for (const m of (sdp ?? "").matchAll(/ typ (host|srflx|prflx|relay)/g)) n[m[1] === "prflx" ? "srflx" : m[1] as "host"]++; return `${n.host}/${n.srflx}/${n.relay}`; };
+  return `経路の候補 自分 ${kinds(pc.localDescription?.sdp)}・ホスト ${kinds(pc.remoteDescription?.sdp)}`;
 }
 function wire(peer: Peer, dc: RTCDataChannel) {
   peer.dc = dc;
@@ -582,7 +590,10 @@ async function guestLetter(l: Letter) {
   const pc = newPc(), peer: Peer = { id: l.from, pc, name: l.note.name, open: false, timer: 0, cid: "h", bucket: 0, at: 0 };
   peers = [peer];
   pc.ondatachannel = e => wire(peer, e.channel);
-  pc.onconnectionstatechange = () => { if (["failed", "closed"].includes(pc.connectionState)) dropped(peer); };
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === "failed" && !peer.open && peers.includes(peer)) { clearTimeout(peer.timer); peers = []; try { pc.close(); } catch { /* ignore */ } end(`${NO_ROUTE}［${routes(pc)}］`); return; }
+    if (["failed", "closed"].includes(pc.connectionState)) dropped(peer);
+  };
   voiceGuest?.close(); voiceGuest = new GuestVoice(); voiceGuest.onDuck = applyOut;
   // 1 本目は曲、2 本目は通話の声
   pc.ontrack = e => {
@@ -599,8 +610,8 @@ async function guestLetter(l: Letter) {
     });
     const sdp = await describe(pc, await pc.createAnswer());
     await box?.send(hostId, { t: "answer", sdp });
-    peer.timer = window.setTimeout(() => { if (!peer.open) end("つながりませんでした（回線の組み合わせによってはつながりません。つなぎ方の設定で TURN を足すとつながることがあります）"); }, 40_000);
-  } catch { end("つながりませんでした"); }
+    peer.timer = window.setTimeout(() => { if (!peer.open) end(`${NO_ROUTE}［${routes(pc)}］`); }, 40_000);
+  } catch (e) { console.error(e); end(`つながりませんでした（このブラウザーでは接続の準備ができませんでした: ${(e as Error)?.name ?? "error"}）`); }
 }
 function hear(stream: MediaStream) {
   if (!audio) { audio = new Audio(); audio.autoplay = true; }
