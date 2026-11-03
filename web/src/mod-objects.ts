@@ -830,6 +830,15 @@ function mountObjects() {
   });
 }
 
+/** 設定に並べる見本・ドラッグの影に使う、小物の今の姿の写し */
+export function objectArt(key: string): SVGSVGElement | undefined {
+  mountObjects();
+  const el = els.get(key)?.cloneNode(true) as SVGSVGElement | undefined;
+  if (!el) return undefined;
+  el.removeAttribute("role"); el.removeAttribute("tabindex"); el.removeAttribute("aria-label"); el.setAttribute("aria-hidden", "true");
+  el.style.removeProperty("--s");
+  return el;
+}
 /** 置ける小物か（賞状は届いてから立つ） */
 export const objectAvailable = (key: string) => key !== "award" || awards().length > 0;
 

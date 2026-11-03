@@ -185,9 +185,18 @@ body { transition: background-color .6s ease, color .6s ease; }
 .set-mod-head em { font-style: normal; font-size: 11px; color: var(--muted); white-space: nowrap; }
 
 /* 床に置く家具: 置いたものごとに位置と大きさ */
-.set-things { display: grid; gap: 10px; margin-top: 10px; }
-.set-thing { display: grid; grid-template-columns: 1fr; gap: 2px; font-size: 12px; }
-.set-thing b { font-weight: 500; color: var(--ink); }
-.set-thing label { display: grid; grid-template-columns: 4.5em minmax(0, 1fr) 3.2em; align-items: center; gap: 8px; color: var(--muted); }
-.set-thing input[type="range"] { width: 100%; margin: 0; accent-color: var(--accent); }
-.set-thing output { font-family: var(--font-mono); font-size: 11px; text-align: right; }
+/* 置くもの: 小物と家具の見本。ホームへドラッグして置く。置いてあるものは印がつき、押すとしまう */
+.set-puts-head { font-size: 11px; color: var(--muted); margin: 6px 0 4px; }
+.set-puts { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+.set-put { display: grid; grid-template-rows: 48px auto; gap: 2px; justify-items: center; padding: 6px 4px 5px; border: 1px solid var(--line); border-radius: 6px; cursor: grab; touch-action: none; user-select: none; }
+.set-put:hover { background: var(--soft); }
+.set-put-art { width: 100%; height: 48px; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; pointer-events: none; }
+.set-put-art svg { height: 44px; width: auto; max-width: 100%; overflow: visible; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .4)); }
+.set-puts:last-of-type .set-put-art svg { height: auto; width: 100%; max-height: 44px; }
+.set-put-art svg polygon { stroke-width: .5px; stroke-linejoin: round; }
+.set-put-label { font-size: 10px; color: var(--muted); line-height: 1.3; text-align: center; }
+.set-put.placed { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.set-put.placed .set-put-label { color: var(--ink); }
+.set-put.put-from { opacity: .4; }
+/* ホームのものを設定の上へ持ってきたとき: しまえることを見せる */
+.set.put-away { box-shadow: inset 0 0 0 2px var(--accent); }

@@ -20,7 +20,7 @@
 .goods svg {
   display: block; overflow: visible; flex: 0 0 auto;
   /* --s は小物ごとの大きさ（設定で 50〜150%） */
-  height: calc(min(78cqh, 220px, calc(var(--room) / var(--units) * 100)) * var(--s, 1));
+  height: calc(min(70cqh, 170px, calc(var(--room) / var(--units) * 100)) * var(--s, 1));
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .45));
   transition: filter .8s ease;
 }
