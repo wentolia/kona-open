@@ -20,9 +20,24 @@ input.party-code { resize: none; }
 .party-now b { font-weight: 500; overflow-wrap: anywhere; }
 .party-now span { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
 .party-now .party-state { font-family: var(--font-mono); color: var(--ink); opacity: .8; margin-top: var(--sp-1); }
-.party-ice summary { font-size: 11px; color: var(--muted); cursor: pointer; }
-.party-ice[open] { display: grid; gap: var(--sp-2); }
-.party-ice .dlg-field input { font-size: 12px; }
+/* 中継サーバー（party-ice.ts） */
+.party-relay-conf { border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--sp-2) var(--sp-3); }
+.party-relay-conf > summary { cursor: pointer; list-style-position: outside; font-size: 12px; }
+.party-relay-conf[open] > summary { margin-bottom: var(--sp-2); }
+.relay-body { display: grid; gap: var(--sp-2); }
+.relay-status { display: inline-flex; align-items: center; gap: var(--sp-1h); color: var(--ink); }
+.relay-status i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.relay-status.warn i { background: #d8a24a; }
+.relay-kinds { display: flex; flex-wrap: wrap; gap: var(--sp-1h); }
+.relay-kind { display: inline-flex; align-items: center; gap: var(--sp-1h); font-size: 12px; padding: var(--pad-btn); border: 1.5px solid var(--line); border-radius: var(--r-pill); cursor: pointer; }
+.relay-kind input { margin: 0; accent-color: var(--accent); }
+.relay-kind:has(input:checked) { border-color: var(--ink); }
+.relay-fields { display: grid; gap: var(--sp-2); }
+.relay-fields[hidden], .relay-urls[hidden] { display: none; }
+.relay-fields .dlg-field input, .relay-adv .dlg-field input { font-size: 12px; }
+.relay-fields .party-row { align-items: center; }
+.relay-adv summary { font-size: 11px; color: var(--muted); cursor: pointer; }
+.relay-adv[open] { display: grid; gap: var(--sp-2); }
 
 /* 上の帯の札: 灯りの点と人数 */
 .party-pill { display: inline-flex; align-items: center; gap: var(--sp-1h); flex: none; font-size: 12px; font-family: var(--font-mono); padding: var(--pad-btn-sm); border: 1.5px solid var(--line); border-radius: var(--r-pill); white-space: nowrap; }
