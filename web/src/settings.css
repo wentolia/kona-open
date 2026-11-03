@@ -161,28 +161,13 @@ body { transition: background-color .6s ease, color .6s ease; }
 .set-privacy { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: 12px; color: var(--muted); line-height: 1.7; }
 
 
-/* モジュール: ホームに並んでいる順。押すとその場で設定が開く（ひとつだけ） */
-.set-mods { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
-.set-mod { border: 1px solid var(--line); border-radius: 6px; }
-.set-mod.open { border-color: var(--accent); }
-.set-mod-head { width: 100%; display: flex; align-items: baseline; gap: 10px; padding: 8px 12px; font-size: 13px; text-align: left; border-radius: 6px; }
-.set-mod-head:hover { background: var(--soft); }
-.set-mod-head b { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.set-mod-head i { font-style: normal; font-size: 11px; color: var(--muted); white-space: nowrap; }
-.set-mod-head::after { content: "›"; margin-left: auto; color: var(--muted); transition: transform .15s ease; }
-.set-mod.open .set-mod-head::after { transform: rotate(90deg); }
-.set-mod-body { padding: 4px 12px 12px; min-width: 0; white-space: normal; }
+/* モジュール: ホームで押して選んだモジュールの設定だけを出す */
+.set-mod-body { min-width: 0; white-space: normal; }
 .set-mod-body .sm-actions { justify-content: flex-end; }
+.set-pick-hint { margin: 0 0 20px; padding: 18px 12px; border: 1px dashed var(--line); border-radius: 6px; font-size: 13px; color: var(--muted); text-align: center; }
 .set-chips button:disabled { opacity: .35; cursor: default; }
 .set-chips button:disabled:hover { color: var(--muted); }
 
-/* ホームの配置どおりの入れ子: 段 → ボックス（重ねた列）→ 中の段 */
-.set-tree { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.set-tier { display: grid; gap: 6px; min-width: 0; }
-.set-tier-h, .set-box-h { font-size: 11px; color: var(--muted); letter-spacing: .08em; }
-.set-tier > .set-mods { padding-left: 10px; border-left: 1px solid var(--soft); }
-.set-box { display: grid; gap: 6px; padding: 8px 8px 8px 10px; border: 1px dashed var(--line); border-radius: 6px; min-width: 0; }
-.set-mod-head em { font-style: normal; font-size: 11px; color: var(--muted); white-space: nowrap; }
 
 /* 床に置く家具: 置いたものごとに位置と大きさ */
 /* 置くもの: 小物と家具の見本。ホームへドラッグして置く。置いてあるものは印がつき、押すとしまう */

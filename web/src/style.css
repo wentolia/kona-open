@@ -867,3 +867,9 @@ a.opened-link { text-decoration: none; }
 .np-bar .np-track { min-width: 24px; }
 .np-row { flex-wrap: wrap; row-gap: 4px; }
 .np-vol-range { flex: 0 1 auto; min-width: 48px; }
+
+/* 設定の「モジュール」タブ: ホームのモジュールを押して選ぶ。中身は押せないようにして、選ぶことだけに */
+body.mod-picking #view-home .mod { cursor: pointer; outline: 1px dashed transparent; outline-offset: 3px; transition: outline-color .15s ease; }
+body.mod-picking #view-home .mod-body { pointer-events: none; }
+body.mod-picking #view-home .mod:hover { outline-color: var(--muted); }
+body.mod-picking #view-home .mod.mod-open { outline: 2px solid var(--accent); }

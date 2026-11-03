@@ -1141,6 +1141,15 @@ function focusModule(id: string | undefined, scroll = false) {
   if (scroll) sec?.scrollIntoView({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" });
 }
 
+// 設定の「モジュール」タブを開いている間は、ホームのモジュールを押すと選ぶだけ（再生などは動かさない）
+$("#view-home").addEventListener("click", e => {
+  if (!document.body.classList.contains("mod-picking") || justDragged) return;
+  const sec = (e.target as HTMLElement).closest<HTMLElement>(".mod");
+  if (!sec?.dataset.id || (e.target as HTMLElement).closest(".mod-grip, .split")) return;
+  e.preventDefault(); e.stopPropagation();
+  openModuleSettings(sec.dataset.id);
+}, true);
+
 function addModuleOf(type: ModuleType): string {
   const info = moduleInfo(type);
   const d: ModuleDef = type === "shelf"
@@ -1894,7 +1903,7 @@ function route() {
 }
 function showView(view: string) {
   document.body.dataset.view = view;
-  if (view !== "settings") focusModule(undefined);
+  if (view !== "settings") { focusModule(undefined); document.body.classList.remove("mod-picking"); }
   const wasSettings = !$("#view-settings").hidden;
   for (const v of ["home", "library", "settings"]) {
     // 設定は部屋の右に開く: 部屋は見えたままにして、変えたものをその場で確かめられるようにする
