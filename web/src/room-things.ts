@@ -3,6 +3,7 @@
 // 猫はソファやクッションの上で丸くなり、ソファの背もたれにも乗る（data-cat-plat を cat.ts が足場として測る）。
 // ラグの上は暖かいので、床にいる猫はラグの上で横になりたがる（data-cat-rug）。床を敷いているときだけ見える。
 import "./room-things.css";
+import { mountCatTower, mountScratcher, mountCatFood, mountCatBox } from "./mod-cat";
 
 const KEY = "kona.things";
 
@@ -13,7 +14,16 @@ export const THINGS = [
   { key: "cushion", label: "クッション", w: 100, h: 36, x: .22, flat: false },
   { key: "kilim", label: "キリム", w: 280, h: 0, x: .5, flat: true },
   { key: "round", label: "丸いラグ", w: 240, h: 0, x: .3, flat: true },
+  // 猫の家具（以前はモジュール。形と動きは mod-cat.ts）
+  { key: "tower", label: "キャットタワー", w: 170, h: 330, x: .92, flat: false },
+  { key: "box", label: "箱（紙袋）", w: 120, h: 96, x: .06, flat: false },
+  { key: "food", label: "猫のごはん", w: 150, h: 40, x: .7, flat: false },
+  { key: "scratcher", label: "爪とぎ", w: 170, h: 36, x: .38, flat: false },
 ] as const;
+/** 猫の家具は mod-cat.ts の描き方（大きさに合わせて描き、猫の足場も中に持つ）でそのまま置く */
+const MOUNT: Record<string, (body: HTMLElement) => void> = { tower: mountCatTower, box: mountCatBox, food: mountCatFood, scratcher: mountScratcher };
+/** 以前のモジュールの種類 → 床の家具 */
+export const THING_OF_MODULE: Record<string, string> = { cattower: "tower", catbox: "box", catfood: "food", scratcher: "scratcher" };
 export const THING_MIN = 0.5, THING_MAX = 1.5;
 
 type Saved = { on: string[]; x: Record<string, number>; s: Record<string, number> };
@@ -161,11 +171,44 @@ function roundArt() {
 
 const ART: Record<string, () => string> = { sofa: sofaArt, chair: chairArt, cushion: cushionArt, kilim: kilimArt, round: roundArt };
 const VB: Record<string, string> = { sofa: "0 0 300 110", chair: "0 0 150 112", cushion: "0 0 100 36", kilim: "0 0 280 40", round: "0 0 240 40" };
-/** 設定に並べる見本（猫の足場の印は除く） */
-export const thingArt = (k: string) => `<svg viewBox="${VB[k]}" preserveAspectRatio="xMidYMax meet" aria-hidden="true">${ART[k]().replace(/<i [^>]*><\/i>/g, "")}</svg>`;
+/** 設定に並べる見本・ドラッグの影（猫の足場の印は除く）。猫の家具は、標準の大きさで描いたものを縮めて見せる */
+export function thingThumb(k: string, box = 44): HTMLElement {
+  const t = THINGS.find(x => x.key === k)!, wrap = document.createElement("span");
+  wrap.className = "thing-thumb";
+  if (!MOUNT[k]) { wrap.innerHTML = `<svg viewBox="${VB[k]}" preserveAspectRatio="xMidYMax meet" aria-hidden="true">${ART[k]().replace(/<i [^>]*><\/i>/g, "")}</svg>`; return wrap; }
+  const z = Math.min(box / t.h, (box * 1.6) / t.w), inner = document.createElement("div");
+  inner.className = "thing-mod"; inner.style.cssText = `display:flex;flex-direction:column;width:${t.w}px;height:${t.h}px;transform:scale(${z.toFixed(3)});transform-origin:0 100%;position:absolute;left:0;bottom:0;pointer-events:none`;
+  wrap.style.cssText = `position:relative;display:block;width:${(t.w * z).toFixed(0)}px;height:${(t.h * z).toFixed(0)}px`;
+  wrap.append(inner);
+  // 大きさを測ってから描くので、画面に入ってから描く
+  requestAnimationFrame(() => { MOUNT[k](inner); inner.querySelectorAll("[data-cat-plat]").forEach(e => e.removeAttribute("data-cat-plat")); inner.querySelectorAll("button").forEach(b => { b.tabIndex = -1; }); });
+  return wrap;
+}
 
 // ---------- 床に並べる ----------
 let layer: HTMLElement | undefined;
+const made = new Map<string, HTMLElement>();
+function thingEl(k: string) {
+  let el = made.get(k);
+  if (el) return el;
+  const t = THINGS.find(x => x.key === k)!;
+  el = document.createElement("div");
+  el.className = `thing thing-${k}${t.flat ? " flat" : ""}${MOUNT[k] ? " cat-thing" : ""}`;
+  el.dataset.thing = k;
+  if (t.flat) el.dataset.catRug = "";
+  if (MOUNT[k]) {
+    const body = document.createElement("div");
+    body.className = "thing-mod";
+    el.append(body);
+    made.set(k, el);
+    requestAnimationFrame(() => MOUNT[k](body)); // 床に置いて大きさが決まってから描く
+    return el;
+  }
+  const art = ART[k](), plats = art.match(/<i [^>]*><\/i>/g) ?? [];
+  el.innerHTML = `<svg viewBox="${VB[k]}" preserveAspectRatio="${t.flat ? "none" : "xMidYMax meet"}">${art.replace(/<i [^>]*><\/i>/g, "")}</svg>${plats.join("")}`;
+  made.set(k, el);
+  return el;
+}
 function place(el: HTMLElement, k: string) {
   const t = THINGS.find(x => x.key === k)!, s = thingSize(k);
   el.style.setProperty("--w", `${(t.w * s).toFixed(1)}px`);
@@ -189,12 +232,9 @@ function paint(remeasure = false) {
     grid.prepend(layer);
   }
   const want = placedThings().sort((a, b) => Number(!THINGS.find(t => t.key === a)!.flat) - Number(!THINGS.find(t => t.key === b)!.flat)); // 敷くものを下に
-  layer.innerHTML = want.map(k => {
-    const t = THINGS.find(x => x.key === k)!, art = ART[k](), plats = art.match(/<i [^>]*><\/i>/g) ?? [];
-    return `<div class="thing thing-${k}${t.flat ? " flat" : ""}" data-thing="${k}"${t.flat ? " data-cat-rug" : ""}>
-      <svg viewBox="${VB[k]}" preserveAspectRatio="${t.flat ? "none" : "xMidYMax meet"}">${art.replace(/<i [^>]*><\/i>/g, "")}</svg>${plats.join("")}</div>`;
-  }).join("");
-  layer.querySelectorAll<HTMLElement>("[data-thing]").forEach(el => place(el, el.dataset.thing!));
+  // 一度作ったものは作り直さない（猫の家具のごはんの量・ぽんぽんの揺れなどは動き続けている）
+  layer.replaceChildren(...want.map(thingEl));
+  want.forEach(k => place(made.get(k)!, k));
   room();
   if (remeasure) dispatchEvent(new Event("resize"));
 }

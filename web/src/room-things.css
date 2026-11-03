@@ -13,3 +13,8 @@
 .thing.flat { bottom: calc(var(--floor-h) * .1); height: calc(var(--floor-h) * (.62 + .18 * var(--s))); filter: brightness(.9) drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
 /* 猫の足場（見えない） */
 .thing > i { position: absolute; height: 1px; }
+/* 猫の家具: 中身は mod-cat.ts / mod-cat.css。床に置くので、家具の下の板は見せない（猫の足場としては残す） */
+.thing.cat-thing { display: flex; }
+.thing .thing-mod { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
+.thing.cat-thing :is(.cs-board, .cf-board, .cb-board) { background: none; box-shadow: none; }
+.thing.cat-thing .ctower { width: 100%; }

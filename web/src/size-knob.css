@@ -20,9 +20,9 @@ body.arranging .size-knob:not(.active) { display: none; }
 /* 置くものをドラッグしている間: 影が指についてくる。落とせる棚は縁が光る */
 body.putting, body.putting * { cursor: grabbing !important; user-select: none; }
 .put-ghost { position: fixed; left: 0; top: 0; z-index: 70; pointer-events: none; margin: -56px 0 0 -30px; opacity: .9; }
-.put-ghost svg { display: block; height: 64px; width: auto; overflow: visible; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .5)); }
-.put-ghost-thing svg { height: auto; width: 140px; max-height: 64px; }
-.put-ghost-thing { margin-left: -70px; }
+.put-ghost > svg { display: block; height: 64px; width: auto; overflow: visible; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .5)); }
+.put-ghost-thing .thing-thumb > svg { display: block; height: auto; width: 140px; max-height: 64px; }
+.put-ghost-thing { margin: -64px 0 0 -60px; }
 .put-ghost:not([data-to="shelf"]):not([data-to="floor"]) { opacity: .5; }
 .mod.put-over { outline: 2px dashed var(--accent); outline-offset: -4px; }
 #view-home .goods > svg.put-from { opacity: .35; }

@@ -4,7 +4,6 @@ import type { Player } from "./player";
 import type { ModuleType } from "./shelves";
 import { BANDS, MAX_DB, type Eq } from "./eq";
 import { ctx, fmt, css, fit, everyFrame } from "./modctx";
-import { mountClock } from "./mod-clock";
 import { mountInfo } from "./mod-info";
 import { mountLog } from "./mod-log";
 import { mountOutput } from "./mod-output";
@@ -20,7 +19,6 @@ export function mountModule(type: ModuleType, body: HTMLElement) {
   switch (type) {
     case "eq": return mountEq(body, p.eq);
     case "waveform": return mountWave(body, p);
-    case "clock": return mountClock(body);
     case "info": return mountInfo(body);
     case "log": return mountLog(body);
     case "output": return mountOutput(body);

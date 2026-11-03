@@ -2,7 +2,7 @@
 // 小物は落とした棚に（その棚の小物の中で、落とした位置の順に）、家具は床の落とした左右の位置に置く。
 // ホームの小物はドラッグで別の棚へ移せる。小物も家具も、設定の上へ戻して落とすとしまう。
 import { objectArt } from "./mod-objects";
-import { thingArt, toggleThing, setThing, placedThings } from "./room-things";
+import { thingThumb, toggleThing, setThing, placedThings } from "./room-things";
 import { roomSurface, setRoomSurface } from "./room-surface";
 import { renderSettings } from "./settings";
 
@@ -62,7 +62,7 @@ export function initPlaceDrag(h: PlaceHooks) {
       ghost = document.createElement("div");
       ghost.className = `put-ghost put-ghost-${src.kind}`;
       if (src.kind === "obj") { const art = objectArt(src.key); if (art) ghost.append(art); }
-      else ghost.innerHTML = thingArt(src.key);
+      else ghost.append(thingThumb(src.key, 64));
       document.body.append(ghost);
       document.body.classList.add("putting");
       src.from.classList.add("put-from");

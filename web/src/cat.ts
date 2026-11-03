@@ -1424,7 +1424,7 @@ function fleeRun(c: Cat) {
 
 // ---------- 猫の家具 ----------
 const tellFurniture = (kind: "eat" | "scratch" | "toy", amount?: number) => document.dispatchEvent(new CustomEvent("kona:cat", { detail: { kind, amount } }));
-const modOf = (el: Element) => el.closest(".mod");
+const modOf = (el: Element) => el.closest(".mod, .thing"); // 猫のごはんは床の家具
 const occupied = (c: Cat, p: Plat) => cats.some(o => o !== c && (samePlat(o.cur, p) || samePlat(o.dest, p)));
 
 let eater: Cat | undefined, eaterAt = 0; // いま器を使っている子

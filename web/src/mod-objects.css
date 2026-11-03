@@ -75,3 +75,12 @@
 .goods .pothos .stem { fill: none; stroke: #4f7a3e; stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .goods .vase .stem { stroke: #4f7a3e; stroke-width: 1px; vector-effect: non-scaling-stroke; }
 
+
+/* 置き時計 */
+.goods .aclock .ac-ticks line { stroke: #5a4c3c; stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.goods .aclock .ac-hands line { stroke: #2e2620; stroke-linecap: round; }
+.goods .aclock .ac-h { stroke-width: 2.4px; } .goods .aclock .ac-m { stroke-width: 1.6px; }
+.goods .aclock .ac-s { stroke: var(--accent) !important; stroke-width: .7px; }
+.goods .aclock .ac-hands circle { fill: #2e2620; }
+.goods .aclock .ac-glass { fill: none; }
+.goods .dclock .dc-t { font-family: var(--font-mono); font-size: 15px; font-weight: 500; letter-spacing: .5px; fill: var(--accent); filter: drop-shadow(0 0 2px var(--accent)); }

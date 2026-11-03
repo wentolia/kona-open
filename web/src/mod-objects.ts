@@ -20,6 +20,7 @@ import { ctx, everyFrame, esc, fmt, onDocument } from "./modctx";
 import { playLog, listenedSeconds } from "./store";
 import { reduceMotion } from "./prefs";
 import { awards, openCertificate } from "./awards";
+import { chimeOn, chimeHour } from "./mod-clock";
 
 const KEY = "kona.objects";
 let uid = 0;
@@ -31,6 +32,7 @@ export const OBJECTS = [
   { key: "book", label: "読みかけの本", w: 64 }, { key: "knit", label: "編みもの", w: 66 },
   { key: "award", label: "賞状（聴いた距離の証書）", w: 52 },
   { key: "cactus", label: "サボテン", w: 40 }, { key: "pothos", label: "ポトス（吊り鉢）", w: 56 }, { key: "vase", label: "季節の切り花", w: 46 },
+  { key: "aclock", label: "アナログ時計", w: 60 }, { key: "dclock", label: "デジタル時計", w: 76 },
 ] as const;
 const CANDLE_MIN = 30;
 // placed: 置き場所を棚ごとに持つようになってから true（以前の hide は、そのときに一度だけ棚へ移す）
@@ -109,6 +111,26 @@ const leafArt = (l: { len: number; hi: string; lo: string }) => {
 };
 
 // ---------- 小物の形（どれも高さ 100、足元 y=100 が棚板の上） ----------
+// 置き時計（アナログ）: 木の枠の丸い文字盤に、小さな脚とつまみ。針は毎秒まわす
+const aclockArt = () => {
+  const cx = 30, cy = 64, n = 12, ring = (r: number, i: number) => [cx + Math.sin(i / n * Math.PI * 2) * r, cy - Math.cos(i / n * Math.PI * 2) * r];
+  let frame = "";
+  for (let i = 0; i < n; i++) {
+    const [a, b, c, d] = [ring(28, i), ring(28, i + 1), ring(23.5, i + 1), ring(23.5, i)], lit = Math.sin((i + .5) / n * Math.PI * 2 - .8) < 0;
+    frame += poly(lit ? WOOD.hi : i % 2 ? WOOD.mid : WOOD.lo, `${P([a, b, c])}`) + poly(lit ? WOOD.mid : WOOD.lo, `${P([a, c, d])}`);
+  }
+  const ticks = Array.from({ length: 12 }, (_, i) => { const [x1, y1] = ring(21.5 - (i % 3 ? 0 : 2), i), [x2, y2] = ring(23, i); return `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"/>`; }).join("");
+  return `${poly(WOOD.lo, "13,100 21,100 20,93 15,93")}${poly(WOOD.lo, "39,100 47,100 45,93 40,93")}
+  ${poly(BRASS.mid, "27,34.5 33,34.5 32,37.5 28,37.5")}${poly(BRASS.hi, "28.4,32.6 31.6,32.6 33,34.5 27,34.5")}
+  ${frame}<circle cx="${cx}" cy="${cy}" r="23.6" fill="#e6ddc8"/><circle cx="${cx}" cy="${cy}" r="23.6" fill="url(#none)" class="ac-glass"/>
+  <g class="ac-ticks">${ticks}</g>
+  <g class="ac-hands"><line class="ac-h" x1="30" y1="66" x2="30" y2="52"/><line class="ac-m" x1="30" y1="67" x2="30" y2="45"/><line class="ac-s" x1="30" y1="69" x2="30" y2="44"/><circle cx="30" cy="64" r="1.6"/></g>`;
+};
+// デジタル時計: 低い黒い箱に、灯りの色の数字
+const dclockArt = () => `${poly(IRON.lo, "3,100 73,100 71,68 5,68")}${poly(IRON.hi, "5,68 71,68 67,62 9,62")}${poly(IRON.deep, "71,68 73,100 75,98 72.6,66.6")}
+  ${poly("#101418", "10,95 66,95 65,73 11,73")}
+  <text class="dc-t" x="38" y="90" text-anchor="middle">0:00</text>`;
+
 const lampArt = (id: string) => `
   <defs><linearGradient id="${id}-cone" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="var(--accent)" stop-opacity=".34"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>
@@ -463,6 +485,8 @@ function mountObjects() {
   <svg class="cactus" viewBox="0 0 40 100"><title></title><g class="cc"></g></svg>
   <svg class="pothos" viewBox="0 0 56 100"><title></title><g class="pt"></g></svg>
   <svg class="vase" viewBox="0 0 46 100" role="button" tabindex="0" aria-label="季節の切り花（押すと水を替える）"><title></title><g class="vs"></g></svg>
+  <svg class="aclock" viewBox="0 0 60 100" role="img"><title></title>${aclockArt()}</svg>
+  <svg class="dclock" viewBox="0 0 76 100" role="img"><title></title>${dclockArt()}</svg>
 </div>`;
 
   const root = stash;
@@ -661,7 +685,28 @@ function mountObjects() {
   const calm = { get matches() { return reduceMotion(); } };
   let loud = 0, slow = 0, play = 0, last = performance.now(), lastMinute = -1;
 
+  // ---------- 置き時計（アナログ・デジタル）。正時の鐘は設定で ----------
+  const acH = $<SVGLineElement>(".ac-h"), acM = $<SVGLineElement>(".ac-m"), acS = $<SVGLineElement>(".ac-s"), dcT = $<SVGTextElement>(".dc-t");
+  const acTitle = $<SVGTitleElement>(".aclock title"), dcTitle = $<SVGTitleElement>(".dclock title");
+  let lastSec = -1, lastHour = new Date().getHours();
+  const tickClock = () => {
+    const now = new Date(), sec = now.getSeconds();
+    if (sec === lastSec) return;
+    lastSec = sec;
+    const m = now.getMinutes() + sec / 60, h = (now.getHours() % 12) + m / 60;
+    acH.setAttribute("transform", `rotate(${(h * 30).toFixed(2)} 30 64)`);
+    acM.setAttribute("transform", `rotate(${(m * 6).toFixed(2)} 30 64)`);
+    acS.setAttribute("transform", `rotate(${sec * 6} 30 64)`);
+    const label = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
+    dcT.textContent = sec % 2 ? label.replace(":", " ") : label; // 区切りがゆっくり点滅する
+    acTitle.textContent = dcTitle.textContent = `${now.getHours()}時${now.getMinutes()}分`;
+    if (now.getHours() !== lastHour) { lastHour = now.getHours(); if (chimeOn() && now.getMinutes() === 0 && placedClock()) chimeHour(lastHour); }
+  };
+  const placedClock = () => ["aclock", "dclock"].some(k => els.get(k)?.closest("#view-home"));
+  tickClock();
+
   everyFrame(root, () => {
+    tickClock();
     const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000), t = now / 1000; last = now;
     const p = C.player, [l, r] = p.levels(), rms = (l + r) / 2;
     const db = rms > 0 ? Math.max(0, Math.min(1, (20 * Math.log10(rms) + 48) / 42)) : 0; // -48〜-6 dBFS を 0〜1 に
