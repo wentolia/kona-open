@@ -1,0 +1,32 @@
+/* In-app documents (docs.html). Uses the app's colours and tokens */
+:root {
+  --bg: #1a1d22; --panel: #24272d; --ink: #ece4d8; --muted: #9b968d; --line: rgba(236, 228, 216, .22); --accent: #f0b35e;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-6: 24px; --sp-8: 32px; --r-sm: 4px;
+  color-scheme: dark;
+  font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+}
+:root:lang(en) { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+:root:lang(ko) { font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif; }
+:root:lang(zh-Hans) { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-size: 15px; line-height: 1.75; }
+a { color: var(--accent); }
+.doc-head, .doc-nav, .doc { max-width: 760px; margin: 0 auto; padding-left: var(--sp-4); padding-right: var(--sp-4); }
+.doc-head { display: flex; flex-wrap: wrap; gap: var(--sp-3); justify-content: space-between; align-items: center; padding-top: var(--sp-4); font-size: 13px; }
+.doc-back { color: var(--muted); }
+.doc-langs { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.doc-langs a, .doc-nav a { color: var(--muted); text-decoration: none; }
+.doc-langs a[aria-current], .doc-nav a[aria-current] { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+.doc-nav { display: flex; flex-wrap: wrap; gap: var(--sp-4); padding-top: var(--sp-4); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--line); }
+.doc { padding-top: var(--sp-6); padding-bottom: var(--sp-8); }
+.doc h1 { font-size: 24px; line-height: 1.4; margin: 0 0 var(--sp-4); }
+.doc h2 { font-size: 17px; margin: var(--sp-8) 0 var(--sp-2); }
+.doc p, .doc ul, .doc ol { margin: 0 0 var(--sp-3); }
+.doc ul, .doc ol { padding-left: 1.4em; }
+.doc li + li { margin-top: var(--sp-1); }
+.doc li > ul { margin-top: var(--sp-1); }
+.doc code { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: .88em; background: var(--panel); padding: 1px var(--sp-1); border-radius: var(--r-sm); overflow-wrap: anywhere; }
+.doc table { width: 100%; border-collapse: collapse; margin: 0 0 var(--sp-3); font-size: 14px; display: block; overflow-x: auto; }
+.doc th, .doc td { text-align: left; vertical-align: top; padding: var(--sp-2) var(--sp-3) var(--sp-2) 0; border-bottom: 1px solid var(--line); }
+.doc thead th { color: var(--muted); font-weight: 500; }
+.doc tbody th { white-space: nowrap; font-weight: 500; }

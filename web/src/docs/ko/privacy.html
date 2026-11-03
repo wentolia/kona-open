@@ -1,0 +1,48 @@
+<h1>개인정보 처리와 이용 조건</h1>
+<p>Kona는 개인이 개발하여 무료로 공개하는 브라우저 음악 플레이어입니다. 이 문서는 공개판(<a href="https://wentolia.github.io/kona-open/">wentolia.github.io/kona-open</a>)과 그 <a href="https://github.com/wentolia/kona-open">소스 코드</a>에 적용됩니다.</p>
+
+<h2>수집하지 않는 정보</h2>
+<ul>
+  <li>Kona에는 서버가 없으며 접속 분석도 하지 않습니다. 개발자는 이용자의 음악, 재생 기록, 설정, 이름, 위치를 받지 않습니다.</li>
+  <li>설정, 재생 기록, 곡 정보는 이용 중인 브라우저 안(localStorage, IndexedDB, Cache Storage)에만 저장됩니다. 설정의 Other → Data에서 내보내기와 삭제를 할 수 있습니다.</li>
+</ul>
+
+<h2>기기 밖으로 전송되는 정보</h2>
+<table>
+  <thead><tr><th>상황</th><th>수신처</th><th>전송되는 정보</th></tr></thead>
+  <tbody>
+    <tr><td>공개판을 열 때</td><td>GitHub Pages</td><td>IP 주소 등 웹 서버가 통상 기록하는 정보. GitHub의 방침에 따라 처리됩니다.</td></tr>
+    <tr><td>Google Drive에서 들을 때</td><td>Google API</td><td>이용자가 직접 만든 클라이언트 ID로 하는 로그인과 읽기 요청. 권한은 읽기 전용입니다.</td></tr>
+    <tr><td>Spotify로 들을 때</td><td>Spotify</td><td>이용자가 직접 만든 Client ID로 하는 로그인과 재생 조작.</td></tr>
+    <tr><td>리스닝 파티</td><td>공개 Nostr 릴레이 4곳</td><td>방 키로 암호화한 연결 정보와 일회용 공개 키. 릴레이는 내용을 읽을 수 없고 저장하지도 않습니다.</td></tr>
+    <tr><td>리스닝 파티</td><td>STUN 서버(기본값은 Google의 공개 서버. 변경하거나 비울 수 있습니다)</td><td>IP 주소.</td></tr>
+    <tr><td>리스닝 파티</td><td>호스트가 설정한 중계 서버(TURN. Metered, Cloudflare 또는 호스트가 고른 서버)</td><td>IP 주소와 암호화된 음성·데이터. 중계 서버는 내용을 읽을 수 없습니다.</td></tr>
+    <tr><td>리스닝 파티</td><td>상대방의 기기(호스트와 참가자 사이에서만)</td><td>서로의 IP 주소, 이름, 고양이, 채팅, 통화 음성, 재생 중인 곡 제목, 선반에 있는 앨범의 제목과 축소한 커버, 선물한 아이템. 호스트가 선택한 경우에 한해 호스트가 있는 도도부현 또는 국가.</td></tr>
+  </tbody>
+</table>
+
+<h2>위치 정보</h2>
+<ul>
+  <li>Local keepsakes(ご当地の品)를 켠 경우에만 하루 한 번 브라우저의 위치 정보를 사용합니다.</li>
+  <li>좌표는 기기 안에서 도도부현 또는 국가 코드로 변환한 뒤 즉시 폐기합니다. 저장하지도 전송하지도 않습니다.</li>
+  <li>브라우저나 OS는 위치를 구할 때 Google 또는 Apple의 위치 서비스를 사용할 수 있습니다. 이는 브라우저와 OS의 처리입니다.</li>
+</ul>
+
+<h2>통화</h2>
+<ul>
+  <li>마이크는 호스트가 통화를 허용하고 이용자 본인이 마이크를 켠 경우에만 사용합니다.</li>
+  <li>Kona는 통화도 음악도 녹음하지 않습니다.</li>
+</ul>
+
+<h2>이용 조건</h2>
+<ul>
+  <li>Kona는 MIT 라이선스로 제공되며 보증하지 않습니다. 이용으로 발생한 손해에 대해 개발자는 책임을 지지 않습니다.</li>
+  <li>재생하는 음악은 이용자가 소유하고 있거나 이용할 권리가 있는 것으로 한정하십시오.</li>
+  <li>리스닝 파티는 아는 사람끼리 사용하십시오. 초대 링크를 SNS 등 불특정 다수가 볼 수 있는 곳에 게시하지 마십시오. 재생하는 음악의 권리에 유의할 책임은 호스트에게 있습니다.</li>
+  <li>13세 미만은 보호자와 함께 사용하십시오. 파티에서 호스트는 권한(権限)에서 상대를 내보낼 수 있고, 참가자는 언제든지 나가기(抜ける)로 퇴장할 수 있습니다.</li>
+  <li>Google Drive와 Spotify의 클라이언트 ID 및 계정 관리, 그리고 각 회사의 약관(<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, <a href="https://developer.spotify.com/terms">Spotify Developer Terms</a>) 준수는 이용자의 책임입니다. Kona는 Google 또는 Spotify의 공식 앱이 아닙니다.</li>
+  <li>사용 중인 소프트웨어의 라이선스는 설정의 Other → About Kona에서 열 수 있는 <a href="./THIRD_PARTY_NOTICES.txt">THIRD_PARTY_NOTICES.txt</a>에 있습니다.</li>
+</ul>
+
+<h2>개정</h2>
+<p>기능이 바뀌면 이 문서를 개정합니다. 개정 이력은 소스 코드 저장소에서 확인할 수 있습니다.</p>

@@ -1,57 +1,59 @@
-# Kona 技術アプローチ検討メモ
+# Early design note: a native player
 
-## 前提（要件）
+Written before the browser app existed. Kona became a browser application (`web/`) instead; this note is kept as a record of the original constraints and the native option.
 
-- Windows で foobar2000 の代替として常用する
-- 再生品質は妥協しない: WASAPI（共有／排他）、ASIO、リサンプリング、EQ などの DSP
-- 機能は「よく使う範囲」に絞り、ミニマルで直感的に
-- UI は本棚メタファー（`mock/shelf.html`）
+## Requirements at the time
 
-## 設計の基本方針
+- Replace foobar2000 for daily use on Windows.
+- No compromise on playback quality: WASAPI (shared and exclusive), ASIO, resampling, EQ and other DSP.
+- Only the features that are used regularly; minimal and direct.
+- A bookshelf UI (`mock/shelf.html`).
 
-**再生エンジンと UI を完全に分離する。**
+## Principle
 
-- エンジンはリアルタイムスレッドで動き、UI の描画や GC に一切影響されない
-- UI はエンジンにコマンド（再生・停止・シーク・設定変更）を送り、状態（再生位置・メタ情報）を受け取るだけ
-- これにより UI 技術を自由に選べる（モックの HTML/CSS をほぼそのまま使える）
+Separate the playback engine from the UI completely.
+
+- The engine runs on a real-time thread and is never affected by UI rendering or garbage collection.
+- The UI sends commands (play, stop, seek, settings) and receives state (position, metadata).
+- The UI technology can then be chosen freely; the HTML/CSS mock can be reused almost as is.
 
 ```
-[UI (WebView)] ⇄ コマンド/イベント ⇄ [Core: ライブラリDB・キュー] → [Audio Engine: デコード → DSP → 出力]
+[UI (WebView)] ⇄ commands/events ⇄ [Core: library DB, queue] → [Audio engine: decode → DSP → output]
 ```
 
-## 候補スタック
+## Candidate stacks
 
-| 案 | 構成 | 長所 | 短所 |
+| Option | Stack | For | Against |
 |---|---|---|---|
-| **A. Rust + Tauri（推奨）** | エンジン: Rust / UI: WebView（HTML/CSS） | モックを流用できる。省メモリ。リアルタイム処理を安全に書ける | ASIO は SDK 込みのビルドが必要。WASAPI 排他は低レベル実装が要る |
-| B. C++ + JUCE | エンジン・UI とも JUCE | ASIO/WASAPI/DSP が最も成熟 | 本棚のような独自 UI を作る手間が大きい。GPL か商用ライセンス |
-| C. C# (WinUI/WPF) + BASS | BASS + BASSWASAPI / BASSASIO | 最短で動くものが作れる | BASS はクローズドソース（個人利用は無料）。DSP の自由度が低い |
-| D. Electron + ネイティブアドオン | Node + C++/Rust アドオン | Web 技術に慣れていれば楽 | 重い。常駐する音楽プレイヤーには不向き |
+| **A. Rust + Tauri (preferred)** | Engine in Rust, UI in a WebView | Reuses the mock. Low memory. Safe real-time code | ASIO needs the SDK at build time. WASAPI exclusive needs low-level work |
+| B. C++ + JUCE | Engine and UI in JUCE | Most mature ASIO/WASAPI/DSP | A custom bookshelf UI is costly. GPL or commercial licence |
+| C. C# (WinUI/WPF) + BASS | BASS, BASSWASAPI, BASSASIO | Fastest to a working player | BASS is closed source (free for personal use). Limited DSP |
+| D. Electron + native add-on | Node with a C++ or Rust add-on | Familiar web stack | Heavy for an always-running player |
 
-## 案 A の部品（Rust）
+## Parts for option A (Rust)
 
-| 機能 | クレート / 手段 | 備考 |
+| Function | Crate or method | Notes |
 |---|---|---|
-| デコード | `symphonia` | FLAC / ALAC / WAV / MP3 / AAC / Vorbis。Opus・DSD は別途 |
-| タグ読み取り | `lofty` | ジャケット埋め込み画像も取れる |
-| 出力: WASAPI 共有 | `cpal` | 手軽 |
-| 出力: WASAPI 排他 | `wasapi` クレート（直接） | ビットパーフェクト再生用。`cpal` は排他非対応 |
-| 出力: ASIO | `cpal` の `asio` feature | Steinberg ASIO SDK を取得してビルド |
-| リサンプリング | `rubato`（または libsoxr バインディング） | 高品質 sinc |
-| EQ | 自前の Biquad（パラメトリック） | AutoEQ のプリセット読み込みに対応しやすい |
-| ゲイン | ReplayGain（タグ値）＋ クリップ防止 | |
-| ライブラリ | SQLite（`rusqlite`）＋ フォルダ監視（`notify`） | 再生回数・最終再生日時もここに持つ（本棚の面陳に使う） |
+| Decoding | `symphonia` | FLAC, ALAC, WAV, MP3, AAC, Vorbis. Opus and DSD separately |
+| Tags | `lofty` | Includes embedded cover art |
+| Output: WASAPI shared | `cpal` | Simple |
+| Output: WASAPI exclusive | `wasapi` crate directly | For bit-perfect playback; `cpal` lacks exclusive mode |
+| Output: ASIO | `cpal` with the `asio` feature | Requires the Steinberg ASIO SDK |
+| Resampling | `rubato` (or libsoxr bindings) | High-quality sinc |
+| EQ | Own biquads (parametric) | Easy to load AutoEQ presets |
+| Gain | ReplayGain tags with clipping protection | |
+| Library | SQLite (`rusqlite`) and folder watching (`notify`) | Also play counts and last-played time for face-out display |
 
-## 「よく使う範囲」の機能スコープ案（たたき台）
+## Scope draft
 
-- 入れる: ギャップレス再生、ReplayGain、出力デバイス／方式の切替、リサンプラ、パラメトリック EQ、音量（デジタル／バイパス）
-- 後回し: クロスフィード、コンボルバー、DSD ネイティブ再生、プラグイン（VST）
-- 入れない候補: タグ編集、変換、ストリーミング
+- In: gapless playback, ReplayGain, output device and mode selection, resampler, parametric EQ, volume (digital or bypass).
+- Later: crossfeed, convolver, native DSD, plug-ins (VST).
+- Probably out: tag editing, conversion, streaming.
 
-## 進め方の案
+## Plan at the time
 
-1. UI モックでコンセプトを固める（今ここ）
-2. 最小のエンジン試作: FLAC を WASAPI 排他でビットパーフェクト再生する CLI
-3. Tauri に載せてモックの UI とつなぐ
-4. ライブラリ（フォルダ = 棚）と再生履歴 → 面陳ロジック
-5. DSP（リサンプラ・EQ）と ASIO
+1. Settle the concept with the UI mock.
+2. Minimal engine: a CLI that plays FLAC bit-perfect over WASAPI exclusive.
+3. Put it in Tauri and connect the mock UI.
+4. Library (folder = shelf) and play history → face-out logic.
+5. DSP (resampler, EQ) and ASIO.

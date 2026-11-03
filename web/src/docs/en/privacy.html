@@ -1,0 +1,48 @@
+<h1>Privacy and terms</h1>
+<p>Kona is a browser music player developed by an individual and published free of charge. This document applies to the public build (<a href="https://wentolia.github.io/kona-open/">wentolia.github.io/kona-open</a>) and its <a href="https://github.com/wentolia/kona-open">source code</a>.</p>
+
+<h2>What is not collected</h2>
+<ul>
+  <li>Kona has no server and no analytics. The developer receives none of your music, listening history, settings, name or location.</li>
+  <li>Settings, listening history and track information are stored only in your browser (localStorage, IndexedDB, Cache Storage). They can be exported and erased under Settings → Other → Data.</li>
+</ul>
+
+<h2>What leaves the device</h2>
+<table>
+  <thead><tr><th>When</th><th>Recipient</th><th>Data</th></tr></thead>
+  <tbody>
+    <tr><td>Opening the public build</td><td>GitHub Pages</td><td>Your IP address and what web servers ordinarily log, handled under GitHub's policies.</td></tr>
+    <tr><td>Listening from Google Drive</td><td>Google APIs</td><td>Sign-in with a client ID you created yourself, and read requests. Access is read-only.</td></tr>
+    <tr><td>Listening on Spotify</td><td>Spotify</td><td>Sign-in with a Client ID you created yourself, and playback commands.</td></tr>
+    <tr><td>Listening party</td><td>Four public Nostr relays</td><td>Connection data encrypted with the room key, and one-time public keys. Relays cannot read the content and do not store it.</td></tr>
+    <tr><td>Listening party</td><td>STUN server (Google's public server by default; can be changed or removed)</td><td>Your IP address.</td></tr>
+    <tr><td>Listening party</td><td>The relay server (TURN) set by the host: Metered, Cloudflare or a server of the host's choice</td><td>Your IP address and encrypted audio and data. The relay cannot read the content.</td></tr>
+    <tr><td>Listening party</td><td>The other party's device (between host and guests only)</td><td>Each other's IP address, name, cat, chat, voice, the title of the current track, the titles and small covers of shelved albums, and gifted items. The host's prefecture or country only if the host chooses to share it.</td></tr>
+  </tbody>
+</table>
+
+<h2>Location</h2>
+<ul>
+  <li>The browser's location is used once a day, and only when Local keepsakes is turned on.</li>
+  <li>Coordinates are converted on the device to a prefecture or country code and discarded immediately. They are neither stored nor sent.</li>
+  <li>To determine location, the browser or operating system may use Google or Apple location services. That is governed by the browser and the operating system.</li>
+</ul>
+
+<h2>Voice</h2>
+<ul>
+  <li>The microphone is used only when the host allows voice and you turn your microphone on.</li>
+  <li>Kona records neither voice nor music.</li>
+</ul>
+
+<h2>Terms of use</h2>
+<ul>
+  <li>Kona is provided under the MIT License, without warranty. The developer is not liable for any damage arising from its use.</li>
+  <li>Play only music that you own or have the right to use.</li>
+  <li>Use listening parties among people you know. Do not post invite links where the public can see them, such as social media. The host is responsible for the rights to the music played.</li>
+  <li>Users under 13 should use Kona with a parent or guardian. In a party, the host can remove a guest under Permissions, and a guest can leave at any time.</li>
+  <li>You are responsible for managing your Google Drive and Spotify client IDs and accounts, and for complying with each provider's terms (<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, <a href="https://developer.spotify.com/terms">Spotify Developer Terms</a>). Kona is not an official Google or Spotify application.</li>
+  <li>Licences of the software Kona uses are in <a href="./THIRD_PARTY_NOTICES.txt">THIRD_PARTY_NOTICES.txt</a>, linked from Settings → Other → About Kona.</li>
+</ul>
+
+<h2>Changes</h2>
+<p>This document is revised when features change. The revision history is in the source repository.</p>

@@ -1,17 +1,25 @@
 # Kona
 
-Less is more な音楽プレイヤー。
+A music player for the browser that keeps to the essentials. Albums sit on shelves in a small room; you pick one by its spine and play it.
 
-- `mock/shelf.html` — 本棚 UI のモック（ブラウザで開く）
-- `web/` — ブラウザ版（仕様とファイル構成は `web/README.md`）
-- `docs/approach.md` — 技術アプローチの検討メモ
+- Public build: https://wentolia.github.io/kona-open/
+- No server and no analytics. Settings, history and the music index stay in the browser.
+- Sources: a folder on the device, Google Drive (optional), Spotify (optional, Premium).
 
-## 使う
+## Repository layout
 
-- 公開版: https://wentolia.github.io/kona-open/ （公開用のリポジトリ `wentolia/kona-open` に、履歴を持たない 1 コミットとして中身だけを置き、そこで GitHub Actions が `web/` をビルドして Pages に出す。このリポジトリは非公開なので、Pages のワークフローは飛ばす）
-- Google Drive から聴く: `web/docs/google-drive.md`
-- Spotify で聴く（任意・Premium が必要）: `web/docs/spotify.md`
+| Path | Contents |
+| --- | --- |
+| `web/` | The application. Build, layout and conventions: `web/README.md`. Behaviour: `web/docs/features.md` |
+| `web/src/docs/` | In-app documents (privacy and terms, Google Drive and Spotify setup) in Japanese, English, Korean and Chinese |
+| `mock/shelf.html` | The first shelf UI mock. Open it directly in a browser |
+| `docs/approach.md` | Early design note on a native player. Kept for reference; the browser app superseded it |
+| `docs/promo/` | Promotional images and the scripts that render them |
 
-## ライセンス
+## Publishing
 
-MIT（無保証）。`LICENSE` を参照。
+Development happens in a private repository. The public repository `wentolia/kona-open` receives each release as a single commit without history. Its GitHub Actions workflow (`.github/workflows/pages.yml`) builds `web/` and deploys it to GitHub Pages. The workflow skips itself in a private repository.
+
+## License
+
+MIT, without warranty. See `LICENSE`.
