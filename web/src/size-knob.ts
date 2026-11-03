@@ -1,9 +1,10 @@
 // ホームで直接さわる: 棚の小物と床の家具にカーソルを乗せると、右上の角につまみが出る。
 // つまみを右上へ引くと大きく、左下へ押すと小さくなる（50〜150%。ダブルクリックで 100% に戻す）。
-// 床の家具は、そのまま左右にドラッグして置き場所を変えられる。何を置くかは設定で選ぶ。位置（棚の小物）は自動
+// 床の家具は左右と奥行き（上下）に、壁のものは上下左右にドラッグして置き場所を変えられる。ダブルクリックで左右を反転。
+// 何を置くかは設定で選ぶ。位置（棚の小物）は自動
 import "./size-knob.css";
 import { objectSize, setObjectSize, SIZE_MIN, SIZE_MAX } from "./mod-objects";
-import { thingSize, thingX, setThing, toggleThing, THING_MIN, THING_MAX } from "./room-things";
+import { thingSize, thingOf, setThing, removeThing, flipThing, canFlip, defOf, THING_MIN, THING_MAX } from "./room-things";
 import { renderSettings } from "./settings";
 
 type Target = { el: HTMLElement | SVGElement; kind: "obj" | "thing"; key: string };
@@ -12,7 +13,7 @@ function targetOf(n: EventTarget | null): Target | undefined {
   if (!(n instanceof Element)) return undefined;
   const svg = n.closest<SVGSVGElement>("#view-home .goods > svg");
   if (svg?.dataset.goods) return { el: svg, kind: "obj", key: svg.dataset.goods };
-  const th = n.closest<HTMLElement>("#view-home .room-things .thing");
+  const th = n.closest<HTMLElement>("#view-home :is(.room-things, .room-wall) .thing");
   if (th?.dataset.thing) return { el: th, kind: "thing", key: th.dataset.thing };
   return undefined;
 }
@@ -78,29 +79,39 @@ export function initSizeKnob() {
   });
   knob.addEventListener("dblclick", () => { if (cur) { setSize(cur, 1, true); knob!.dataset.v = "100%"; place(); } });
 
-  // 床の家具: 左右にドラッグして動かす（少し動かしてから。押しただけでは動かない）
+  // 床の家具: 左右と奥行き（上へ引くと奥）、壁のもの: 上下左右にドラッグして動かす（少し動かしてから。押しただけでは動かない）
   document.addEventListener("pointerdown", e => {
     if (e.button !== 0) return;
     const t = targetOf(e.target);
     if (t?.kind !== "thing") return;
-    const el = t.el as HTMLElement, layer = el.parentElement!;
-    const sx = e.clientX, off = sx - el.getBoundingClientRect().left;
-    let moving = false, x = thingX(t.key);
+    const it = thingOf(t.key), def = it && defOf(it.k);
+    if (!it || !def) return;
+    const el = t.el as HTMLElement, layer = el.parentElement!, wall = def.at === "wall", deep = !wall && !def.flat;
+    const r0 = el.getBoundingClientRect(), sx = e.clientX, sy = e.clientY, offX = sx - r0.left, offY = sy - r0.top, d0 = it.d ?? 0;
+    let moving = false, x = it.x, y = it.y ?? 0, d = d0;
     const move = (ev: PointerEvent) => {
-      if (!moving && Math.abs(ev.clientX - sx) < 4) return;
+      if (!moving && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
       if (!moving) { moving = true; busy = true; el.classList.add("moving"); document.body.classList.add("arranging"); }
-      const L = layer.getBoundingClientRect(), w = el.getBoundingClientRect().width;
-      x = clamp((ev.clientX - off - L.left) / Math.max(1, L.width - w), 0, 1);
-      setThing(t.key, { x }); place();
+      const L = layer.getBoundingClientRect(), r = el.getBoundingClientRect();
+      x = clamp((ev.clientX - offX - L.left) / Math.max(1, L.width - r.width), 0, 1);
+      if (wall) y = clamp((ev.clientY - offY - L.top) / Math.max(1, L.height - r.height), 0, 1);
+      if (deep) d = Math.round(clamp(d0 - (ev.clientY - sy) / 60, 0, 1) * 20) / 20;
+      setThing(t.key, wall ? { x, y } : deep ? { x, d } : { x }); place();
     };
     const up = (ev: PointerEvent) => {
       removeEventListener("pointermove", move); removeEventListener("pointerup", up); removeEventListener("pointercancel", up);
       if (!moving) return;
       busy = false; el.classList.remove("moving"); document.body.classList.remove("arranging");
       // 設定の上で放したらしまう
-      if (document.elementsFromPoint(ev.clientX, ev.clientY).some(n => n.closest("#view-settings .set"))) { hide(); toggleThing(t.key, false); renderSettings(); return; }
-      setThing(t.key, { x }, true); place();
+      if (document.elementsFromPoint(ev.clientX, ev.clientY).some(n => n.closest("#view-settings .set"))) { hide(); removeThing(t.key); renderSettings(); return; }
+      setThing(t.key, wall ? { x, y } : deep ? { x, d } : { x }, true); place();
     };
     addEventListener("pointermove", move); addEventListener("pointerup", up); addEventListener("pointercancel", up);
+  });
+  // ダブルクリックで左右を反転（猫の家具は中に仕掛けがあるので反転しない）
+  document.addEventListener("dblclick", e => {
+    const t = targetOf(e.target);
+    if (t?.kind !== "thing" || !canFlip(t.key)) return;
+    flipThing(t.key);
   });
 }

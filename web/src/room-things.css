@@ -1,16 +1,22 @@
-/* 床に置く家具の置き方（形は room-things.ts）。床を敷いているときだけ、床の上に立てる・敷く */
+/* 床に置く家具と、壁に掛けるもの（形は room-things.ts）。床は敷いているときだけ見える。壁のものはいつも */
 :root { --things-h: 0px; }
-.room-things { position: absolute; bottom: 0; height: 0; z-index: 1; pointer-events: none;
+.room-things, .room-wall { position: absolute; z-index: 1; pointer-events: none;
   left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); }
+.room-things { bottom: 0; height: 0; }
+.room-wall { top: 0; bottom: calc(var(--floor-h) + 8px); }
 :root:not([data-floor]) .room-things { display: none; }
-/* x は床の左端 0 〜 右端 1。端に寄せても床からはみ出さない */
+/* x は左端 0 〜 右端 1。端に寄せてもはみ出さない */
 .thing { pointer-events: auto; cursor: grab; position: absolute; left: calc(var(--x) * (100% - var(--w))); width: var(--w); }
 .thing svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .thing svg polygon { stroke-width: .5px; stroke-linejoin: round; }
-/* 立てるもの: 足は猫が歩く線の少し奥 */
-.thing:not(.flat) { bottom: calc(var(--floor-h) * .6); height: var(--h); filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .45)); }
+.thing.flip > svg { transform: scaleX(-1); }
+/* 立てるもの: 足は猫が歩く線の少し奥。奥行き d（0 手前〜1 奥）だけ奥へ下げ、少し暗く */
+.room-things .thing:not(.flat) { bottom: calc(var(--floor-h) * (.6 + .4 * var(--d, 0))); height: var(--h);
+  filter: brightness(calc(1 - .14 * var(--d, 0))) drop-shadow(0 3px 3px rgba(0, 0, 0, .45)); }
 /* 敷くもの: 床の奥行きいっぱいに寝かせる。大きさで奥行きも少し変わる */
-.thing.flat { bottom: calc(var(--floor-h) * .1); height: calc(var(--floor-h) * (.62 + .18 * var(--s))); filter: brightness(.9) drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
+.room-things .thing.flat { bottom: calc(var(--floor-h) * .1); height: calc(var(--floor-h) * (.62 + .18 * var(--s))); filter: brightness(.9) drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
+/* 壁: y は上端 0 〜 下端 1 */
+.room-wall .thing { top: calc(var(--y) * (100% - var(--h))); height: var(--h); filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .4)); }
 /* 猫の足場（見えない） */
 .thing > i { position: absolute; height: 1px; }
 /* 猫の家具: 中身は mod-cat.ts / mod-cat.css。床に置くので、家具の下の板は見せない（猫の足場としては残す） */
