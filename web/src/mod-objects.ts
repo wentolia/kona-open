@@ -444,6 +444,7 @@ function vaseArt(month: number) {
 const els = new Map<string, SVGSVGElement>();
 let stash: HTMLElement | undefined;
 function mountObjects() {
+  const C = ctx();
   if (stash) return;
   const id = `objs${++uid}`;
   stash = document.createElement("div");
@@ -539,7 +540,7 @@ function mountObjects() {
   const restack = () => {
     const today = new Date().toDateString(), keys: string[] = [];
     for (const e of playLog()) if (new Date(e.t).toDateString() === today && !keys.includes(e.k)) keys.push(e.k);
-    const shown = keys.slice(-11), now = ctx().player.album?.key ?? "";
+    const shown = keys.slice(-11), now = C.player.album?.key ?? "";
     const sig = `${shown.join("|")}#${now}`;
     if (sig === stackSig) return;
     stackSig = sig;
@@ -559,15 +560,15 @@ function mountObjects() {
       return;
     }
     stackG.innerHTML = shown.map((k, i) => {
-      const a = ctx().byKey(k), c = a ? ctx().colorOf(a) : `hsl(${strHash(k) % 360} 30% 40%)`;
+      const a = C.byKey(k), c = a ? C.colorOf(a) : `hsl(${strHash(k) % 360} 30% 40%)`;
       const label = a ? `${a.title}${a.artist ? ` — ${a.artist}` : ""}` : "（見つからないアルバム）";
       return `<g class="rec${a ? "" : " gone"}${k === now ? " now" : ""}" data-k="${esc(k)}"${a ? ` role="button" tabindex="0" aria-label="${esc(label)} をもう一度かける"` : ""}><title>${esc(label)}</title>${slab(i, c, i === shown.length - 1)}</g>`;
     }).join("");
   };
   const replay = (e: Event) => {
     const g = (e.target as Element).closest<SVGGElement>(".rec[data-k]");
-    const a = g && ctx().byKey(g.dataset.k!);
-    if (a) ctx().play(a);
+    const a = g && C.byKey(g.dataset.k!);
+    if (a) C.play(a);
   };
   stackG.addEventListener("click", replay);
   stackG.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); replay(e); } });
@@ -662,7 +663,7 @@ function mountObjects() {
 
   everyFrame(root, () => {
     const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000), t = now / 1000; last = now;
-    const p = ctx().player, [l, r] = p.levels(), rms = (l + r) / 2;
+    const p = C.player, [l, r] = p.levels(), rms = (l + r) / 2;
     const db = rms > 0 ? Math.max(0, Math.min(1, (20 * Math.log10(rms) + 48) / 42)) : 0; // -48〜-6 dBFS を 0〜1 に
     loud += (db - loud) * (1 - Math.exp(-dt / 0.12));
     slow += (db - slow) * (1 - Math.exp(-dt / 1.2));
@@ -746,7 +747,7 @@ function mountObjects() {
         const sheen = Math.cos(k / N * Math.PI * 2 * 2 - spin * 2);
         d += poly(`hsl(30 4% ${(11 + 7 * Math.max(0, sheen)).toFixed(0)}%)`, P([[cx, cy], ring(25, 5.2, k), ring(25, 5.2, k + 1)]));
       }
-      const c = ctx().colorOf(p.album);
+      const c = C.colorOf(p.album);
       d += poly(c, P(Array.from({ length: 8 }, (_, k) => [cx + Math.cos(k / 8 * Math.PI * 2 + spin) * 7.4, cy + Math.sin(k / 8 * Math.PI * 2 + spin) * 1.55])));
       d += poly("#0d0c0b", P(Array.from({ length: 6 }, (_, k) => [cx + Math.cos(k / 6 * Math.PI * 2) * .9, cy + Math.sin(k / 6 * Math.PI * 2) * .25])));
       discG.innerHTML = d;

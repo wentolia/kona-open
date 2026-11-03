@@ -13,11 +13,12 @@ export function mountTurntable(body: HTMLElement) {
   const canvas = root.querySelector<HTMLCanvasElement>("canvas")!;
   let angle = 0, speed = 0, lift = 0, last = performance.now(), labelKey = "", mixT = 1;
   let label = new Image(), prevLabel: HTMLImageElement | undefined;
+  const C = ctx();
 
   canvas.onclick = e => {
     const r = canvas.getBoundingClientRect(), g = geom(r.width, r.height);
     const x = e.clientX - r.left, y = e.clientY - r.top;
-    if (Math.hypot(x - g.cx, y - g.cy) <= g.R || Math.hypot(x - g.bx, y - g.by) <= g.R * .16) ctx().player.toggle();
+    if (Math.hypot(x - g.cx, y - g.cy) <= g.R || Math.hypot(x - g.bx, y - g.by) <= g.R * .16) C.player.toggle();
   };
   canvas.onpointermove = e => {
     const r = canvas.getBoundingClientRect(), g = geom(r.width, r.height);
@@ -27,7 +28,7 @@ export function mountTurntable(body: HTMLElement) {
 
   everyFrame(root, () => {
     fit(canvas);
-    const p = ctx().player, now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now;
+    const p = C.player, now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now;
     // 回り始め・止まりぎわは少しずつ（重い盤の慣性）
     speed += ((p.playing ? 1 : 0) - speed) * (1 - Math.exp(-dt / (p.playing ? 0.6 : 1.4)));
     angle += speed * dt * (2 * Math.PI * 33.333 / 60);
@@ -50,7 +51,7 @@ export function mountTurntable(body: HTMLElement) {
     }
     // 針は盤の上へ、ゆっくり降りてゆっくり上がる
     lift += ((a ? 1 : 0) - lift) * (1 - Math.exp(-dt / .5));
-    draw(canvas, angle, a ? Math.max(0, Math.min(1, prog)) : 0, lift, gaps, speed, !plain && label.complete && label.naturalWidth ? label : undefined, a ? ctx().colorOf(a) : "", mixT < 1 && !plain ? prevLabel : undefined, mixT);
+    draw(canvas, angle, a ? Math.max(0, Math.min(1, prog)) : 0, lift, gaps, speed, !plain && label.complete && label.naturalWidth ? label : undefined, a ? C.colorOf(a) : "", mixT < 1 && !plain ? prevLabel : undefined, mixT);
   });
 }
 
