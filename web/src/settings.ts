@@ -22,6 +22,7 @@ import { openDrive } from "./drive-ui";
 import { saveDriveConfig, signOut as driveSignOut } from "./drive";
 import pkg from "../package.json";
 import { esc } from "./dom";
+import { docHref } from "./doc-link";
 import { regionAllows, regionalOn, setRegionalOn, hereLand, hereProgress, locate, locateStatus, landName, nextOf, gotList, regionalItems, GIFT_SEC } from "./region";
 import { itemOf } from "./items";
 import { catCap, ownedAccs, presentAllows, presentStats, ACHIEVEMENTS, achieved } from "./presents";
@@ -325,11 +326,11 @@ function aboutSection() {
       <dt>${t("版")}</dt><dd>${esc(pkg.version)}</dd>
       <dt>${t("ライセンス")}</dt><dd>MIT（${t("無保証")}）</dd>
       <dt>${t("ソース")}</dt><dd><a href="https://github.com/wentolia/kona-open" target="_blank" rel="noopener">github.com/wentolia/kona-open</a></dd>
-      <dt>${t("決まりごと")}</dt><dd><a href="https://github.com/wentolia/kona-open/blob/HEAD/web/docs/privacy.md" target="_blank" rel="noopener">${t("プライバシーと利用条件")}</a> · <a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener">${t("使っているソフトウェアのライセンス")}</a></dd>
+      <dt>${t("決まりごと")}</dt><dd><a href="${docHref("privacy")}" target="_blank" rel="noopener">${t("プライバシーと利用条件")}</a> · <a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener">${t("使っているソフトウェアのライセンス")}</a></dd>
     </dl>
     <ul class="set-privacy">
       <li>${t("サーバーはなく、アクセス解析もしません。設定・記録・取り込んだ曲は、このブラウザの中にだけ置きます。")}</li>
-      <li>${t("通信するのは Google Drive を使うときの Google の API、Spotify を使うときの Spotify、リスニングパーティーを使うときの公開の Nostr リレー（暗号化した接続情報だけ）と Google の STUN（IP アドレスが届きます）だけです。このページを置いている GitHub Pages も、開いた人の IP アドレスを記録します。")}</li>
+      <li>${t("通信するのは Google Drive を使うときの Google の API、Spotify を使うときの Spotify、リスニングパーティーを使うときの公開の Nostr リレー（暗号化した接続情報だけ）、STUN サーバーとホストが設定した中継サーバー（どちらも IP アドレスが届きます）だけです。このページを置いている GitHub Pages も、開いた人の IP アドレスを記録します。")}</li>
       <li>${t("Google Drive は読み取りだけで、サインインはこのタブの中だけ（約 1 時間）有効です。")}</li>
       <li>${t("聴いた場所は記録しません。位置情報は「ご当地の品」をオンにしたときだけ 1 日 1 回使い、端末の中で都道府県・国に置き換えます。座標は保存も送信もしません。")}</li>
       <li>${t("リスニングパーティーでは、つながったホストと参加者の間でお互いの IP アドレスが見えます。通話のマイクは本人が入れたときだけ開き、Kona は録音しません。")}</li>

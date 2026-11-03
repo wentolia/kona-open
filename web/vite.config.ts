@@ -61,6 +61,6 @@ export default defineConfig(({ mode, command }) => {
     resolve: single ? { alias: [{ find: /^\.\/fonts$/, replacement: fileURLToPath(new URL("./src/fonts-cdn.ts", import.meta.url)) }] } : undefined,
     build: mode === "mock"
       ? { outDir: "dist-mock", rollupOptions: { input: "mock-mobile.html" } }
-      : single ? { outDir: "dist-single" } : { outDir: "dist", rollupOptions: { input: { main: "index.html", items: "items.html" } } }, // items.html: 部屋に置くものの見本帳
+      : single ? { outDir: "dist-single" } : { outDir: "dist", rollupOptions: { input: { main: "index.html", items: "items.html", docs: "docs.html" } } }, // items.html: 部屋に置くものの見本帳 / docs.html: 画面に出す文書（4 言語）
   };
 });

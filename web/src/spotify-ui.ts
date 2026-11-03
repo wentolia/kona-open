@@ -3,11 +3,11 @@
 import type { Album } from "./library";
 import type { Player } from "./player";
 import { coverInfo, eachLimited } from "./library";
+import { docHref } from "./doc-link";
 import { spotifyConfig, saveSpotifyConfig, spotifyRedirectUri, spotifySignedIn, spotifySignIn, spotifySignOut, spotifyCameBack, savedAlbums, isSpotifyAlbum, CLIENT_ID_RE, SpotifyAuthError } from "./spotify";
 import { spotifyRemote } from "./spotify-play";
 import { esc } from "./dom";
 
-const GUIDE = "https://github.com/wentolia/kona-open/blob/HEAD/web/docs/spotify.md";
 const LAST_KEY = "kona.spotify.last"; // 前に開いていたのが Spotify なら、開き直したときもそのまま
 
 type Progress = (n: number, total: number) => void;
@@ -86,7 +86,7 @@ export const isSpotifyError = (e: unknown) => e instanceof SpotifyAuthError;
 export function spotifySettingsHTML(t: (s: string) => string): string {
   const c = spotifyConfig(), signed = spotifySignedIn();
   return `
-    <p class="set-note">${t("自分の Spotify for Developers で作った Client ID を入れると、保存したアルバムを棚に並べて聴けます（Premium が必要）。")}<a href="${GUIDE}" target="_blank" rel="noopener noreferrer">${t("作り方の手順")}</a></p>
+    <p class="set-note">${t("自分の Spotify for Developers で作った Client ID を入れると、保存したアルバムを棚に並べて聴けます（Premium が必要）。")}<a href="${docHref("spotify")}" target="_blank" rel="noopener noreferrer">${t("作り方の手順")}</a></p>
     <dl class="dlg-uris set-uris">
       <dt>Redirect URI</dt><dd><code>${esc(spotifyRedirectUri())}</code><button type="button" class="set-btn" id="set-sp-copy">${t("コピー")}</button></dd>
     </dl>

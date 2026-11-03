@@ -3,8 +3,8 @@
 import type { Entry } from "./library";
 import { driveConfig, saveDriveConfig, redirectUri, driveToken, signIn, signOut, listFolders, walkDrive, DriveAuthError } from "./drive";
 import { esc } from "./dom";
+import { docHref } from "./doc-link";
 
-const GUIDE = "https://github.com/wentolia/kona-open/blob/HEAD/web/docs/google-drive.md";
 const RESUME_KEY = "kona.drive.resume"; // 小窓が開けずにページごと移ったとき、戻ってから続きをする
 const CLIENT_RE = /^[\w-]+\.apps\.googleusercontent\.com$/;
 
@@ -102,7 +102,7 @@ export function openDrive() {
 function setup(prev = "") {
   const body = frame();
   body.innerHTML = `
-    <p class="dlg-lead">Kona はサーバーを持たず、このブラウザから直接あなたの Drive を読みます。そのための「OAuth クライアントID」を、あなたの Google Cloud で作って入れてください。<a href="${GUIDE}" target="_blank" rel="noopener noreferrer">作り方の手順</a></p>
+    <p class="dlg-lead">Kona はサーバーを持たず、このブラウザから直接あなたの Drive を読みます。そのための「OAuth クライアントID」を、あなたの Google Cloud で作って入れてください。<a href="${docHref("google-drive")}" target="_blank" rel="noopener noreferrer">作り方の手順</a></p>
     <dl class="dlg-uris">
       <dt>承認済みの JavaScript 生成元</dt><dd><code>${esc(location.origin)}</code><button class="dlg-copy" data-v="${esc(location.origin)}">コピー</button></dd>
       <dt>承認済みのリダイレクト URI</dt><dd><code>${esc(redirectUri())}</code><button class="dlg-copy" data-v="${esc(redirectUri())}">コピー</button></dd>

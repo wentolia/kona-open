@@ -1,10 +1,10 @@
-# 寸法のトークン（余白・角丸・操作部の大きさ）
+# Size tokens: spacing, radius, control size
 
-定義は `src/style.css` の `:root`。UI の CSS では px を直に書かず、ここの名前を使う（部屋・猫・棚・小物など「絵」の CSS は対象外）。
+Defined in `:root` of `src/style.css`. UI CSS uses these names instead of literal pixel values. Illustration CSS (room, cats, shelves, objects) is exempt.
 
-## 余白 `--sp-*`（4px グリッド）
+## Spacing `--sp-*` (4 px grid)
 
-| 名前 | 値 | 名前 | 値 |
+| Name | Value | Name | Value |
 |---|---|---|---|
 | `--sp-0h` | 2 | `--sp-4` | 16 |
 | `--sp-1` | 4 | `--sp-5` | 20 |
@@ -12,35 +12,35 @@
 | `--sp-2` | 8 | `--sp-8` / `-10` / `-12` | 32 / 40 / 48 |
 | `--sp-3` | 12 | | |
 
-8px 未満だけ 2px 刻み（`0h`・`1h`）を許す。密な操作部の内側用。
+Half steps (`0h`, `1h`) exist only below 8 px, for the inside of dense controls.
 
-## 用途ごとの余白
+## Spacing by role
 
-| 名前 | 値（縦 横） | 使う所 |
+| Name | Value (vertical horizontal) | Used for |
 |---|---|---|
-| `--pad-chip` | 4 8 | チップ・札・小さな文字の操作・吹き出し |
-| `--pad-btn-sm` | 4 12 | 小さめのボタン、切り替え（セグメント）の項目、文字の入った丸いチップ |
-| `--pad-btn` | 6 12 | ふつうのボタン、上の帯のタブ |
-| `--pad-btn-lg` | 8 16 | 主ボタン（`.btn`） |
-| `--pad-field` | 6 8 | 入力欄・選択欄 |
-| `--pad-item` | 8 12 | メニュー・一覧の行 |
-| `--inset-card` | 12 | カード・ポップオーバーの内側 |
-| `--inset-panel` | 20（幅 600 以下は 16） | ダイアログ・設定・パーティーのカードの内側 |
-| `--gap-stack` / `--gap-section` | 12 / 24 | まとまりの中 / まとまり同士の間 |
+| `--pad-chip` | 4 8 | Chips, tags, small text controls, speech bubbles |
+| `--pad-btn-sm` | 4 12 | Small buttons, segmented-control items, round chips with text |
+| `--pad-btn` | 6 12 | Regular buttons, header tabs |
+| `--pad-btn-lg` | 8 16 | Primary button (`.btn`) |
+| `--pad-field` | 6 8 | Inputs and selects |
+| `--pad-item` | 8 12 | Menu and list rows |
+| `--inset-card` | 12 | Inside cards and popovers |
+| `--inset-panel` | 20 (16 at 600 px wide or less) | Inside dialogs, settings and party cards |
+| `--gap-stack` / `--gap-section` | 12 / 24 | Within a group / between groups |
 
-## 角丸 `--r-*`（面の大きさで決める）
+## Radius `--r-*` (chosen by surface size)
 
-| 名前 | 値 | 使う所 |
+| Name | Value | Used for |
 |---|---|---|
-| `--r-xs` | 2 | 印・細いバー |
-| `--r-sm` | 4 | ボタン・入力・チップ・メニューの項目 |
-| `--r-md` | 8 | メニュー・ポップオーバー・カード |
-| `--r-lg` | 12 | ダイアログ・大きな面 |
-| `--r-xl` | 16 | 下から出るシート |
-| `--r-pill` | 999px | 丸いボタン・チップ（円は `50%`） |
+| `--r-xs` | 2 | Marks, thin bars |
+| `--r-sm` | 4 | Buttons, inputs, chips, menu items |
+| `--r-md` | 8 | Menus, popovers, cards |
+| `--r-lg` | 12 | Dialogs, large surfaces |
+| `--r-xl` | 16 | Bottom sheets |
+| `--r-pill` | 999px | Round buttons and chips (circles use `50%`) |
 
-入れ子は「内側の角丸 ≈ 外側 − 内側の余白」（例: メニュー `md` 8 + 余白 4 → 項目 `sm` 4）。
+Nested corners follow inner radius ≈ outer radius − padding. Example: menu `md` 8 with padding 4 → item `sm` 4.
 
-## 操作部の大きさ `--ctl-*`（アイコンボタンの一辺）
+## Control size `--ctl-*` (side of an icon button)
 
-`--ctl-xs` 24 / `--ctl-sm` 28 / `--ctl-md` 32 / `--ctl-lg` 40 / `--ctl-touch` 44（スマホで指で押すものは 44 を下回らない）。
+`--ctl-xs` 24 / `--ctl-sm` 28 / `--ctl-md` 32 / `--ctl-lg` 40 / `--ctl-touch` 44. Touch targets on phones are never smaller than 44.
