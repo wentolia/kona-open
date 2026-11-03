@@ -174,6 +174,7 @@ let roomKey = "", hostId = "";     // 招待リンクの中身（部屋の鍵・
 let hostName = "", guestNames: string[] = [];
 let relaysOpen = 0;
 let ended = "";                    // 参加者: 終わった理由（画面に出す）
+let endTip: "" | "lan" | "turn" = "";  // 参加者: つながらなかったときの案内
 let guestStep: "name" | "knock" | "connect" | "in" = "name";
 let knockTimer = 0, waitTimer = 0, stateTimer = 0;
 // 再生の写し
@@ -238,7 +239,25 @@ async function describe(pc: RTCPeerConnection, d: RTCSessionDescriptionInit) {
   return musicSdp(pc.localDescription!.sdp);
 }
 /** つながらなかった理由（参加者に見せる）。どんな経路の候補が出ていたかも添える（原因を調べる手がかり） */
-const NO_ROUTE = "つながりませんでした（おたがいの回線のあいだに通り道が見つかりませんでした。同じ Wi-Fi どうしなら Mac の「ローカルネットワーク」で Chrome を許可、別の回線どうしなら、つなぎ方の設定で TURN を足すとつながることがあります）";
+const NO_ROUTE = "つながりませんでした（おたがいの回線のあいだに通り道が見つかりませんでした）";
+/** 同じ回線（外から見たアドレスが同じ）らしいか。STUN に届かず分からないときも、同じ回線として案内する */
+function sameNetwork(pc: RTCPeerConnection) {
+  const pub = (sdp?: string) => new Set([...(sdp ?? "").matchAll(/candidate:\S+ \d+ \S+ \d+ (\S+) \d+ typ srflx/g)].map(m => m[1]));
+  const a = pub(pc.localDescription?.sdp), b = pub(pc.remoteDescription?.sdp);
+  return !a.size || !b.size || [...a].some(x => b.has(x));
+}
+const isMac = () => /Mac/.test(navigator.platform || navigator.userAgent);
+// 同じ Wi-Fi なのにつながらないときは、たいてい Mac がブラウザーに同じ回線の相手との通信を許していない
+const LAN_STEPS = `<ol class="party-tip-steps">
+    <li>「システム設定」→「プライバシーとセキュリティ」→「ローカルネットワーク」を開く</li>
+    <li>使っているブラウザー（Chrome など）をオンにする</li>
+    <li>ブラウザーをいったん終了して（⌘Q）開き直し、もう一度招待リンクから入る</li></ol>`;
+function tipHTML() {
+  if (endTip === "lan") return `<div class="party-tip"><p><b>同じ Wi-Fi の相手とつながらないとき</b>${isMac() ? "" : "（Mac の場合）"}</p>${LAN_STEPS}</div>`;
+  if (endTip === "turn") return `<div class="party-tip"><p><b>別の回線どうしでつながらないとき</b>: 会社・学校・テザリングなどの回線では、「つなぎ方の設定」に TURN を足すとつながることがあります。</p>
+    <details><summary>同じ Wi-Fi なのにつながらないとき（Mac）</summary>${LAN_STEPS}</details></div>`;
+  return "";
+}
 function routes(pc: RTCPeerConnection) {
   const kinds = (sdp?: string) => { const n = { host: 0, srflx: 0, relay: 0 }; for (const m of (sdp ?? "").matchAll(/ typ (host|srflx|prflx|relay)/g)) n[m[1] === "prflx" ? "srflx" : m[1] as "host"]++; return `${n.host}/${n.srflx}/${n.relay}`; };
   return `経路の候補 自分 ${kinds(pc.localDescription?.sdp)}・ホスト ${kinds(pc.remoteDescription?.sdp)}`;
@@ -591,7 +610,7 @@ async function guestLetter(l: Letter) {
   peers = [peer];
   pc.ondatachannel = e => wire(peer, e.channel);
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === "failed" && !peer.open && peers.includes(peer)) { clearTimeout(peer.timer); peers = []; try { pc.close(); } catch { /* ignore */ } end(`${NO_ROUTE}［${routes(pc)}］`); return; }
+    if (pc.connectionState === "failed" && !peer.open && peers.includes(peer)) { clearTimeout(peer.timer); peers = []; try { pc.close(); } catch { /* ignore */ } end(`${NO_ROUTE}［${routes(pc)}］`, sameNetwork(pc) ? "lan" : "turn"); return; }
     if (["failed", "closed"].includes(pc.connectionState)) dropped(peer);
   };
   voiceGuest?.close(); voiceGuest = new GuestVoice(); voiceGuest.onDuck = applyOut;
@@ -610,7 +629,7 @@ async function guestLetter(l: Letter) {
     });
     const sdp = await describe(pc, await pc.createAnswer());
     await box?.send(hostId, { t: "answer", sdp });
-    peer.timer = window.setTimeout(() => { if (!peer.open) end(`${NO_ROUTE}［${routes(pc)}］`); }, 40_000);
+    peer.timer = window.setTimeout(() => { if (!peer.open) end(`${NO_ROUTE}［${routes(pc)}］`, sameNetwork(pc) ? "lan" : "turn"); }, 40_000);
   } catch (e) { console.error(e); end(`つながりませんでした（このブラウザーでは接続の準備ができませんでした: ${(e as Error)?.name ?? "error"}）`); }
 }
 function hear(stream: MediaStream) {
@@ -731,10 +750,10 @@ function snapshot(): Msg {
   return { t: "state", track: a && t ? { title: t.title, artist: a.artist, album: a.title } : undefined, playing: p.playing, ext: p.external, id: a ? nowId() : undefined };
 }
 
-function end(why: string) {
+function end(why: string, tip: typeof endTip = "") {
   const keep = role === "guest";
   leave(true);
-  if (keep) { role = "guest"; ended = why; }
+  if (keep) { role = "guest"; ended = why; endTip = tip; }
   render();
   if (keep && !dlg) openParty();   // 部屋の画面は閉じたので、終わった理由をダイアログで知らせる
 }
@@ -751,7 +770,7 @@ function leave(quiet = false) {
   clearInterval(talkTimer); talkTimer = 0;
   voiceHost?.close(); voiceHost = undefined; voiceGuest?.close(); voiceGuest = undefined; lastTalk = "";
   mirror = undefined; mhist = undefined; hostLook = undefined; clearTimeout(npQueued); npQueued = 0;
-  peers = []; knocks = []; roomKey = hostId = ""; ended = ""; last = undefined; guestNames = []; relaysOpen = 0;
+  peers = []; knocks = []; roomKey = hostId = ""; ended = ""; endTip = ""; last = undefined; guestNames = []; relaysOpen = 0;
   role = "idle";
   if (!quiet) render();
 }
@@ -873,7 +892,7 @@ function render() {
     <p class="dlg-lead party-wait"><b>${esc(label(hostName))}</b>さんのホームに入っています…</p>
     <div class="dlg-actions"><button class="btn" id="party-leave">やめる</button></div>`);
   else if (ph === "guest-ended") h(`
-    <p class="dlg-lead">${esc(ended)}。</p>
+    <p class="dlg-lead">${esc(ended)}。</p>${tipHTML()}
     <div class="dlg-actions"><button class="btn primary" id="party-done">閉じる</button></div>`);
 
   const $ = <T extends HTMLElement>(s: string) => body.querySelector<T>(s);
