@@ -32,7 +32,7 @@ import { initShelfMarks } from "./shelf-marks";
 import "./photo.css";
 import "./room-light.css";
 import "./header.css";
-import { OBJECTS, placeObjects, legacyShown, markPlaced, objectAvailable } from "./mod-objects";
+import { OBJECTS, placeObjects, legacyShown, markPlaced, objectAvailable, objectSize, setObjectSize, SIZE_MIN, SIZE_MAX } from "./mod-objects";
 import { spectrumPrefs, setSpectrumPrefs, type SpectrumPrefs } from "./mod-spectrum";
 import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeDrive } from "./drive-ui";
 import { isDriveEntry, isKept, keepAlbum, forgetAlbum, driveConfig, driveToken, walkDrive, type DriveEntry } from "./drive";
@@ -1084,6 +1084,10 @@ function moduleFormHTML(d: ModuleDef) {
       const at = modules.find(m => m !== d && m.goods?.includes(o.key));
       return `<label class="sm-check"><input type="checkbox" data-obj="${o.key}"${d.goods?.includes(o.key) ? " checked" : ""}>${o.label}${at ? `<i class="sm-at">${esc(at.title)}</i>` : ""}</label>`;
     }).join("")}</fieldset>
+    ${d.goods?.some(objectAvailable) ? `<fieldset class="sm-sizes"><legend>小物の大きさ</legend>${d.goods.filter(objectAvailable).map(k => {
+      const o = OBJECTS.find(x => x.key === k), v = Math.round(objectSize(k) * 100);
+      return o ? `<label class="sm-size"><span>${esc(o.label.replace(/（.*）/, ""))}</span><input type="range" data-size="${k}" min="${SIZE_MIN * 100}" max="${SIZE_MAX * 100}" step="5" value="${v}" aria-label="${esc(o.label)}の大きさ"><output>${v}%</output></label>` : "";
+    }).join("")}</fieldset>` : ""}
     ${d.kind !== "queue" && d.kind !== "goods" ? `<label class="sm-check"><input id="sm-folder-gaps" type="checkbox"${d.folderGaps ? " checked" : ""}>${libGroup() === "artist" ? "アーティスト" : "フォルダ"}ごとに隙間をあけて仕切る</label>` : ""}
     ${d.kind === "search" ? `
       <label>検索語<input id="sm-query" type="search" autocomplete="off" placeholder="folder:… artist:… tag:… mood:夜" value="${esc(d.query ?? "")}"></label>
@@ -1144,6 +1148,13 @@ function wireModuleForm(el: HTMLElement, d: ModuleDef, again: () => void) {
     for (const m of modules) if (m.goods?.includes(k)) m.goods = m.goods.filter(x => x !== k);
     if (cb.checked) d.goods = [...(d.goods ?? []), k];
     save();
+  });
+  // 小物の大きさ: つまみを動かすとその場で変わる（描き直さない）。ダブルクリックで 100% に戻す
+  el.querySelectorAll<HTMLInputElement>("[data-size]").forEach(r => {
+    const out = r.nextElementSibling as HTMLOutputElement;
+    const set = (v: number) => { r.value = String(v); out.value = `${v}%`; setObjectSize(r.dataset.size!, v / 100); };
+    r.oninput = () => set(Number(r.value));
+    r.ondblclick = () => set(100);
   });
   $(".sm-delete", el).onclick = () => {
     modules = modules.filter(m => m !== d); removeModule(home, d.id); kept.delete(d.id);

@@ -19,7 +19,8 @@
 /* 高さは段の高さ近くまで。並べる数が多くて幅が足りないときは、全部が収まる大きさに縮める */
 .goods svg {
   display: block; overflow: visible; flex: 0 0 auto;
-  height: min(78cqh, 220px, calc(var(--room) / var(--units) * 100));
+  /* --s は小物ごとの大きさ（設定で 50〜150%） */
+  height: calc(min(78cqh, 220px, calc(var(--room) / var(--units) * 100)) * var(--s, 1));
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .45));
   transition: filter .8s ease;
 }

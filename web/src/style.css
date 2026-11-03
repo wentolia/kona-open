@@ -712,6 +712,11 @@ body { background: radial-gradient(120% 80% at 50% 45%, color-mix(in srgb, var(-
 .sm-form fieldset.sm-objects { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
 .sm-form fieldset.sm-objects .sm-at { font-style: normal; font-size: 10px; color: var(--muted); }
 .sm-form fieldset.sm-objects .sm-at::before { content: "（"; } .sm-form fieldset.sm-objects .sm-at::after { content: "）"; }
+.sm-form fieldset.sm-sizes { border: 0; margin: 0; padding: 0; display: grid; gap: 2px; }
+.sm-form fieldset.sm-sizes legend { padding: 0; margin-bottom: 4px; font-size: 11px; color: var(--muted); }
+.sm-form label.sm-size { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) 3.2em; align-items: center; gap: 8px; font-size: 12px; color: var(--ink); }
+.sm-form label.sm-size span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-form label.sm-size output { font-family: var(--font-mono); font-size: 11px; color: var(--muted); text-align: right; }
 .sm-form fieldset.sm-objects legend { padding: 0; margin-bottom: 4px; font-size: 11px; color: var(--muted); }
 
 /* 曲・アルバムが変わったときの差し替え: 薄く消えて、ゆっくり現れる */
