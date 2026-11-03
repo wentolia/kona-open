@@ -71,3 +71,6 @@ export function leaf(a: string, b: string, x: number, y: number, len: number, wi
   const tip: Pt = [x + ux * len, y + uy * len], m: Pt = [x + ux * len * .45, y + uy * len * .45];
   return poly(a, [[x, y], [m[0] + px * wid, m[1] + py * wid], tip]) + poly(b, [[x, y], tip, [m[0] - px * wid, m[1] - py * wid]]);
 }
+/** 楕円の弧の頂点（a0〜a1 ラジアン、n 分割。0 が右、π/2 が下） */
+export const arc = (cx: number, cy: number, rx: number, ry: number, a0: number, a1: number, n: number): Pt[] =>
+  Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry] as Pt; });
