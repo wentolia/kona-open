@@ -12,14 +12,9 @@ input.party-code { resize: none; }
 .party-knock .btn { font-size: 12px; padding: var(--pad-btn); }
 .party-row { display: flex; flex-wrap: wrap; gap: var(--sp-1h); }
 .party-row .btn { font-size: 12px; padding: var(--pad-btn); }
-.party-hr { border: 0; border-top: 1px solid var(--line); margin: var(--sp-1) 0; width: 100%; }
 .party-wait { color: var(--muted); }
 .party-people ul { list-style: none; margin: var(--sp-1) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-1h); }
 .party-people li { font-size: 12px; padding: var(--pad-btn-sm); border-radius: var(--r-pill); background: var(--soft); }
-.party-now { display: grid; gap: var(--sp-0h); padding: var(--inset-card); border-radius: var(--r-md); background: var(--soft); font-size: 13px; min-height: 2.6em; }
-.party-now b { font-weight: 500; overflow-wrap: anywhere; }
-.party-now span { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
-.party-now .party-state { font-family: var(--font-mono); color: var(--ink); opacity: .8; margin-top: var(--sp-1); }
 /* 中継サーバー（party-ice.ts） */
 .party-relay-conf { border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--sp-2) var(--sp-3); }
 .party-relay-conf > summary { cursor: pointer; list-style-position: outside; font-size: 12px; }

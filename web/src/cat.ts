@@ -28,8 +28,6 @@ const SPEED = 30;       // 歩く速さ px/s（忍び足なのでゆっくり）
 const RUN = 2.8;        // 走るときの速さの倍率
 let music = false;      // 音楽が鳴っている（再生中モジュールの上が温かい）
 export function setCatsMusic(on: boolean) { music = on; }
-let held = false;       // 写真を撮っている間は、猫はその場でじっとしている
-export function holdCats(on: boolean) { held = on; }
 // リスニングパーティーの部屋では、届いた音の大きさを猫の耳にする（参加者は自分のプレイヤーを鳴らさないので）
 let partyEar: (() => number) | undefined;
 export function setPartyEar(fn?: () => number) { partyEar = fn; }
@@ -794,7 +792,6 @@ function drawNeck(c: Cat, tx: number, ty: number, deg: number) {
 
 function tick(c: Cat, now: number) {
   if (c.stage && !c.layer.isConnected) { removeCat(c); return; } // 起動画面が片づいた
-  if (held) { c.last = now; c.raf = requestAnimationFrame(n => tick(c, n)); return; }
   const dt = Math.min(.05, (now - c.last) / 1000);
   c.last = now; c.t += dt; c.st += dt;
   hearMusic(now);
@@ -1180,7 +1177,6 @@ export function setCatsAway(on: boolean) {
   away = on;
   document.dispatchEvent(new Event("kona:cats-away"));
 }
-export const catsAway = () => away;
 export function setCats(grid: HTMLElement, coats: Coat[], animate = false): void {
   if (away) coats = [];
   // 日だまりの位置と、来客の猫の訪れは、数秒ごとに確かめる
@@ -1368,13 +1364,7 @@ function removeCat(c: Cat) {
   c.layer.remove();
 }
 
-// ---------- 起動画面の猫 ----------
-// ホームと同じ猫（同じ毛並み・同じ体）を、起動画面の小さな床に置く。sleep 秒だけ眠ってから、
-// あくびをして目を開け、座る。あとは座ったまま、まばたき・耳のピクつき・カーソルを目で追う。撫でると喉を鳴らす
-export function stageCat(host: HTMLElement, coat: Coat, sleep: number, size = 1.25): void {
-  const c = addCat(host, coat, { sleep }, size);
-  c.layer.classList.add("cat-stage");
-}
+// 舞台の猫（パーティーの部屋の猫）: 飼い主の操作だけで動く
 function stageNext(c: Cat) {
   if (c.stage?.pup) return pupNext(c);
   switch (c.state) {
@@ -2429,10 +2419,6 @@ export function restyleCat(coat: Coat) {
 }
 /** 部屋のどれかの猫が寝ているか（実績） */
 export const anyCatAsleep = () => cats.some(c => !c.stage && !!c.cur && c.state === "sleep");
-export const catNames = () => cats.filter(c => !c.stage).map(c => nameOf(c.coat));
-export const debugCats = () => cats;
-export const debugEar = () => ear;
-export const debugDo = { walk: (c: unknown, x: number) => { (c as Cat).state = "stand"; walkTo(c as Cat, x); }, go: (c: unknown, s: string) => go(c as Cat, s as State), zoom: (c: unknown) => zoomies(c as Cat), shine: (c: unknown, d: number) => shine(c as Cat, d), taste: () => ({ music, tasteAt, now: hooks?.nowPlaying?.(), label: hooks?.nowPlaying?.() ? hooks?.tasteOf?.(hooks.nowPlaying()!) : undefined }), goBox: (c: unknown) => goBox(c as Cat), goSun: (c: unknown) => goSun(c as Cat), stroke: (c: unknown, pts: [number, number][]) => strokeCat(c as Cat, pts), sun: () => { paintSun(); return sun; } };
 
 // ---------- リスニングパーティーの部屋の猫 ----------
 // 部屋に入った人の分身。自分では動き回らず、飼い主の操作（クリックした先へ歩く・しぐさ）だけをする。

@@ -376,8 +376,6 @@ async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry
     return;
   }
   const remote = found.some(a => a.remote);
-  // Spotify のジャケットは、写真ではいつも隠す（photo.ts が見る）
-  document.documentElement.toggleAttribute("data-art-locked", remote);
   if (!remote) forgetSpotifyOpen();
   if (!found.length) { setStatus(""); setState("start", typeof entries === "function" ? `${name} に保存したアルバムがありません。` : `「${name}」の中に音楽ファイルが見つかりませんでした。別のフォルダを選んでください。`); return; }
   // 2. アルバムごとにジャケットとタグを読む（ここからは全体に対する割合を出す）

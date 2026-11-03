@@ -62,10 +62,6 @@
 .pr-home .face, .pr-home .spine { cursor: pointer; }
 .pr-plat { position: absolute; left: 11px; right: 11px; top: 0; height: 0; pointer-events: none; }
 .pr-plat-board { top: auto; bottom: var(--board, 11px); }
-.pr-now-card { flex: 1; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto 1fr; align-content: start; gap: var(--sp-1) var(--sp-4); padding: var(--sp-4); font-size: 13px; color: var(--muted); cursor: pointer; }
-.pr-now-card b { color: var(--ink); font-weight: 500; font-size: 15px; overflow-wrap: anywhere; }
-.pr-now-card span { overflow-wrap: anywhere; }
-.pr-now-art { grid-row: 1 / 4; width: min(160px, 30vw); aspect-ratio: 1; border-radius: var(--r-sm); overflow: hidden; box-shadow: 0 6px 14px rgba(0, 0, 0, .3); }
 .pr-wait { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
 
 /* アルバムの札 */

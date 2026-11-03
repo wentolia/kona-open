@@ -6,7 +6,7 @@ import { prefs } from "./prefs";
 const EN: Record<string, string> = {
   // 上の帯・画面
   "ホーム": "Home", "ライブラリ": "Library", "設定": "Settings", "フォルダを開く": "Open folder", "読み直す": "Rescan",
-  "読み直しています": "Rescanning", "最小表示": "Compact view", "小窓で手前に出す": "Picture-in-picture",
+  "読み直しています": "Rescanning", "小窓で手前に出す": "Picture-in-picture",
   "フォルダの中の変更（増えた・減ったアルバム）を反映します": "Pick up albums added or removed in the folder",
   "この端末のフォルダ": "Folder on this device", "設定と聴いた記録を書き出す": "Export settings and listening history",
   "配置・イコライザーなど": "Layout, EQ and more",

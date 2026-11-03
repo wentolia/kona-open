@@ -13,6 +13,7 @@ import { ITEMS, itemOf, viewBoxOf } from "./items";
 import { startLive } from "./items/live";
 import { itemTag } from "./presents";
 import { t as tr } from "./i18n";
+import { clamp } from "./dom";
 
 const KEY = "kona.things";
 /** 置ける数の上限（パーティーで部屋を写すとき、ひとつの値が大きくなりすぎないように） */
@@ -39,7 +40,6 @@ export const THING_MIN = 0.5, THING_MAX = 1.5;
 
 /** 置いたひとつ。x: 左端 0〜右端 1。d: 床の奥行き（0 手前〜1 奥）。y: 壁の高さ（0 上〜1 下）。s: 大きさ。f: 左右反転 */
 export type Item = { id: string; k: string; x: number; d?: number; y?: number; s?: number; f?: 1 };
-const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const num = (v: unknown, a: number, b: number) => typeof v === "number" && Number.isFinite(v) ? clamp(v, a, b) : undefined;
 
 /** 保存した形・ホストから届いた形を確かめて、知っている種類と範囲の中の数だけにする */
