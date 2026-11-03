@@ -21,7 +21,6 @@ import { setLiveSource } from "./items/live";
 import { setCats, randomCoat, isCoat, setCatsMusic, restyleCat, setCatHooks, catPicksAlbum, anyCatAsleep, toggleWand, wandOn, type Coat } from "./cat";
 import { initNoise, roomTail } from "./noise";
 import { ritual, isPulled } from "./ritual";
-import { wakeCatHost, placeWakeCat, catAwake } from "./wakecat";
 import { initMini } from "./mini";
 import { windowRain, WINDOW_SCENES, windowScene, setWindowScene } from "./mod-window";
 import { initRoomLight } from "./room-light";
@@ -319,7 +318,6 @@ async function showCached(roots: Root[]): Promise<boolean> {
   allAlbums = found;
   albums = found.filter(shown);
   showCount(); renderSetTabs();
-  await catAwake();
   setState("ready");
   showRescan();
   restoreSession();
@@ -385,7 +383,6 @@ async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry
   albums = found.filter(shown);
   if (!remote) pruneTagCache(new Set(found.map(a => a.key))); // Spotify を開いても、手元のフォルダの覚えは消さない
   showCount(); renderSetTabs();
-  await catAwake();
   setState("ready");
   showRescan(); lastScan = Date.now();
   restoreSession();
@@ -597,11 +594,8 @@ initMobile({
 type AppState = "start" | "loading" | "ready";
 function setState(state: AppState, note = "") {
   document.body.dataset.state = state;
-  if (state === "ready") { document.querySelector("#start .wake-cat")?.remove(); return; } // 起動画面の猫は帰る
-  // 起動画面の猫は、開始 → 読み込み中と画面が替わっても同じ子のまま（あくびを最初からやり直さない）
-  const cat = document.querySelector<HTMLElement>("#start .wake-cat") ?? wakeCatHost();
+  if (state === "ready") return;
   $("#start").innerHTML = `<div class="start-inner">
-    <i id="start-cat"></i>
     <div class="start-brand" role="img" aria-label="Kona">${headerIcon("logo")}</div>
     ${state === "loading"
       ? `<p class="start-lead" id="start-step">読み込んでいます</p>
@@ -617,7 +611,6 @@ function setState(state: AppState, note = "") {
         </div>
 `}
   </div>`;
-  $("#start-cat").replaceWith(cat); placeWakeCat(cat, coats[0]);
   $("#s-open")?.addEventListener("click", openFolder);
   $("#s-reopen")?.addEventListener("click", reopenSaved);
   $("#s-drive")?.addEventListener("click", openDrive);
