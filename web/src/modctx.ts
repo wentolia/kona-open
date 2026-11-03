@@ -4,6 +4,7 @@ export { esc, fmt } from "./dom";
 import type { Album } from "./library";
 import type { Player } from "./player";
 import { reduceMotion } from "./prefs";
+import { listenedSeconds, playLog, stat, type PlayEvent, type PlayStat } from "./store";
 
 export interface ModuleContext {
   player: Player;
@@ -15,7 +16,25 @@ export interface ModuleContext {
 
 let current: ModuleContext | undefined;
 export const setModuleContext = (c: ModuleContext) => { current = c; };
-export const ctx = () => current!;
+
+/** 聴いた記録（聴いた記録・聴いた距離・アルバムの情報のモジュールが読む） */
+export interface HistorySource {
+  log(): readonly PlayEvent[];
+  stat(albumKey: string): PlayStat;
+  listened(): number;
+}
+const ownHistory: HistorySource = { log: playLog, stat, listened: listenedSeconds };
+
+// リスニングパーティーの部屋では、ホームの写しのモジュールを、ホストの再生（の写し）と記録で動かす。
+// モジュールは組み立てるときに ctx().player / hist() を受け取って持ち続けるので、組み立てる間だけ差し替える
+export type ModOverride = Partial<ModuleContext> & { history?: HistorySource };
+let over: ModOverride | undefined;
+export function mountingWith<T>(o: ModOverride | undefined, fn: () => T): T {
+  const was = over; over = o;
+  try { return fn(); } finally { over = was; }
+}
+export const ctx = (): ModuleContext => over ? { ...current!, ...over } : current!;
+export const hist = (): HistorySource => over?.history ?? ownHistory;
 
 export const css = (name: string, fallback: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 

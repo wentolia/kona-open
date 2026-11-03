@@ -6,7 +6,7 @@
 import "./party-room.css";
 import { BREEDS, breedCoat, isCoat, puppetCat, randomCoat, EMOTES, type Coat, type Emote, type Puppet } from "./cat";
 import { esc, fmt } from "./modctx";
-import { buildHome, type HomeView, type SnapAlbum, type SnapRow, type SnapTrack } from "./party-home";
+import { buildHome, type HomeSource, type HomeView, type SnapAlbum, type SnapRow, type SnapTrack } from "./party-home";
 
 const CAT_KEY = "kona.party.cat";
 export const MAX_SAY = 200;
@@ -114,6 +114,8 @@ export interface RoomOpts {
   /** ホストだけ: リクエストに応える */
   play?(id: string, i?: number): void;
   volume?: { get(): number; set(v: number): void };
+  /** ホームの写しのモジュールを何で動かすか（描き直すたびに聞く） */
+  src(): HomeSource;
 }
 export class Room {
   cats = new Map<string, RoomCat>();
@@ -125,7 +127,7 @@ export class Room {
   private rows?: SnapRow[];
   private homeView?: HomeView;
   private covers = new Map<string, string>();
-  private asked = new Set<string>();
+  private asked = new Map<string, number>();   // ジャケットを頼んだ回数（届かなければ、しばらくして頼み直す）
   private tracks = new Map<string, SnapTrack[]>();
   private card?: string;          // 開いているアルバムの札
   private el?: HTMLElement;
@@ -217,7 +219,7 @@ export class Room {
     };
     $<HTMLFormElement>("#pr-find").onsubmit = e => e.preventDefault();
     addEventListener("keydown", this.onKey, true);
-    if (!this.rows) this.o.want({ t: "home" });
+    if (!this.rows) this.askHome();
     if (!this.homeView) this.drawSpace();   // ホストは want の中で写しを描き終えている
     this.refresh();
   }
@@ -245,7 +247,7 @@ export class Room {
     this.homeView?.dispose(); this.homeView = undefined;
     this.stage.replaceChildren();
     if (this.rows) {
-      this.homeView = buildHome(this.rows, this.albums, { cover: id => this.wantCover(id), open: id => this.openCard(id) });
+      this.homeView = buildHome(this.rows, this.albums, { cover: id => this.wantCover(id), open: id => this.openCard(id), src: this.o.src() });
       this.stage.append(this.homeView.el);
       this.space = this.homeView.el.querySelector<HTMLElement>(".grid")!;
       for (const [id, url] of this.covers) this.homeView.setCover(id, url);
@@ -263,13 +265,31 @@ export class Room {
     for (const a of albums) this.albums.set(a.id, a);
     this.drawSpace();
   }
+  // ホームの写しが届くまで、間をあけて頼み直す（ホストが間引いて黙って捨てることがある）
+  private askHome(n = 0) {
+    if (this.rows || !this.el || n > 8) return;
+    this.o.want({ t: "home" });
+    window.setTimeout(() => this.askHome(n + 1), 3000);
+  }
+  /** 描き直す（モジュールの動かし方が変わったとき） */
+  redraw() { if (this.stage) this.drawSpace(); }
+  coverOf(id: string) { return this.covers.get(id); }
   addAlbums(albums: SnapAlbum[]) { for (const a of albums) this.albums.set(a.id, a); }
   setCover(id: string, url: string) {
     this.covers.set(id, url);
     this.homeView?.setCover(id, url);
     if (this.card === id) this.drawCard();
   }
-  private wantCover(id: string) { if (!this.asked.has(id) && !this.covers.has(id)) { this.asked.add(id); this.o.want({ t: "cover", id }); } }
+  private wantCover(id: string) {
+    if (this.covers.has(id) || this.asked.has(id)) return;
+    this.ask(id, 1);
+  }
+  // 一度に頼みすぎると、ホストが間引いて黙って捨てる。届かなければ、間をあけて 3 回まで頼み直す
+  private ask(id: string, n: number) {
+    this.asked.set(id, n);
+    this.o.want({ t: "cover", id });
+    if (n < 3) window.setTimeout(() => { if (this.el && !this.covers.has(id) && this.albums.has(id)) this.ask(id, n + 1); }, 2500 * n + Math.random() * 1500);
+  }
   setTracks(id: string, t: SnapTrack[]) { this.tracks.set(id, t); if (this.card === id) this.drawCard(); }
   showFound(list: SnapAlbum[]) {
     for (const a of list) if (!this.albums.has(a.id)) this.albums.set(a.id, a);
@@ -290,7 +310,11 @@ export class Room {
     if (!this.albums.has(id)) return;
     this.card = id;
     this.wantCover(id);
-    if (!this.tracks.has(id)) this.o.want({ t: "tracks", id });
+    if (!this.tracks.has(id)) {
+      this.o.want({ t: "tracks", id });
+      // 間引かれて届かないことがある。札を開いたままなら頼み直す
+      window.setTimeout(() => { if (this.card === id && !this.tracks.has(id)) this.o.want({ t: "tracks", id }); }, 3000);
+    }
     this.drawCard();
   }
   private closeCard() { this.card = undefined; const c = this.el?.querySelector<HTMLElement>("#pr-card"); if (c) c.hidden = true; }

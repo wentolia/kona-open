@@ -49,11 +49,15 @@ export class Eq {
     return { input: this.filters[0], output: this.pre };
   }
 
-  set(i: number, db: number) { this.gains[i] = clamp(Math.round(db * 2) / 2); this.changed(); }
-  toggle() { this.on = !this.on; this.changed(); }
-  reset() { this.gains = BANDS.map(() => 0); this.changed(); }
+  /** 見せるだけの EQ（リスニングパーティーで、ホストの設定を映す）。触っても変わらず、端末にも残さない */
+  readonly = false;
+  set(i: number, db: number) { if (this.readonly) return; this.gains[i] = clamp(Math.round(db * 2) / 2); this.changed(); }
+  toggle() { if (this.readonly) return; this.on = !this.on; this.changed(); }
+  reset() { if (this.readonly) return; this.gains = BANDS.map(() => 0); this.changed(); }
   /** プリセットを当てる（オフなら入れる） */
-  setAll(gains: number[]) { this.gains = BANDS.map((_, i) => clamp(gains[i] ?? 0)); this.on = true; this.changed(); }
+  setAll(gains: number[]) { if (this.readonly) return; this.gains = BANDS.map((_, i) => clamp(gains[i] ?? 0)); this.on = true; this.changed(); }
+  /** 見せるだけの EQ に、ホストの設定を映す */
+  show(on: boolean, gains: number[]) { this.on = on; this.gains = BANDS.map((_, i) => clamp(gains[i] ?? 0)); this.listeners.forEach(fn => fn()); }
   get flat() { return this.gains.every(g => g === 0); }
   /** 持ち上げた最大量だけ下げる（オフのときは 0） */
   get preamp() { return this.on ? -Math.max(0, ...this.gains) : 0; }

@@ -1,8 +1,7 @@
 // 聴いた距離: 聴いた時間の合計を、レコードの溝をたどった長さに換算する（33⅓ 回転・平均の半径 11cm で毎秒約 0.38m）。
 // 次に越える目じるしまでの進み具合を細い線で見せる
 
-import { esc, everyFrame } from "./modctx";
-import { listenedSeconds } from "./store";
+import { esc, everyFrame, hist } from "./modctx";
 import { openCertificate } from "./awards";
 
 const SPEED = 2 * Math.PI * 0.11 * (33.333 / 60); // m/s
@@ -27,8 +26,9 @@ export function mountDistance(body: HTMLElement) {
   // 通り過ぎた目じるしを押すと、その証書
   from.onclick = () => { if (from.dataset.m) openCertificate(Number(from.dataset.m)); };
   let shown = -1;
+  const H = hist();
   everyFrame(root, () => {
-    const m = metersOf(listenedSeconds());
+    const m = metersOf(H.listened());
     if (Math.floor(m) === shown) return;
     shown = Math.floor(m);
     num.innerHTML = fmtM(m);

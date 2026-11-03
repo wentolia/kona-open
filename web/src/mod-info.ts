@@ -1,14 +1,14 @@
 // アルバムの情報: 図書館の貸出カードのように、再生中のアルバムの書誌と、聴いた日付のスタンプを並べる
 
-import { ctx, esc, fmt, fadeSwap } from "./modctx";
-import { stat, playLog } from "./store";
+import { ctx, esc, fmt, fadeSwap, hist } from "./modctx";
 
 export function mountInfo(body: HTMLElement) {
   body.innerHTML = `<div class="card"></div>`;
   const root = body.querySelector<HTMLElement>(".card")!;
   let shown: string | undefined, album: string | undefined;
+  const P = ctx().player, H = hist(), { stat, log: playLog } = H;
   const render = () => {
-    const p = ctx().player, a = p.album;
+    const p = P, a = p.album;
     const key = a ? `${a.key}|${a.tagged}|${stat(a.key).plays}` : "";
     if (key === shown || root.classList.contains("swap-out")) return;
     shown = key;
@@ -34,7 +34,7 @@ export function mountInfo(body: HTMLElement) {
       <dl class="card-rows">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
       <div class="card-stamps" aria-label="聴いた日">${dates.map((d, i) => `<span class="stamp" style="--r:${((hash(a.key + i) % 9) - 4)}deg">${d}</span>`).join("")}</div>`;
   };
-  ctx().player.on(render);
+  P.on(render);
   render();
   // 再生回数は再生の開始時に増えるので、少し遅れて描き直す
   setInterval(() => { if (root.isConnected) render(); }, 2000);

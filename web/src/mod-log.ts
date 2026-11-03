@@ -1,7 +1,6 @@
 // 聴いた記録: 週ごとに1段。その週に聴いたアルバムを小さな背表紙で並べる（よく聴いたものほど太い）
 
-import { ctx, esc } from "./modctx";
-import { playLog } from "./store";
+import { ctx, esc, hist } from "./modctx";
 import type { Album } from "./library";
 
 const WEEKS = 8;
@@ -16,11 +15,12 @@ export function mountLog(body: HTMLElement) {
   body.innerHTML = `<div class="log"></div>`;
   const root = body.querySelector<HTMLElement>(".log")!;
   let shown = -1;
+  const C = ctx(), H = hist();
   const render = () => {
-    const log = playLog();
+    const log = H.log();
     if (log.length === shown) return;
     shown = log.length;
-    const c = ctx(), now = weekStart(Date.now());
+    const c = C, now = weekStart(Date.now());
     const weeks = Array.from({ length: WEEKS }, (_, i) => now - i * 7 * 864e5);
     const rows = weeks.map(start => {
       const counts = new Map<string, number>();
@@ -38,10 +38,10 @@ export function mountLog(body: HTMLElement) {
   };
   root.addEventListener("dblclick", e => {
     const key = (e.target as HTMLElement).closest<HTMLElement>(".log-spine")?.dataset.key;
-    const a = key ? ctx().byKey(key) : undefined;
-    if (a) ctx().play(a);
+    const a = key ? C.byKey(key) : undefined;
+    if (a) C.play(a);
   });
-  ctx().player.on(render);
+  C.player.on(render);
   render();
   setInterval(() => { if (root.isConnected) render(); }, 3000);
 }

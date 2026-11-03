@@ -98,10 +98,11 @@ export function mountWindow(body: HTMLElement) {
   });
   const end = () => { drawing = null; };
   canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
+  const P = ctx().player;
   everyFrame(root, () => {
     const now = performance.now(), dt = Math.min(.1, (now - last) / 1000); last = now;
     // カーテンは音に合わせて、ほんの少しだけ揺れる
-    const p = ctx().player, [l, r] = p.playing ? p.levels() : [0, 0];
+    const p = P, [l, r] = p.playing ? p.levels() : [0, 0];
     sway += (Math.min(1, (l + r) * 1.4) - sway) * (1 - Math.exp(-dt / .8));
     stepRain(rain, dt, (l + r) / 2, windowRain());
     // 窓辺の鳥: 晴れた朝（6〜10時半ごろ）に来る

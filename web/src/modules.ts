@@ -193,6 +193,13 @@ async function peaksOf(file: File, key: string, path: string): Promise<Float32Ar
   putPeaks(sig, Uint8Array.from(out, v => Math.round(v * 255)));
   return out;
 }
+/** いま流れている曲の波形（リスニングパーティーで参加者に送る）。読めなければ undefined */
+export async function currentPeaks(player: Player): Promise<Float32Array | undefined> {
+  const a = player.album, t = player.track;
+  if (!a || !t || a.remote) return undefined;
+  const key = `${a.key}#${player.index}`;
+  try { const file = await player.trackFile(); return file ? await peaksOf(file, key, t.entry.path) : undefined; } catch { return undefined; }
+}
 function remember(key: string, peaks: Float32Array) {
   if (peaksCache.size > 24) peaksCache.delete(peaksCache.keys().next().value!);
   peaksCache.set(key, peaks);
@@ -220,9 +227,11 @@ export function mountWave(body: HTMLElement, player: Player) {
     
     if (!key) return;
     try {
+      // リスニングパーティーの部屋の写しは、曲のファイルを持たないので、ホストから届いた形を使う
+      const given = (player as Player & { peaks?(key: string): Promise<Float32Array | undefined> }).peaks;
       const path = player.track?.entry.path ?? key;
-      const file = await player.trackFile();
-      const p = file ? await peaksOf(file, key, path) : undefined;
+      const file = given ? undefined : await player.trackFile();
+      const p = given ? await given.call(player, key) : file ? await peaksOf(file, key, path) : undefined;
       if (keyOf() !== key) return;
       peaks = p; dirty = true;
     } catch { /* 読めない曲は波形なし */ }

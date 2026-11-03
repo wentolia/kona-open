@@ -11,10 +11,15 @@
 
 import "./party.css";
 import { ctx, esc } from "./modctx";
-import { Mailbox, isRoomKey, newRoomKey, type Letter } from "./party-relay";
+import { Mailbox, b64, isRoomKey, newRoomKey, unb64, type Letter } from "./party-relay";
 import { Room, cleanCoat, cleanName, cleanText, editorHtml, isEmote, isPerms, myCat, wireEditor, type Perms, type Req, type RoomCat } from "./party-room";
 import { allTags, currentSet, setLabel, type AlbumSet } from "./tags";
-import { albumOf, cleanAlbum, setShareSet, shareSet, cleanRows, cleanTracks, findAlbums, isThumb, nowId, resetIds, snapshotHome, thumbOf, tracksOf, type SnapAlbum, type SnapRow, type SnapTrack } from "./party-home";
+import { albumOf, cleanAlbum, setShareSet, shareSet, cleanRows, cleanTracks, findAlbums, idFor, isThumb, nowId, resetIds, safeColor, snapshotHome, thumbOf, tracksOf, type HomeSource, type SnapAlbum, type SnapRow, type SnapTrack } from "./party-home";
+import { MirrorPlayer, MirrorHistory, type NowState } from "./party-mirror";
+import { currentPeaks } from "./modules";
+import { BANDS } from "./eq";
+import { playLog, stat, listenedSeconds, type PlayEvent } from "./store";
+import type { Album } from "./library";
 import { setPartyEar, type Coat, type Emote } from "./cat";
 
 const NAME_KEY = "kona.party.name";
@@ -48,7 +53,11 @@ type Msg =
   | { t: "cover"; id: string; url: string }
   | { t: "tracks"; id: string; tracks: SnapTrack[] }
   | { t: "found"; list: SnapAlbum[] }
-  | { t: "req"; id: string; i?: number };
+  | { t: "req"; id: string; i?: number }
+  // 再生の写し（ホスト → 部屋にいる参加者）: いまの再生・曲の波形・聴いた記録（ホストが見せると決めたときだけ）
+  | ({ t: "np" } & NowState)
+  | { t: "peaks"; k: string; d: string }
+  | { t: "hist"; on: boolean; ev?: number[]; pl?: number[]; ls?: number };
 
 // 相手から届いたものは信用しない: 形と大きさを確かめてから使う（壊れたもの・知らないものは捨てる）
 const MAX_TEXT = 2000, MAX_NAMES = 64;
@@ -67,6 +76,25 @@ function asCat(x: unknown): RoomCat | undefined {
 function isTrack(x: unknown): x is TrackInfo {
   const o = x as TrackInfo;
   return !!o && typeof o === "object" && isText(o.title) && isText(o.artist) && isText(o.album);
+}
+const fin = (x: unknown, a: number, b: number): x is number => typeof x === "number" && Number.isFinite(x) && x >= a && x <= b;
+function asNow(m: Record<string, unknown>): Msg | undefined {
+  const eq = m.eq as Record<string, unknown> | undefined;
+  if (!Number.isInteger(m.i) || !fin(m.i, 0, 999) || !fin(m.pos, 0, 1e6) || !fin(m.dur, 0, 1e6) || typeof m.on !== "boolean") return undefined;
+  if (!eq || typeof eq.on !== "boolean" || !Array.isArray(eq.g) || eq.g.length !== BANDS.length || !eq.g.every(g => fin(g, -24, 24))) return undefined;
+  const out: { t: "np" } & NowState = { t: "np", i: m.i as number, pos: m.pos, dur: m.dur, on: m.on, eq: { on: eq.on, g: eq.g as number[] } };
+  if (fin(m.sr, 8000, 768000)) out.sr = m.sr;
+  if (m.nz === "off" || m.nz === "track" || m.nz === "album") out.nz = m.nz;
+  if (fin(m.ng, -60, 60)) out.ng = m.ng;
+  if (isAid(m.id)) out.id = m.id;
+  const al = m.album as Record<string, unknown> | undefined;
+  if (isAid(m.id) && al && typeof al === "object" && isText(al.t) && isText(al.a) && Array.isArray(al.tr) && al.tr.length <= 300) {
+    const tr = (al.tr as Record<string, unknown>[]).map(t => t && typeof t === "object" ? { t: cleanText(t.t), no: Number.isInteger(t.no) && fin(t.no, 0, 9999) ? t.no as number : 0, d: fin(t.d, 0, 1e5) ? t.d as number : 0, f: typeof t.f === "string" ? t.f.slice(0, 60) : undefined } : undefined);
+    if (tr.every(Boolean)) {
+      out.album = { t: (al.t as string).slice(0, 200), a: (al.a as string).slice(0, 200), y: fin(al.y, 0, 9999) ? al.y : undefined, g: typeof al.g === "string" ? al.g.slice(0, 60) : undefined, c: safeColor(al.c), r: fin(al.r, .2, 5) ? al.r : undefined, tr: tr as NonNullable<NowState["album"]>["tr"] };
+    }
+  }
+  return out;
 }
 function asMsg(x: unknown): Msg | undefined {
   const m = x as Record<string, unknown>;
@@ -117,12 +145,22 @@ function asMsg(x: unknown): Msg | undefined {
     case "found": return Array.isArray(m.list) && m.list.length <= 20 ? { t: "found", list: m.list.map(cleanAlbum).filter((a): a is SnapAlbum => !!a) } : undefined;
     case "cover": return isAid(m.id) && isThumb(m.url) ? { t: "cover", id: m.id, url: m.url } : undefined;
     case "tracks": { const tracks = cleanTracks(m.tracks); return isAid(m.id) && tracks ? { t: "tracks", id: m.id, tracks } : undefined; }
+    case "np": return asNow(m);
+    case "peaks": return typeof m.k === "string" && /^a\d{1,5}#\d{1,3}$/.test(m.k) && typeof m.d === "string" && m.d.length <= 4000 && /^[\w-]*$/.test(m.d) ? { t: "peaks", k: m.k, d: m.d } : undefined;
+    case "hist": {
+      if (typeof m.on !== "boolean") return undefined;
+      if (!m.on) return { t: "hist", on: false };
+      const ints = (x: unknown, n: number) => Array.isArray(x) && x.length <= n && x.every(v => Number.isInteger(v) && v >= 0) ? x as number[] : undefined;
+      const ev = ints(m.ev, 8000), pl = ints(m.pl, 4000);
+      if (!ev || !pl || ev.length % 2 || pl.length % 2 || typeof m.ls !== "number" || !Number.isFinite(m.ls) || m.ls < 0) return undefined;
+      return { t: "hist", on: true, ev, pl, ls: m.ls };
+    }
     case "req": return isAid(m.id) && (m.i === undefined || (Number.isInteger(m.i) && (m.i as number) >= 0 && (m.i as number) < 1000)) ? { t: "req", id: m.id, i: m.i as number | undefined } : undefined;
   }
   return undefined;
 }
 
-interface Peer { id: string; pc: RTCPeerConnection; dc?: RTCDataChannel; name: string; open: boolean; timer: number; cid: string; inRoom?: boolean; bucket: number; at: number }
+interface Peer { id: string; pc: RTCPeerConnection; dc?: RTCDataChannel; name: string; open: boolean; timer: number; cid: string; inRoom?: boolean; bucket: number; at: number; npId?: string }
 
 type Role = "idle" | "host" | "guest";
 let role: Role = "idle";
@@ -135,6 +173,10 @@ let relaysOpen = 0;
 let ended = "";                    // 参加者: 終わった理由（画面に出す）
 let guestStep: "name" | "knock" | "connect" | "in" = "name";
 let knockTimer = 0, waitTimer = 0, stateTimer = 0;
+// 再生の写し
+let showHist = false;              // ホスト: 聴いた記録・聴いた距離を見せる（既定は見せない）
+let npQueued = 0, ticks = 0, peaksKey = "", lastPeaks: Msg | undefined;
+let mirror: MirrorPlayer | undefined, mhist: MirrorHistory | undefined;   // 参加者: ホストの再生の写し
 let room: Room | undefined;        // 部屋（ホストは自分の部屋。参加者はホストの部屋）
 let me = "";                       // 部屋での自分の猫の id（ホストは "h"）
 let seq = 0;                       // ホスト: 参加者の猫に配る番号
@@ -218,7 +260,11 @@ function host() {
   room.setPerms(ALL);
   resetIds(); setShareSet(pickedSet === undefined ? currentSet() : pickedSet); defaults = { chat: false, request: false }; overrides.clear();
   newLink();
-  stateTimer = window.setInterval(() => broadcast(snapshot()), 3000);
+  showHist = false; peaksKey = ""; lastPeaks = undefined;
+  stateTimer = window.setInterval(() => {
+    broadcast(snapshot()); sendNow();
+    if (showHist && ++ticks % 10 === 0) for (const p of peers) if (p.inRoom) sendHist(p);
+  }, 3000);
   render();
 }
 /** 招待リンクを作る（作り直すと前のリンクでは入れない。いまいる人はそのまま） */
@@ -306,8 +352,19 @@ function makeRoom(isHost: boolean): Room {
     } : undefined,
     permsOf: isHost ? () => ({ defaults, guests: overrides }) : undefined,
     play: isHost ? (id, i) => { const a = albumOf(id); if (a) ctx().player.playAlbum(a, i); } : undefined,
+    src: () => isHost ? hostSrc() : guestSrc(),
     volume: isHost ? undefined : { get: partyVol, set: v => { try { localStorage.setItem(VOL_KEY, String(v)); } catch { /* ignore */ } applyOut(); } },
   });
+}
+/** ホストの部屋の写し: モジュールは自分のプレイヤーと記録で動く */
+const hostSrc = (): HomeSource => ({ history: true, idOf: idFor });
+/** 参加者の部屋の写し: ホストの再生の写しで動かす。ライブラリの操作は届かない */
+function guestSrc(): HomeSource {
+  const byKey = (k: string): Album | undefined => {
+    const a = room?.albums.get(k);
+    return a ? { key: a.id, shelf: "", dir: "", title: a.t, artist: a.a, year: a.y, color: a.c, tracks: [], tagged: true } : undefined;
+  };
+  return mirror && mhist ? { over: { player: mirror.asPlayer(), history: mhist, byKey, play: () => {} }, history: mhist.shown } : { history: false };
 }
 const toHost = (m: Msg) => { const h = peers[0]; if (h) send(h, m); };
 /** ホスト: 部屋に入っている参加者（except 以外）に送る */
@@ -347,6 +404,9 @@ function hostRoom(peer: Peer, m: Msg) {
     send(peer, { t: "cats", cats: [...room.cats.values()], perms: permsOf(id) });
     relay({ t: "join", cat }, peer);
     sendHome(peer);
+    send(peer, nowMsg(peer));
+    if (lastPeaks) send(peer, lastPeaks);
+    sendHist(peer);
     return;
   }
   if (!peer.inRoom) return;
@@ -376,6 +436,7 @@ function guestRoom(m: Msg) {
   if (m.t === "you") {
     me = m.id;
     room?.close();
+    mirror = new MirrorPlayer(); mhist = new MirrorHistory();
     room = makeRoom(false);
     return;
   }
@@ -397,11 +458,79 @@ function guestRoom(m: Msg) {
   else if (m.t === "say" && m.id) room.said({ from: m.id, text: m.text, to: m.to, at: Date.now(), req: m.req });
   else if (m.t === "home") room.setHome(m.rows, m.albums);
   else if (m.t === "albums") room.addAlbums(m.albums);
-  else if (m.t === "cover") room.setCover(m.id, m.url);
+  else if (m.t === "cover") { room.setCover(m.id, m.url); mirror?.setCover(m.id, m.url); }
+  else if (m.t === "np") {
+    mirror?.set(m);
+    const id = mirror?.album?.key, url = id ? room.coverOf(id) : undefined;
+    if (id && url) mirror!.setCover(id, url);
+  }
+  else if (m.t === "peaks") { try { mirror?.setPeaks(m.k, Float32Array.from(unb64(m.d), v => v / 255)); } catch { /* 壊れた形は捨てる */ } }
+  else if (m.t === "hist") {
+    if (!mhist) return;
+    const was = mhist.shown;
+    if (!m.on) mhist.clear();
+    else {
+      const ev: PlayEvent[] = [], pl = new Map<string, number>();
+      for (let i = 0; i < m.ev!.length; i += 2) ev.push({ k: `a${m.ev![i]}`, t: m.ev![i + 1] * 60_000 });
+      for (let i = 0; i < m.pl!.length; i += 2) pl.set(`a${m.pl![i]}`, m.pl![i + 1]);
+      mhist.set(ev, pl, m.ls!);
+    }
+    if (was !== mhist.shown) room.redraw();
+  }
   else if (m.t === "tracks") room.setTracks(m.id, m.tracks);
   else if (m.t === "found") room.showFound(m.list);
 }
 function openRoom() { if (role === "host" && room) { closeDlg(); room.open(); update(); } }
+
+// ---------- 再生の写し（ホスト） ----------
+/** いまの再生。アルバムの曲目は、その人にまだ送っていないときだけ付ける */
+function nowMsg(peer?: Peer): Msg {
+  const p = ctx().player, a = p.album, id = a ? nowId() : undefined;
+  const withAlbum = !!(id && a && (!peer || peer.npId !== id));
+  if (peer && withAlbum) peer.npId = id;
+  return {
+    t: "np", id, i: p.index, pos: Math.round(p.position * 100) / 100, dur: Math.round((p.duration || 0) * 100) / 100, on: p.playing,
+    album: withAlbum ? { t: a!.title.slice(0, 200), a: (a!.artist ?? "").slice(0, 200), y: a!.year, g: a!.genre?.slice(0, 60), c: ctx().colorOf(a!), r: a!.ratio, tr: a!.tracks.slice(0, 300).map(t => ({ t: (t.title ?? "").slice(0, 200), no: t.no || 0, d: Math.round((t.duration ?? 0) * 10) / 10, f: t.format?.slice(0, 60) })) } : undefined,
+    eq: { on: p.eq.on, g: [...p.eq.gains] }, sr: p.sampleRate, nz: p.normalize, ng: p.normGain,
+  };
+}
+function sendNow() {
+  for (const p of peers) if (p.inRoom) send(p, nowMsg(p));
+  // 曲が替わったら波形を送る（ホストの端末で作ったものを使う。作れない曲は送らない）
+  const pl = ctx().player, id = nowId(), key = id && pl.track ? `${id}#${pl.index}` : "";
+  if (key && key !== peaksKey) {
+    peaksKey = key;
+    currentPeaks(pl).then(pk => {
+      if (!pk || peaksKey !== key || role !== "host") return;
+      lastPeaks = { t: "peaks", k: key, d: b64(Uint8Array.from(pk, v => Math.round(Math.max(0, Math.min(1, v)) * 255))) };
+      relay(lastPeaks);
+    });
+  }
+}
+/** 再生の変化はまとめて送る（つまみを動かしている間などに送りすぎない） */
+function queueNow() { if (!npQueued) npQueued = window.setTimeout(() => { npQueued = 0; if (role === "host") sendNow(); }, 150); }
+/** 聴いた記録（見せると決めたときだけ）。見せるアルバムのセットの外のものは送らない */
+function sendHist(peer: Peer) {
+  if (!showHist) { send(peer, { t: "hist", on: false }); return; }
+  const since = Date.now() - 9 * 7 * 864e5, num = (id: string) => Number(id.slice(1));
+  const ev: number[] = [], plays = new Map<string, number>(), extra: SnapAlbum[] = [];
+  const byKey = new Map<string, Album | undefined>();
+  for (const e of playLog()) {
+    if (e.t < since) continue;
+    if (!byKey.has(e.k)) byKey.set(e.k, ctx().byKey(e.k));
+    const a = byKey.get(e.k), id = a ? idFor(a) : undefined;
+    if (!a || !id) continue;
+    ev.push(num(id), Math.round(e.t / 60_000));
+    if (!plays.has(id)) { plays.set(id, stat(e.k).plays); extra.push({ id, t: a.title.slice(0, 200), a: (a.artist ?? "").slice(0, 200), c: ctx().colorOf(a), n: a.tracks.length, y: a.year }); }
+  }
+  const evs = ev.slice(-4000);   // 1 通に収まるよう、新しいほうから 2000 回分
+  for (let i = 0; i < extra.length; i += 200) send(peer, { t: "albums", albums: extra.slice(i, i + 200) });
+  send(peer, { t: "hist", on: true, ev: evs, pl: [...plays].flatMap(([id, n]) => [num(id), n]), ls: Math.round(listenedSeconds()) });
+}
+function setShowHist(on: boolean) {
+  showHist = on;
+  for (const p of peers) if (p.inRoom) sendHist(p);
+}
 
 // ---------- 参加者 ----------
 function startGuest(key: string, host: string) {
@@ -454,13 +583,22 @@ function hear(stream: MediaStream) {
     earCtx = new AudioContext();
     const an = earCtx.createAnalyser(), buf = new Float32Array(1024);
     an.fftSize = 1024;
-    earCtx.createMediaStreamSource(stream).connect(an);
+    const src = earCtx.createMediaStreamSource(stream);
+    src.connect(an);
     setPartyEar(() => { an.getFloatTimeDomainData(buf); let n = 0; for (const v of buf) n += v * v; return Math.sqrt(n / buf.length); });
+    // 再生の写しのレベルメーター・スペクトラム（ホストのプレイヤーと同じ測り方）
+    const split = earCtx.createChannelSplitter(2);
+    src.connect(split);
+    const meters = [0, 1].map(ch => { const a = earCtx!.createAnalyser(); a.fftSize = 2048; split.connect(a, ch); return a; });
+    const spec = earCtx.createAnalyser(); spec.fftSize = 8192; spec.smoothingTimeConstant = .8;
+    src.connect(spec);
+    mirror?.listen(meters, spec);
   } catch { /* 拍が拾えなくても、ゆったりしたリズムでとる */ }
   playParty();
 }
 function playParty() {
   if (!audio) return;
+  if (earCtx?.state === "suspended") earCtx.resume().catch(() => {});
   audio.play().then(() => { blocked = false; update(); }).catch(() => { blocked = true; update(); });
 }
 /** 参加者の音量はパーティー用に別に持つ（2 乗のカーブ）。出力先だけは、この端末の設定（スピーカーかイヤホンか）にそろえる */
@@ -534,6 +672,7 @@ function leave(quiet = false) {
   if (audio) { audio.pause(); audio.srcObject = null; }
   setPartyEar(); earCtx?.close().catch(() => {}); earCtx = undefined;
   room?.close(); room = undefined; me = "";
+  mirror = undefined; mhist = undefined; clearTimeout(npQueued); npQueued = 0;
   peers = []; knocks = []; roomKey = hostId = ""; ended = ""; last = undefined; guestNames = []; relaysOpen = 0;
   role = "idle";
   if (!quiet) render();
@@ -640,6 +779,7 @@ function render() {
     <div class="party-knocks" id="party-knocks"></div>
     <div class="party-people" id="party-people"></div>
     ${SHARE(shareSet())}
+    <label class="dlg-check"><input type="checkbox" id="party-hist"${showHist ? " checked" : ""}> 聴いた記録と聴いた距離も見せる（あなたの聴取履歴が、入った人に見えます）</label>
     <p class="dlg-note">いつもどおりに曲を選んで操作してください。EQ をかけた音がそのまま届きます。</p>
     <div class="dlg-actions"><button class="btn primary" id="party-room">みんなのいるホームを開く</button><button class="btn" id="party-leave">パーティーを閉じる</button></div>`);
   else if (ph === "guest-name") h(`
@@ -670,6 +810,8 @@ function render() {
   $<HTMLButtonElement>("#party-leave")?.addEventListener("click", () => leave());
   $<HTMLButtonElement>("#party-done")?.addEventListener("click", () => { leave(); closeDlg(); });
   $<HTMLButtonElement>("#party-room")?.addEventListener("click", openRoom);
+  const histBox = $<HTMLInputElement>("#party-hist");
+  if (histBox) histBox.onchange = () => setShowHist(histBox.checked);
   const pick = $<HTMLSelectElement>("#party-set");
   if (pick) pick.onchange = () => changeShare(parseSet(pick.value));
   wireEditor(body, () => name?.value.trim() ?? myName());
@@ -752,7 +894,7 @@ export function initParty(opts: { toast: (t: string) => void }) {
   toastFn = opts.toast;
   if (!partySupported()) return;
   ctx().player.on(() => {
-    if (role === "host") broadcast(snapshot());
+    if (role === "host") { broadcast(snapshot()); queueNow(); }
     else if (inRoom() && guestStep !== "name") quiet();
   });
   addEventListener("pagehide", () => broadcast({ t: "bye" }));
