@@ -2,7 +2,7 @@
 // art() は SVG の中身（viewBox は 0 0 w h。敷くものは 0 0 w vh）。猫の足場は <i data-cat-plat="bed|perch" data-sink style="left:…;width:…;top:…"></i> で書く
 import type { Live } from "./live";
 export type Place = "floor" | "wall" | "shelf";
-export type Cat = "家具" | "灯り" | "植物" | "敷きもの" | "飾り" | "小物" | "音楽" | "季節" | "猫";
+export type Cat = "家具" | "灯り" | "植物" | "敷きもの" | "飾り" | "小物" | "音楽" | "季節" | "食べ物" | "猫";
 export interface ItemDef {
   key: string;
   label: string;
