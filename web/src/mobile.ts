@@ -5,6 +5,7 @@
 import { tagsOf, setTabsHTML, onSetTabClick } from "./tags";
 import "./mobile.css";
 import "./header.css";
+import { headerIcon } from "./header-icons";
 import { openParty, partySupported } from "./party";
 import { type Album, enrichTracks } from "./library";
 import type { Player } from "./player";
@@ -43,7 +44,6 @@ const ICON = {
   close: '<svg viewBox="0 0 16 16"><path d="M3.5 2.1 8 6.6l4.5-4.5 1.4 1.4L9.4 8l4.5 4.5-1.4 1.4L8 9.4l-4.5 4.5-1.4-1.4L6.6 8 2.1 3.5z"/></svg>',
   down: '<svg viewBox="0 0 16 16"><path d="M2.6 5.2 8 10.6l5.4-5.4 1.2 1.2L8 13 1.4 6.4z"/></svg>',
   search: '<svg viewBox="0 0 16 16"><path d="M6.8 1.5a5.3 5.3 0 0 1 4.2 8.5l3.6 3.6-1.1 1.1-3.6-3.6A5.3 5.3 0 1 1 6.8 1.5zm0 1.5a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z"/></svg>',
-  more: '<svg viewBox="0 0 16 16"><circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/></svg>',
   queue: '<svg viewBox="0 0 16 16"><path d="M2 3h9v1.5H2zM2 7h9v1.5H2zM2 11h6v1.5H2zM12 9v3H9v1.5h3v3h1.5v-3h3V12h-3V9z"/></svg>',
   unqueue: '<svg viewBox="0 0 16 16"><path d="M2 3h9v1.5H2zM2 7h9v1.5H2zM2 11h6v1.5H2zM9.4 10.1l1-1 1.8 1.8 1.8-1.8 1 1-1.8 1.8 1.8 1.8-1 1-1.8-1.8-1.8 1.8-1-1 1.8-1.8z"/></svg>',
 };
@@ -78,9 +78,9 @@ export function initMobile(c: MobileCtx, modeChanged?: () => void, opts: { force
   root.id = "m"; root.className = "m";
   root.innerHTML = `
     <header class="m-top">
-      <div class="m-brand">KONA</div>
+      <div class="m-brand" role="img" aria-label="Kona">${headerIcon("logo")}</div>
       <label class="m-search">${ICON.search}<input type="search" placeholder="アルバム・アーティストを探す" aria-label="探す" enterkeyhint="search"></label>
-      <button class="m-icon m-more" aria-label="メニュー">${ICON.more}</button>
+      <button class="m-icon m-more" aria-label="メニュー">${headerIcon("more")}</button>
     </header>
     <nav class="m-sets sets" id="m-sets" aria-label="アルバムのセット" hidden></nav>
     <div class="m-shelves" id="m-shelves"></div>

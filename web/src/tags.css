@@ -1,11 +1,13 @@
 /* タグとアルバムのセット（tags.ts）: 上の帯のセットのタブ・タグをつけるパネル・フォルダの箱と曲目パネルのタグの札 */
 
-/* ---------- 上の帯のセットのタブ: ページのタブより小さく、細い六角の札。選んだものだけ面が立つ ---------- */
+/* ---------- セットのタブ（ライブラリの上の段とスマホ）: ページのタブより小さく、細い六角の札。選んだものだけ面が立つ ---------- */
 .sets { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .sets::-webkit-scrollbar { display: none; }
 .sets[hidden] { display: none; }
-.top .sets { margin-left: auto; }
-.top .sets:not([hidden]) + .tabs { margin-left: 8px; padding-left: 10px; border-left: 1px solid var(--line); }
+/* ライブラリの上の段: 括り方のすぐ右に置き、検索は右端のまま */
+.lib-bar .lib-group { margin-right: 0; }
+.lib-bar .lib-sets { order: 1; }
+.lib-bar .lib-search { order: 2; margin-left: auto; }
 .sets button {
   position: relative; isolation: isolate; flex: none; white-space: nowrap;
   font-size: 12px; color: var(--muted); padding: 4px 9px;

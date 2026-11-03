@@ -33,6 +33,7 @@ import { initShelfMarks } from "./shelf-marks";
 import "./photo.css";
 import "./room-light.css";
 import "./header.css";
+import { paintHeaderIcons, headerIcon } from "./header-icons";
 import { mountThings, placedThings, toggleThing, setThing, THING_OF_MODULE } from "./room-things";
 import { roomSurface, setRoomSurface } from "./room-surface";
 import { placeObjects, legacyShown, markPlaced, objectAvailable, objectSize, OBJECTS } from "./mod-objects";
@@ -528,11 +529,13 @@ function setHidden(keys: string[], hide: boolean, undo = true) {
 }
 
 // タグやセットが変わったら: 出すアルバムを選び直して描き直す（次に再生はそのまま。セットの外のものは飛ばす）
+// セットの切り替えは、上の帯ではなくライブラリの上の段に置く（選んだセットはホームの棚にもそのまま効く）
 function renderSetTabs() {
-  const nav = $("#sets"), html = setTabsHTML();
+  const nav = document.querySelector<HTMLElement>("#view-library .lib-sets");
+  if (!nav) return;
+  const html = setTabsHTML();
   nav.innerHTML = html; nav.hidden = !html;
 }
-$("#sets").addEventListener("click", onSetTabClick);
 document.addEventListener("kona:tags", () => {
   albums = allAlbums.filter(shown);
   renderSetTabs();
@@ -600,7 +603,7 @@ function setState(state: AppState, note = "") {
   const cat = document.querySelector<HTMLElement>("#start .wake-cat") ?? wakeCatHost();
   $("#start").innerHTML = `<div class="start-inner">
     <i id="start-cat"></i>
-    <div class="start-brand">KONA</div>
+    <div class="start-brand" role="img" aria-label="Kona">${headerIcon("logo")}</div>
     ${state === "loading"
       ? `<p class="start-lead" id="start-step">読み込んでいます</p>
         <div class="start-bar indeterminate" id="start-bar" role="progressbar" aria-label="読み込みの進み具合" aria-valuemin="0" aria-valuemax="100"><i></i></div>
@@ -1475,10 +1478,12 @@ function renderLibrary() {
   if (!albums.length) { v.innerHTML = ""; return; }
   const byArtist = libGroup() === "artist", what = byArtist ? "アーティスト" : "フォルダ";
   v.innerHTML = `<div class="lib"><nav class="side" aria-label="${what}"><h2>${what}</h2></nav><div class="lib-shelves">
-    <div class="lib-bar"><div class="lib-group" role="group" aria-label="${t("括り方")}">
+    <div class="lib-bar"><nav class="sets lib-sets" aria-label="${t("アルバムのセット")}"></nav><div class="lib-group" role="group" aria-label="${t("括り方")}">
       <button data-g="folder" aria-pressed="${!byArtist}">${t("フォルダ")}</button><button data-g="artist" aria-pressed="${byArtist}">${t("アーティスト")}</button></div><input class="mod-search lib-search" id="lib-q" type="search" placeholder="検索" autocomplete="off" aria-label="ライブラリを検索" value="${esc(libQuery)}"></div>
     <div class="case"></div>${hiddenList()}</div></div>`;
   const side = $(".side", v), kase = $(".case", v);
+  $(".lib-sets", v).addEventListener("click", onSetTabClick);
+  renderSetTabs();
   $<HTMLInputElement>("#lib-q", v).oninput = e => { libQuery = (e.target as HTMLInputElement).value; keepScroll(renderLibrary); };
   v.querySelectorAll<HTMLButtonElement>(".lib-group button").forEach(b => b.onclick = () => {
     if (b.dataset.g === libGroup()) return;
@@ -1896,6 +1901,7 @@ document.addEventListener("kona:prefs", e => {
   if (keys.includes("catsHidden")) placeCats(true);
   if (keys.includes("libGroup")) { renderShelves(); if (location.hash === "#library") keepScroll(renderLibrary); renderMobile(); }
 });
+paintHeaderIcons();
 translateStatic();
 
 // ---------- ルーティング ----------

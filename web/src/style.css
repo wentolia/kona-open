@@ -294,7 +294,7 @@ body[data-state="start"] .start, body[data-state="loading"] .start {
 body:not([data-state="ready"]) .top > :not(.brand), body:not([data-state="ready"]) main, body:not([data-state="ready"]) .np-footer { display: none; }
 body:not([data-state="ready"]) .top .brand { visibility: hidden; }
 .start-inner { display: grid; gap: 14px; justify-items: center; text-align: center; max-width: 30em; }
-.start-brand { font-weight: 700; letter-spacing: .5em; font-size: 22px; margin-right: -.5em; }
+.start-brand { width: 72px; height: 72px; }
 .start-lead { margin: 0; font-size: 16px; text-wrap: balance; }
 .start-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-block: 6px; }
 .start-note { margin: 0; color: var(--muted); font-size: 12px; text-wrap: balance; }
