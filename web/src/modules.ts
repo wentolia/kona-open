@@ -1,6 +1,7 @@
 // 再生中・棚以外のモジュール。ここでは種類ごとの入口と、イコライザー・波形を持つ
 
 import type { Player } from "./player";
+import { mountClock } from "./mod-clock";
 import type { ModuleType } from "./shelves";
 import { BANDS, MAX_DB, BUILTIN_PRESETS, userPresets, presetMatching, type Eq } from "./eq";
 import { t } from "./i18n";
@@ -18,6 +19,7 @@ import { fileSig, getPeaks, putPeaks } from "./tagcache";
 export function mountModule(type: ModuleType, body: HTMLElement) {
   const p = ctx().player;
   switch (type) {
+    case "clock": return mountClock(body);
     case "eq": return mountEq(body, p.eq);
     case "waveform": return mountWave(body, p);
     case "info": return mountInfo(body);

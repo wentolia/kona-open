@@ -17,7 +17,7 @@ import { type ModuleDef, type ModuleType, type ShelfDef, type ShelfKind, type So
 import { mountSingle, mountTwin, unwatchRow, folderGap, installWheel } from "./panes";
 import { mountModule } from "./modules";
 import { setModuleContext, fadeSwap } from "./modctx";
-import { stopAtAlbumEnd, albumEndArmed, legacyClockKind } from "./mod-clock";
+import { stopAtAlbumEnd, albumEndArmed } from "./mod-clock";
 import { setCats, randomCoat, isCoat, breedCoat, setCatsMusic, setCatHooks, catPicksAlbum, toggleWand, wandOn, type Coat } from "./cat";
 import { initNoise, roomTail } from "./noise";
 import { ritual, isPulled } from "./ritual";
@@ -78,9 +78,9 @@ let modules = loadLayout();
   }
 }
 document.addEventListener("kona:objects", () => renderShelves()); // 賞状が届いたら、置いてある棚に立てる
-/** 小物を棚に置く（at はその棚の右端の小物の中で何番目か、after はアルバムのあいだに置くときの、前のアルバム）。
+/** 小物を棚に置く（at はその棚の右端の小物の中で何番目か、x はアルバムの並ぶ所に置くときの棚の中の左右の位置）。
  * shelfId がなければしまう。小物はひとつの棚にだけ */
-function putObject(key: string, shelfId?: string, at?: number, after?: string) {
+function putObject(key: string, shelfId?: string, at?: number, x?: number) {
   for (const m of modules) {
     if (m.goods?.includes(key)) m.goods = m.goods.filter(x => x !== key);
     if (m.goodsAt && key in m.goodsAt) { delete m.goodsAt[key]; if (!Object.keys(m.goodsAt).length) delete m.goodsAt; }
@@ -88,29 +88,12 @@ function putObject(key: string, shelfId?: string, at?: number, after?: string) {
   const d = shelfId ? shelfById(shelfId) : undefined;
   if (d) {
     const g = [...(d.goods ?? [])]; g.splice(Math.max(0, Math.min(g.length, at ?? g.length)), 0, key); d.goods = g;
-    if (after !== undefined) d.goodsAt = { ...d.goodsAt, [key]: after };
+    if (x !== undefined) d.goodsAt = { ...d.goodsAt, [key]: x };
   }
   saveMods(); renderShelves(); renderSettings();
 }
 const saveMods = () => saveLayout(modules);
 const home = loadHome(modules);
-// 時計のモジュールは、棚の置き時計（アナログ / デジタル）になった: 同じ列に積んでいた棚、なければ小物だけの棚、
-// なければいちばん上の棚に、以前の種類の時計を置く（振り子はアナログに）
-{
-  const clocks = modules.filter(m => m.type === "clock");
-  if (clocks.length) {
-    const key = legacyClockKind() === "analog" || legacyClockKind() === "pendulum" ? "aclock" : "dclock";
-    const placed = modules.some(m => m.goods?.includes("aclock") || m.goods?.includes("dclock"));
-    const shelves = home.rows.flatMap(r => r.cols.flatMap(c => c.stack.map(s => s.id))).map(id => modules.find(m => m.id === id)).filter((m): m is ModuleDef => !!m && m.type === "shelf");
-    const col = home.rows.flatMap(r => r.cols).find(c => c.stack.some(s => s.id === clocks[0].id));
-    const near = col?.stack.map(s => modules.find(m => m.id === s.id)).find((m): m is ModuleDef => !!m && m.type === "shelf");
-    const to = near ?? shelves.find(m => m.kind === "goods") ?? shelves[0];
-    if (to && !placed) to.goods = [key, ...(to.goods ?? [])];
-    for (const m of clocks) removeModule(home, m.id);
-    modules = modules.filter(m => m.type !== "clock");
-    saveLayout(modules); saveHome(home);
-  }
-}
 // 猫の家具（キャットタワー・箱・ごはん・爪とぎ）は、モジュールから床の家具になった: 置いていたものは床に置き直す。
 // 左右の位置は、ホームで置いていた列のおおよその位置（段の中の列の左端からの割合）
 {
@@ -871,32 +854,32 @@ function fillRow(row: HTMLElement, rowId: string, c: Contents, pos = 0) {
   const pane = (side: "l" | "r") => {
     const el = document.createElement("div");
     el.className = `spines pane-${side}`;
-    // 小物の場所: アルバムのあいだに小物の幅だけ隙間をあける（小物そのものは .goods-float に立て、隙間の上へ動かす）
-    const slot = (after: string) => c.slots?.get(after)?.forEach(k => el.append(goodsSlot(k)));
-    slot("");
     list.forEach((a, i) => {
       if (c.folderGaps && i > 0 && groupKey(list[i - 1]) !== groupKey(a)) el.append(folderGap(groupKey(list[i - 1]), groupKey(a)));
       const sp = spine(a, rowId);
       if (a === chosen) sp.classList.add("featured");
       sp.addEventListener("mouseenter", () => feature(row, rowId, a, faces.get(a) ?? ""));
       el.append(sp);
-      slot(a.key);
     });
     return el;
   };
   const f = face(chosen, faces.get(chosen) ?? "", rowId);
   row.style.setProperty("--pos", String(at));
-  row.classList.toggle("two-panes", at > 0 && at < 1);
-  if (at > 0 && at < 1) {
-    const l = pane("l"), r = pane("r");
-    row.append(l, f, r);
-    mountTwin(row, l, r);
-  } else {
-    const p = pane(at <= 0 ? "r" : "l");
-    p.dataset.scroll = rowId;
-    if (at <= 0) row.append(f, p); else row.append(p, f);
-    mountSingle(p);
-  }
+  // 区切り: 面陳の欄と、アルバムの並ぶ所に置いた小物。どちらも棚の決まった位置から動かず、
+  // そのあいだの窓に、1本の背表紙の列を左から順に続けて映す
+  const cuts: { x: number; el: HTMLElement }[] = [{ x: at, el: f }, ...(c.pins ?? []).map(p => { const el = goodsSlot(p.key); el.dataset.x = String(p.x); return { x: p.x, el }; })].sort((p, q) => p.x - q.x);
+  const parts: HTMLElement[] = [], panes: HTMLElement[] = [];
+  let x0 = 0;
+  const addPane = (x1: number) => { const p = pane(panes.length ? "r" : "l"); p.style.flex = `${Math.max(0, x1 - x0)} 1 0px`; panes.push(p); parts.push(p); };
+  cuts.forEach((k, i) => {
+    if (!(i === 0 && k.x <= 0)) addPane(k.x);
+    parts.push(k.el); x0 = k.x;
+  });
+  if (x0 < 1) addPane(1);
+  row.append(...parts);
+  row.classList.toggle("two-panes", panes.length > 1);
+  if (panes.length > 1) mountTwin(row, ...panes);
+  else if (panes[0]) { panes[0].style.flex = ""; panes[0].dataset.scroll = rowId; mountSingle(panes[0]); }
   // 次に再生: カーソルが離れたら、次に切り替わるアルバムの面陳に戻す
   if (shelfById(rowId)?.kind === "queue") row.onmouseleave = () => {
     if (pop?.rowId === rowId || document.body.classList.contains("dragging-album")) return;
@@ -941,7 +924,7 @@ const recentFace = (list: Album[]) => {
   return r && stat(r.key).last ? new Map([[r, "最近聴いた"]]) : new Map<Album, string>();
 };
 
-interface Contents { list: Album[]; faces: Map<Album, string>; folderGaps?: boolean; slots?: Map<string, string[]> }
+interface Contents { list: Album[]; faces: Map<Album, string>; folderGaps?: boolean; pins?: { key: string; x: number }[] }
 
 // ブックエンドを置く棚は、並び順を保ったままフォルダごとにまとめる（最初に出てきたフォルダから順に）
 function withFolderGaps(d: ShelfDef, c: Contents): Contents {
@@ -1094,7 +1077,7 @@ function shelfBody(body: HTMLElement, d: ShelfDef) {
     ${inlineSearch(d) ? `<input class="mod-search" id="q-${esc(d.id)}" type="search" placeholder="検索" autocomplete="off" value="${esc(d.query ?? "")}" aria-label="${esc(d.title)}の中を検索">` : ""}
     <div class="shelf-line"><div class="row"></div><div class="goods"></div><div class="goods goods-float"></div></div>`;
   const line = $(".shelf-line", body), float = $(".goods-float", body);
-  const floating = [...c.slots?.values() ?? []].flat();
+  const floating = (c.pins ?? []).map(p => p.key);
   placeObjects($(".goods:not(.goods-float)", body), (d.goods ?? []).filter(k => !floating.includes(k)));
   placeObjects(float, floating);
   float.hidden = false;
@@ -1103,7 +1086,6 @@ function shelfBody(body: HTMLElement, d: ShelfDef) {
   const pos = d.facePos ?? 0;
   fillRow(row, d.id, c, pos);
   floatGoods(line);
-  line.addEventListener("scroll", () => floatGoods(line), { capture: true, passive: true });
   new ResizeObserver(() => floatGoods(line)).observe(line);
   const q = $<HTMLInputElement>(".mod-search", body);
   if (q) q.oninput = () => {
@@ -1118,16 +1100,13 @@ function shelfBody(body: HTMLElement, d: ShelfDef) {
 }
 
 // ---------- 棚の好きな位置に置いた小物 ----------
-// 置き場所は「どのアルバムの後ろか」（goodsAt。"" は列の頭）。並び順や中身が変わっても、そのアルバムの隣にいる。
-// そのアルバムが棚にないときは、ふつうどおり棚の右端に立つ
+// 置き場所は棚の中の左右の位置（goodsAt。0 左端〜1 右端）。小物はそこから動かず、アルバムは面陳の欄と同じく、
+// 小物の左右の窓を流れる（小物の所だけ、アルバムが隙間をあける）。アルバムのない棚では右端に立つ
 function withGoods(d: ShelfDef, c: Contents): Contents {
-  const at = d.goodsAt ?? {}, keys = new Set(c.list.map(a => a.key)), slots = new Map<string, string[]>();
-  for (const k of d.goods ?? []) {
-    const after = at[k];
-    if (after === undefined || !objectAvailable(k) || (after !== "" && !keys.has(after))) continue;
-    slots.set(after, [...slots.get(after) ?? [], k]);
-  }
-  return slots.size ? { ...c, slots } : c;
+  if (!c.list.length) return c;
+  const at = d.goodsAt ?? {};
+  const pins = (d.goods ?? []).filter(k => typeof at[k] === "number" && objectAvailable(k)).map(k => ({ key: k, x: Math.max(0, Math.min(1, at[k])) }));
+  return pins.length ? { ...c, pins } : c;
 }
 function goodsSlot(k: string) {
   const el = document.createElement("i");
@@ -1136,17 +1115,14 @@ function goodsSlot(k: string) {
   el.style.setProperty("--ow", String(OBJECTS.find(o => o.key === k)?.w ?? 50));
   return el;
 }
-/** 隙間の上に小物を立てる。窓が 2 つある段では、見えている方の隙間に。窓の外に出た隙間の小物は隠す */
+/** 区切りの上に小物を立てる（足もとはアルバムの背と同じ高さ。段の下端には板の厚みぶんの余白がある） */
 function floatGoods(line: HTMLElement) {
   const L = line.getBoundingClientRect();
   line.querySelectorAll<SVGSVGElement>(".goods-float > svg").forEach(svg => {
-    let best: DOMRect | undefined;
-    for (const sl of line.querySelectorAll<HTMLElement>(`.goods-slot[data-slot="${svg.dataset.goods}"]`)) {
-      const r = sl.getBoundingClientRect(), p = sl.closest(".spines")!.getBoundingClientRect();
-      if (r.width && r.left >= p.left - 1 && r.right <= p.right + 1) { best = r; break; }
-    }
-    svg.style.visibility = best ? "" : "hidden";
-    if (best) svg.style.left = `${(best.left - L.left).toFixed(1)}px`;
+    const sl = line.querySelector<HTMLElement>(`.goods-slot[data-slot="${svg.dataset.goods}"]`);
+    const r = sl?.getBoundingClientRect();
+    svg.style.visibility = r?.width ? "" : "hidden";
+    if (r?.width) { svg.style.left = `${(r.left - L.left).toFixed(1)}px`; svg.style.bottom = `${Math.max(0, L.bottom - r.bottom).toFixed(1)}px`; }
   });
 }
 
@@ -1852,7 +1828,7 @@ initSettings($("#view-settings"), {
       const item = (d: ModuleDef) => ({ id: d.id, title: d.title, label: tr(isShelf(d) ? kindLabel(d.kind) : moduleInfo(d.type).label) });
       return home.rows.map(r => r.cols.map(c => c.stack.map(k => modules.find(m => m.id === k.id)).filter((d): d is ModuleDef => !!d).map(item)).filter(c => c.length));
     },
-    addable: () => MODULES.filter(m => !THING_OF_MODULE[m.type] && m.type !== "clock").map(m => ({ type: m.type, label: tr(m.label), disabled: !m.ready || (!!m.single && modules.some(x => x.type === m.type)) })),
+    addable: () => MODULES.filter(m => !THING_OF_MODULE[m.type]).map(m => ({ type: m.type, label: tr(m.label), disabled: !m.ready || (!!m.single && modules.some(x => x.type === m.type)) })),
     add: type => addModuleOf(type as ModuleType),
     form: id => { const d = modules.find(m => m.id === id); return d ? moduleFormHTML(d) : ""; },
     wire: (el, id, again) => { const d = modules.find(m => m.id === id); if (d) wireModuleForm(el, d, again); },

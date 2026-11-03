@@ -34,7 +34,7 @@ const EN: Record<string, string> = {
   "三毛（日本猫）": "Calico (Japanese)", "アメリカンショートヘア": "American Shorthair", "ロシアンブルー": "Russian Blue",
   "ベンガル": "Bengal", "スフィンクス": "Sphynx", "ペルシャ": "Persian",
   // 棚の素材
-  "床に置く": "On the floor", "置くもの": "Things to place", "置き時計が正時に鐘を鳴らす": "Desk clocks chime on the hour", "アナログ時計": "Analog clock", "デジタル時計": "Digital clock", "棚に置く": "On a shelf", "ホームの棚や床へドラッグして置く。ここへ戻すとしまう": "Drag onto a shelf or the floor. Drag back here to put away.", "ソファ": "Sofa", "ひとりがけ": "Armchair", "クッション": "Floor cushion", "キリム": "Kilim", "丸いラグ": "Round rug", "位置": "Position", "大きさ": "Size",
+  "床に置く": "On the floor", "置くもの": "Things to place", "時計が正時に鐘を鳴らす": "Clocks chime on the hour", "アナログ時計": "Analog clock", "デジタル時計": "Digital clock", "棚に置く": "On a shelf", "ホームの棚や床へドラッグして置く。ここへ戻すとしまう": "Drag onto a shelf or the floor. Drag back here to put away.", "ソファ": "Sofa", "ひとりがけ": "Armchair", "クッション": "Floor cushion", "キリム": "Kilim", "丸いラグ": "Round rug", "位置": "Position", "大きさ": "Size",
   "壁": "Wall", "床": "Floor", "無地": "Plain", "漆喰": "Plaster", "板壁": "Wood panels", "レンガ": "Brick",
   "ウォールナット": "Walnut", "オーク": "Oak", "スチール": "Steel", "アクリル": "Acrylic", "欅": "Zelkova", "パイン": "Pine", "白樺": "Birch", "黒檀": "Ebony", "石": "Stone", "苔": "Moss", "雪": "Snow",
   // 設定ページ

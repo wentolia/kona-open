@@ -4,7 +4,7 @@
 .shelf-line > .row { flex: 1 1 auto; min-width: 0; height: auto; }
 .goods {
   flex: none; position: relative; display: flex; align-items: flex-end; gap: 6px;
-  padding: 0 12px; border-bottom: 2px solid var(--line);
+  padding: 0 12px; border-bottom: var(--board, 2px) solid transparent; /* 棚板の厚みぶん上に立つ（アルバムの背と同じ高さ） */
   --units: 400; --room: 50cqw;
 }
 .goods[hidden] { display: none; }
@@ -85,7 +85,7 @@
 .goods .aclock .ac-glass { fill: none; }
 .goods .dclock .dc-t { font-family: var(--font-mono); font-size: 15px; font-weight: 500; letter-spacing: .5px; fill: var(--accent); filter: drop-shadow(0 0 2px var(--accent)); }
 
-/* アルバムのあいだに置いた小物: 列の中に小物の幅だけの隙間（.goods-slot）をあけ、小物はその上に立てる */
+/* アルバムの並ぶ所に置いた小物: 棚の決まった位置に小物の幅だけの区切り（.goods-slot）を置き、小物はその上に立てる。アルバムは区切りの左右の窓を流れる */
 .goods-slot { flex: none; align-self: stretch; width: calc(min(70cqh, 170px) * var(--s, 1) * var(--ow) / 100 + 8px); }
 .goods.goods-float { position: absolute; inset: 0; padding: 0; border: 0; pointer-events: none; display: block; }
 .goods.goods-float::before { display: none; }
