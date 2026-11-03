@@ -516,14 +516,21 @@ body.pip > .mini-host { display: block; }
   .side, .status { display: none; }
   .opened-cover { width: 96px; height: 96px; }
   .pop { gap: var(--sp-3); padding: var(--sp-3); }
-  .np, .np-footer.np { grid-template-columns: 1fr; gap: var(--sp-3); padding: var(--sp-3) var(--sp-3); }
-  .np-art { display: none; }
-  .np-tracks { height: 96px; border-left: 0; padding-left: 0; border-top: 1px solid var(--soft); padding-top: var(--sp-1h); }
+  /* パーティーの部屋の写しは、この画面の幅ではなくホストの幅で組む（.pr-wide: ホストは広い画面。下の .pr-narrow も） */
+  .np:not(:where(.pr-wide *)), .np-footer.np:not(:where(.pr-wide *)) { grid-template-columns: 1fr; gap: var(--sp-3); padding: var(--sp-3) var(--sp-3); }
+  .np-art:not(:where(.pr-wide *)) { display: none; }
+  .np-tracks:not(:where(.pr-wide *)) { height: 96px; border-left: 0; padding-left: 0; border-top: 1px solid var(--soft); padding-top: var(--sp-1h); }
   .lib-shelves .case { margin-left: max(var(--sp-4), env(safe-area-inset-left, 0px)); }
-  .row { height: 118px; }
+  .row:not(:where(.pr-wide *)) { height: 118px; }
   .top { gap: var(--sp-3); }
-  .mod-head { opacity: .6; }
+  .mod-head:not(:where(.pr-wide *)) { opacity: .6; }
 }
+/* パーティーの部屋の写し: ホストがスマホ幅なら、この画面が広くてもスマホ幅の組み方にする（上と同じ値） */
+.pr-narrow .np, .pr-narrow .np-footer.np { grid-template-columns: 1fr; gap: var(--sp-3); padding: var(--sp-3) var(--sp-3); }
+.pr-narrow .np-art { display: none; }
+.pr-narrow .np-tracks { height: 96px; border-left: 0; padding-left: 0; border-top: 1px solid var(--soft); padding-top: var(--sp-1h); }
+.pr-narrow .row { height: 118px; }
+.pr-narrow .mod-head { opacity: .6; }
 @media (prefers-reduced-motion: reduce) {
   .spine, .face, .jacket { transition: none; }
   .pop { animation: none; }

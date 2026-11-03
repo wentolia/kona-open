@@ -53,6 +53,10 @@
 /* ホームの写し: 本物のホームと同じ組み方（style.css の .home / .grid / .mod）を使い、見るだけにする */
 .pr-home { position: absolute; inset: 0; overflow-y: auto; }
 .pr-home .grid { position: relative; min-height: 100%; }
+/* ホストの寸法で組んで縮める（party-home.ts の fitHome）。横に余る分は左右に、ホームはまん中 */
+.pr-home.pr-scaled { display: flex; align-items: flex-start; overflow-x: hidden; scrollbar-gutter: stable; }
+.pr-fit { position: relative; flex: none; margin: 0 auto; }
+.pr-box { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .pr-home .mod-head { pointer-events: none; }
 .pr-home .split { cursor: default; pointer-events: none; }
 .pr-home .face, .pr-home .spine { cursor: pointer; }

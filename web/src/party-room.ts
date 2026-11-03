@@ -7,7 +7,7 @@ import "./party-room.css";
 import { randomPersona } from "./cat-coat";
 import { BREEDS, breedCoat, isCoat, puppetCat, randomCoat, EMOTES, type Coat, type Emote, type Puppet } from "./cat";
 import { esc, fmt } from "./modctx";
-import { applyLook, buildHome, type HomeSource, type HomeView, type SnapAlbum, type SnapLook, type SnapRow, type SnapTrack } from "./party-home";
+import { applyLook, buildHome, type HomeSource, type HomeView, type SnapAlbum, type SnapLook, type SnapRow, type SnapSize, type SnapTrack } from "./party-home";
 
 const CAT_KEY = "kona.party.cat";
 export const MAX_SAY = 200;
@@ -164,6 +164,7 @@ export class Room {
   nowId?: string;
   albums = new Map<string, SnapAlbum>();
   private rows?: SnapRow[];
+  private size?: SnapSize;         // ホストのホームの寸法（この寸法で組んで、画面に合わせて縮める）
   private homeView?: HomeView;
   private covers = new Map<string, string>();
   private asked = new Map<string, number>();   // ジャケットを頼んだ回数（届かなければ、しばらくして頼み直す）
@@ -372,7 +373,7 @@ export class Room {
     this.homeView?.dispose(); this.homeView = undefined;
     this.stage.replaceChildren();
     if (this.rows) {
-      this.homeView = buildHome(this.rows, this.albums, { cover: id => this.wantCover(id), open: id => this.openCard(id), src: this.o.src() });
+      this.homeView = buildHome(this.rows, this.albums, { cover: id => this.wantCover(id), open: id => this.openCard(id), src: this.o.src(), size: this.size });
       this.stage.append(this.homeView.el);
       this.space = this.homeView.el.querySelector<HTMLElement>(".grid")!;
       for (const [id, url] of this.covers) this.homeView.setCover(id, url);
@@ -384,8 +385,8 @@ export class Room {
     requestAnimationFrame(() => { for (const c of this.cats.values()) this.place(c); });
   }
   /** ホストから届いたホームの形とアルバム */
-  setHome(rows: SnapRow[], albums: SnapAlbum[], look?: SnapLook) {
-    this.rows = rows;
+  setHome(rows: SnapRow[], albums: SnapAlbum[], look?: SnapLook, size?: SnapSize) {
+    this.rows = rows; this.size = size;
     if (look) { this.hostLook = look; if (this.el) { this.unlook?.(); this.unlook = applyLook(look); } }
     this.albums.clear();   // 送るアルバムのセットが変わったら、前のものは見せない
     for (const a of albums) this.albums.set(a.id, a);
