@@ -29,4 +29,4 @@ function art() {
   return s + frond([60, 66], [44, 70], [34, 140], true) + frond([60, 66], [76, 70], [86, 138], false);
 }
 
-export default { key: "fern", label: "吊るしたシダ", at: "wall", w: 120, h: 145, x: 0.82, y: 0.04, cat: "植物", order: 106, draft: true, note: "籠の鉢から細かい葉が弓なりに垂れる", art } satisfies ItemDef;
+export default { key: "fern", label: "吊るしたシダ", at: "wall", w: 120, h: 145, x: 0.82, y: 0.04, cat: "植物", order: 106, note: "籠の鉢から細かい葉が弓なりに垂れる", art } satisfies ItemDef;

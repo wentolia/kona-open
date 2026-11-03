@@ -23,4 +23,4 @@ function art() {
   return s + box(P, 12, 58, 54, 9, 6, -4) + poly(P.deep, [[16, 67], [21, 67], [21, 70], [16, 70]]) + poly(P.deep, [[57, 67], [62, 67], [62, 70], [57, 70]]) + poly("#4a3a2c", [[13, 57], [65, 57], [70, 54], [18, 54]]);
 }
 
-export default { key: "pinebonsai", label: "松の盆栽", at: "shelf", w: 78, h: 70, cat: "植物", order: 216, draft: true, note: "曲がった幹と雲の形に刈った葉", art } satisfies ItemDef;
+export default { key: "pinebonsai", label: "松の盆栽", at: "shelf", w: 78, h: 70, cat: "植物", order: 216, note: "曲がった幹と雲の形に刈った葉", art } satisfies ItemDef;

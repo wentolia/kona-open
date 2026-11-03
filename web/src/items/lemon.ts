@@ -14,4 +14,4 @@ function art() {
   return s + pot(P, 50, 132, 170, 20, 15, 4);
 }
 
-export default { key: "lemon", label: "レモンの木", at: "floor", w: 100, h: 170, cat: "植物", order: 44, draft: true, note: "丸い茂みに黄色い実", art } satisfies ItemDef;
+export default { key: "lemon", label: "レモンの木", at: "floor", w: 100, h: 170, cat: "植物", order: 44, note: "丸い茂みに黄色い実", art } satisfies ItemDef;

@@ -24,4 +24,4 @@ function art() {
   return s + pot(T, 33, 80, 104, 16, 12, 5, "#c9b38a");
 }
 
-export default { key: "cactus", label: "サボテン", at: "shelf", w: 66, h: 104, cat: "植物", order: 214, draft: true, note: "稜の立った柱に腕、白いとげと小さな花", art } satisfies ItemDef;
+export default { key: "cactus", label: "サボテン", at: "shelf", w: 66, h: 104, cat: "植物", order: 214, note: "稜の立った柱に腕、白いとげと小さな花", art } satisfies ItemDef;

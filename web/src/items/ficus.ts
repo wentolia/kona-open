@@ -17,4 +17,4 @@ function art() {
   return s + pot(P, 60, 170, 210, 22, 17, 0);
 }
 
-export default { key: "ficus", label: "フィドルリーフフィグ", at: "floor", w: 120, h: 210, cat: "植物", order: 41, draft: true, note: "バイオリンの形の大きな葉", art } satisfies ItemDef;
+export default { key: "ficus", label: "フィドルリーフフィグ", at: "floor", w: 120, h: 210, cat: "植物", order: 41, note: "バイオリンの形の大きな葉", art } satisfies ItemDef;

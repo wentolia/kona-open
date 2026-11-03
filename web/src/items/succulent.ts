@@ -23,4 +23,4 @@ function art() {
   return `${rosette(19, 31, 16, "#7fa892", "#b9727a")}${rosette(55, 32, 14, "#93a86a", "#b86450")}${rosette(37, 33, 19, "#93aeb0", "#c48a96")}${pot(P, 37, 34, 52, 30, 25, 4, "")}`;
 }
 
-export default { key: "succulent", label: "多肉の寄せ植え", at: "shelf", w: 74, h: 52, cat: "植物", order: 215, draft: true, note: "浅い鉢にエケベリアのロゼットが 3 つ", art } satisfies ItemDef;
+export default { key: "succulent", label: "多肉の寄せ植え", at: "shelf", w: 74, h: 52, cat: "植物", order: 215, note: "浅い鉢にエケベリアのロゼットが 3 つ", art } satisfies ItemDef;
