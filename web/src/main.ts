@@ -2,7 +2,7 @@ import "./style.css";
 import "./first-run"; // はじめて開いたときの部屋（ほかの設定を読む前に）
 import { initTheme } from "./theme";
 import { initSettings, renderSettings, openModuleSettings } from "./settings";
-import { prefs, reduceMotion } from "./prefs";
+import { prefs, setPrefs, reduceMotion, type Prefs } from "./prefs";
 import { libGroup, setLibGroup, groupKey, groupAlbums, type LibGroup } from "./libgroup";
 import { initShortcuts } from "./shortcuts";
 import { t, t as tr, translateStatic } from "./i18n";
@@ -18,8 +18,7 @@ import { mountSingle, mountTwin, unwatchRow, folderGap, installWheel } from "./p
 import { mountModule } from "./modules";
 import { setModuleContext, fadeSwap } from "./modctx";
 import { setLiveSource } from "./items/live";
-import { stopAtAlbumEnd, albumEndArmed } from "./mod-clock";
-import { setCats, randomCoat, isCoat, breedCoat, setCatsMusic, setCatHooks, catPicksAlbum, toggleWand, wandOn, type Coat } from "./cat";
+import { setCats, randomCoat, isCoat, setCatsMusic, restyleCat, setCatHooks, catPicksAlbum, toggleWand, wandOn, type Coat } from "./cat";
 import { initNoise, roomTail } from "./noise";
 import { ritual, isPulled } from "./ritual";
 import { wakeCatHost, placeWakeCat, catAwake } from "./wakecat";
@@ -31,6 +30,8 @@ import { initShelfMarks } from "./shelf-marks";
 import "./room-light.css";
 import "./header.css";
 import { paintHeaderIcons, headerIcon } from "./header-icons";
+import { presentTick, seedPresents, catCap, achieve, ownedAccs } from "./presents";
+import { mountPresents } from "./presents-ui";
 import { mountThings, placedThings, toggleThing, setThing, THING_OF_MODULE } from "./room-things";
 import { roomSurface, setRoomSurface } from "./room-surface";
 import { placeObjects, legacyShown, markPlaced, objectAvailable, objectSize, OBJECTS } from "./mod-objects";
@@ -41,7 +42,7 @@ import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeD
 import { isDriveEntry, isKept, keepAlbum, forgetAlbum, driveConfig, driveToken, walkDrive, type DriveEntry } from "./drive";
 import { initMobile, renderMobile, mobileActive } from "./mobile";
 import { initSpotifyUI, openSpotify, spotifyConfigured, resumeSpotify, forgetSpotifyOpen } from "./spotify-ui";
-import { initParty, openParty, partySupported, partyVisit } from "./party";
+import { initParty, openParty, partySupported, partyVisit, partyIn } from "./party";
 import { regionalTick, locate, gotOf, landName } from "./region";
 import { itemOf } from "./items";
 import { type Drop, loadHome, saveHome, place, removeModule, addModule, MIN_W as MIN_COL, MIN_H as MIN_STACK } from "./layout";
@@ -776,13 +777,17 @@ function renderPop() {
   const { rowId } = pop;
   const isNow = a === player.album;
   const total = a.tracks.reduce((n, t) => n + (t.duration ?? 0), 0);
+  // 再生中のアルバムなら、ジャケットのボタンは一時停止 / 再開（頭から流し直さない）
+  const live = isNow && player.playing;
+  const inQueue = queue.includes(a.key), isQueueRow = shelfById(rowId)?.kind === "queue";
   el.innerHTML = `
-    <button class="opened-cover" aria-label="${esc(a.title)} を再生">${art(a)}<span class="opened-play">${ICON.play}</span></button>
+    <button class="opened-cover" aria-label="${esc(a.title)} を${live ? "一時停止" : isNow ? "再開" : "再生"}">${art(a)}<span class="opened-play">${live ? ICON.pause : ICON.play}</span></button>
     <div class="opened-body">
       <div class="opened-head">
         <div><b>${esc(a.title)}</b><span>${esc(a.artist || a.dir)} · ${a.tracks.length} 曲${total ? " · " + fmt(total) : ""}</span></div>
         <span class="opened-actions">
           ${removable(rowId, a) ? `<button class="opened-remove">この棚から外す</button>` : ""}
+          ${isQueueRow || isNow ? "" : `<button class="opened-remove opened-queue">${inQueue ? t("次に再生から外す") : t("次に再生へ")}</button>`}
           <button class="opened-remove opened-tag" data-tag-edit>${tagsOf(a).length ? esc(tagsOf(a).join(" · ")) : "タグ"}</button>
           ${rowId.startsWith("shelf-") ? `<button class="opened-remove opened-hide">ライブラリから外す</button>` : ""}
           ${a.remote === "spotify" && a.link ? `<a class="opened-remove opened-link" href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">Spotify で開く</a>` : ""}
@@ -795,10 +800,21 @@ function renderPop() {
           <span class="no">${String(t.no).padStart(2, "0")}</span><span class="t">${esc(t.title)}</span><span class="dur">${t.duration ? fmt(t.duration) : ""}</span>
         </button></li>`).join("")}</ol>
     </div>`;
-  $(".opened-cover", el).onclick = () => play(a);
+  // 再生を始めたら閉じる（開いたままだと再生中モジュールの操作部に重なる）
+  $(".opened-cover", el).onclick = () => {
+    if (isNow) { player.toggle(); return; } // ボタンの形は player.on で描き直す
+    closePop(); play(a);
+  };
   $(".opened-close", el).onclick = closePop;
+  const qb = el.querySelector<HTMLElement>(".opened-queue");
+  if (qb) qb.onclick = () => {
+    const i = queue.indexOf(a.key);
+    if (i >= 0) queue.splice(i, 1); else queue.push(a.key);
+    toast(i >= 0 ? `「${a.title}」を次に再生から外しました` : `「${a.title}」を次に再生に入れました`);
+    renderShelves(); renderPop();
+  };
   const rm = $(".opened-remove", el);
-  if (rm && !rm.classList.contains("opened-tag") && !rm.classList.contains("opened-hide") && !rm.classList.contains("opened-keep") && !rm.classList.contains("opened-link")) rm.onclick = () => { removeFrom(rowId, a.key); closePop(); renderShelves(); };
+  if (rm && !rm.classList.contains("opened-tag") && !rm.classList.contains("opened-hide") && !rm.classList.contains("opened-keep") && !rm.classList.contains("opened-link") && !rm.classList.contains("opened-queue")) rm.onclick = () => { removeFrom(rowId, a.key); closePop(); renderShelves(); };
   $(".opened-tag", el).onclick = e => {
     const own = ownTags(a.key); // フォルダから受け継いだタグは、見せるだけ
     openTagEditor(e.currentTarget as HTMLElement, [a.key], a.title, tagsOf(a).filter(tg => !own.includes(tg)));
@@ -809,7 +825,8 @@ function renderPop() {
   if (keep) keep.onclick = () => toggleKeep(a);
   $(".tracks", el).onclick = e => {
     const i = (e.target as HTMLElement).closest<HTMLElement>("[data-i]")?.dataset.i;
-    if (i !== undefined) play(a, Number(i));
+    if (i === undefined) return;
+    closePop(); play(a, Number(i));
   };
   placePop(el, pop.anchor);
 }
@@ -853,7 +870,11 @@ function fillRow(row: HTMLElement, rowId: string, c: Contents, pos = 0) {
   row.innerHTML = "";
   row.dataset.row = rowId;
   const { list, faces } = c;
-  if (!list.length) { return; }
+  if (!list.length) {
+    // 「次に再生」が空のときは、何の棚か分かるようにひとこと（ドラッグで入れる）
+    if (shelfById(rowId)?.kind === "queue") row.innerHTML = `<span class="row-empty">${t("アルバムをここへドラッグすると、いまのアルバムのあとに続けて流れます")}</span>`;
+    return;
+  }
   const chosen = list.find(a => a.key === featured.get(rowId)) ?? [...faces.keys()][0] ?? list[0];
   const at = Math.max(0, Math.min(1, pos));
   const pane = (side: "l" | "r") => {
@@ -1476,7 +1497,8 @@ function renderLibrary() {
   const byArtist = libGroup() === "artist", what = byArtist ? "アーティスト" : "フォルダ";
   v.innerHTML = `<div class="lib"><nav class="side" aria-label="${what}"><h2>${what}</h2></nav><div class="lib-shelves">
     <div class="lib-bar"><nav class="sets lib-sets" aria-label="${t("アルバムのセット")}"></nav><div class="lib-group" role="group" aria-label="${t("括り方")}">
-      <button data-g="folder" aria-pressed="${!byArtist}">${t("フォルダ")}</button><button data-g="artist" aria-pressed="${byArtist}">${t("アーティスト")}</button></div><input class="mod-search lib-search" id="lib-q" type="search" placeholder="検索" autocomplete="off" aria-label="ライブラリを検索" value="${esc(libQuery)}"></div>
+      <button data-g="folder" aria-pressed="${!byArtist}">${t("フォルダ")}</button><button data-g="artist" aria-pressed="${byArtist}">${t("アーティスト")}</button></div>
+      <select class="lib-sort" aria-label="${t("並び順")}" title="${t("並び順")}">${SORTS.map(o => `<option value="${o.key}"${o.key === prefs().libSort ? " selected" : ""}>${esc(t(o.label))}</option>`).join("")}</select><input class="mod-search lib-search" id="lib-q" type="search" placeholder="検索" autocomplete="off" aria-label="ライブラリを検索" value="${esc(libQuery)}"></div>
     <div class="case"></div>${hiddenList()}</div></div>`;
   const side = $(".side", v), kase = $(".case", v);
   $(".lib-sets", v).addEventListener("click", onSetTabClick);
@@ -1488,6 +1510,8 @@ function renderLibrary() {
     $(".lib-shelves")?.scrollTo({ top: 0 });
     $<HTMLButtonElement>(`.lib-group [data-g="${libGroup()}"]`)?.focus();
   });
+  // 並び順: ライブラリと、並び順を決めていない棚に効く
+  $<HTMLSelectElement>(".lib-sort", v).onchange = e => setPrefs({ libSort: (e.target as HTMLSelectElement).value as Prefs["libSort"] }); // 描き直しは "kona:prefs" で
   const hl = v.querySelector<HTMLDetailsElement>(".lib-hidden");
   if (hl) {
     hl.ontoggle = () => { hiddenOpen = hl.open; };
@@ -1541,6 +1565,7 @@ function renderHomeFrame() {
   $("#view-home").innerHTML = `<div class="home"><div class="grid"></div></div>`;
   wireSplits($(".grid"));
   mountThings();
+  mountPresents();
 }
 
 function renderCenter() {
@@ -1548,7 +1573,8 @@ function renderCenter() {
   if (!center) return;
   const a = player.album;
   const build = () => {
-    if (!a) center.innerHTML = "";
+    // まだ何も鳴らしていないときは、空の箱にせず、はじめ方をひとこと
+    if (!a) center.innerHTML = `<p class="np-idle">${t("棚のアルバムを押して、ジャケットの ▶ で聴きはじめます")}</p>`;
     else center.innerHTML = `<div class="jacket${(a.ratio ?? 1) < 1 ? " tall" : ""}" style="--ar:${a.ratio ?? 1}">${art(a)}</div><div class="np np-host"></div>`;
     renderNP();
   };
@@ -1714,10 +1740,7 @@ function upNext() {
 // アルバムの境目でも間を空けないよう、切り替わる先の 1 曲目を先に読み込ませる
 player.nextAlbum = () => upNext();
 player.onTrackError = (_a, t) => toast(`「${t.title}」は再生できないので飛ばしました`);
-// アルバムリピート中も、スリープタイマー「アルバムの終わり」では止める
-player.onAlbumLoop = () => !stopAtAlbumEnd();
 player.onAlbumEnd = () => {
-  if (stopAtAlbumEnd()) { renderShelves(); return; } // スリープタイマー「アルバムの終わり」
   const next = upNext();
   const done = player.album ? queue.indexOf(player.album.key) : -1;
   if (done >= 0) queue.splice(done, 1);
@@ -1731,18 +1754,19 @@ player.on(() => {
   const changed = player.album !== lastAlbum;
   if (changed) { lastAlbum = player.album; renderCenter(); }
   if (changed || player.index !== lastIndex) { lastIndex = player.index; renderShelves(); }
+  else if (pop) renderPop(); // ポップアップの ▶ / ⏸
   renderNP();
 });
 
 installWheel();
 
-// 曲の終わりの余韻: アルバムを聴き終えて、続きがなく止まるとき（スリープタイマー「アルバムの終わり」も）は、
+// 曲の終わりの余韻: アルバムを聴き終えて、続きがなく止まるときは、
 // 部屋の音（重ねている環境音・時計の秒針・窓の外の雨）だけを少し残してから消す
 player.onLinger = (ctx, input) => roomTail(ctx, input, { rain: windowRain() });
 {
   const albumEnd = player.onAlbumEnd;
   player.onAlbumEnd = () => {
-    const stops = albumEndArmed() || !upNext();
+    const stops = !upNext();
     albumEnd?.();
     if (stops) player.linger();
   };
@@ -1750,7 +1774,16 @@ player.onLinger = (ctx, input) => roomTail(ctx, input, { rain: windowRain() });
 
 // 聴いた時間を数える（聴いた距離のモジュール用）
 // 目じるしに届いたら証書を作る（awards.ts）
-setInterval(() => { if (player.playing) { addListened(1); checkAwards(player.album); } regionalTick(player.playing, partyVisit()); }, 1000);
+setInterval(() => {
+  if (player.playing) { addListened(1); checkAwards(player.album); }
+  regionalTick(player.playing, partyVisit());
+  // プレゼント（presents.ts）: 音が出ているときだけ数える
+  presentTick(player.playing, !player.isMuted, player.album?.title);
+  const pr = partyIn();
+  if (pr === "guest") achieve("party-join");
+  if (pr === "host") achieve("party-host");
+}, 1000);
+
 // ご当地の品（region.ts）: オンなら開いたときに土地を調べる（1 日 1 回まで）。品が届いたら知らせる
 locate();
 document.addEventListener("kona:regional", e => {
@@ -1800,12 +1833,33 @@ let coats: Coat[] = (() => {
     return localStorage.getItem("kona.cat") === "off" ? [] : [randomCoat()];
   } catch { return [randomCoat()]; }
 })();
+// はじめて開いたとき: いまの飼い猫の数と、置いている品を手元に（何も取り上げない）
+seedPresents(coats.length, [...placedThings(), ...modules.flatMap(m => m.goods ?? [])]);
 document.addEventListener("kona:cats-away", () => placeCats(true));
+function savePets() { try { localStorage.setItem(CATS_KEY, JSON.stringify(coats)); } catch { /* ignore */ } }
 function placeCats(animate = false) {
-  try { localStorage.setItem(CATS_KEY, JSON.stringify(coats)); } catch { /* ignore */ }
+  savePets();
   const grid = $(".grid");
   // スマホ版ではホームを出さないので猫も休ませる。「猫を出さない」のときも
-  if (grid) setCats(grid, mobileActive() || prefs().catsHidden ? [] : coats, animate);
+  if (grid) setCats(grid, mobileActive() || prefs().catsHidden ? [] : stray ? [...coats, stray] : coats, animate);
+}
+// 通りすがりの猫: 気まぐれにやってきて、しばらくすると去り、また別の猫がランダムに来る（ひとりずつ）。飼い猫にすると残る
+let stray: Coat | undefined, strayAt = Date.now() + (2 + Math.random() * 4) * 60_000, strayUntil = 0;
+setInterval(() => {
+  const now = Date.now();
+  if (stray && now > strayUntil) { stray = undefined; placeCats(true); strayAt = now + (6 + Math.random() * 14) * 60_000; return; }
+  if (!stray && now > strayAt && !document.hidden && !prefs().catsHidden) {
+    stray = { ...randomCoat(), stray: true };
+    strayUntil = now + (8 + Math.random() * 17) * 60_000;
+    placeCats(true);
+  }
+}, 20_000);
+function adoptStray(): boolean {
+  if (!stray || coats.length >= catCap()) return false;
+  const c = stray;
+  delete c.stray; stray = undefined;
+  coats.push(c); savePets(); restyleCat(c);
+  return true;
 }
 // 猫がよく聴くアルバムをくわえて、「次に再生」へ運んでくる
 setCatHooks({
@@ -1835,7 +1889,10 @@ setCatHooks({
   nowPlaying: () => player.album?.key,
   albumTitle: key => byKey(key)?.title,
   tasteOf: key => { const a = byKey(key); return a ? a.genre?.trim() || a.artist?.trim() || a.title : undefined; },
-  saveCoats: () => { try { localStorage.setItem(CATS_KEY, JSON.stringify(coats)); } catch { /* ignore */ } },
+  saveCoats: () => savePets(),
+  adopt: c => c === stray && adoptStray(),
+  room: () => ({ pets: coats.length, cap: catCap() }),
+  accs: () => ownedAccs().map(a => ({ key: a.key, label: tr(a.label) })),
   level: () => { const [l, r] = player.levels(); return (l + r) / 2; },
 });
 
@@ -1861,14 +1918,14 @@ initSettings($("#view-settings"), {
     toggleWand: () => { toggleWand(); },
   },
   cats: () => coats,
-  addCat: () => { coats.push(randomCoat()); placeCats(true); },
+  stray: () => stray,
+  adoptStray: () => adoptStray(),
   removeCat: i => { coats.splice(i, 1); placeCats(true); },
   changeCat: (i, ch) => {
     const c = coats[i];
     if (!c) return;
     if (ch.name !== undefined) c.name = ch.name || undefined;
-    // 品種を替えると毛並みも選び直す（性格・お気に入り・名前はそのまま）
-    if (ch.breed && ch.breed !== (c.breed ?? "mix")) coats[i] = { ...breedCoat(ch.breed), p: c.p, fav: c.fav, name: c.name };
+    if (ch.acc !== undefined) { c.acc = ch.acc || undefined; restyleCat(c); }
     placeCats();
   },
   source: () => {
@@ -1892,7 +1949,7 @@ initSettings($("#view-settings"), {
 document.addEventListener("kona:prefs", e => {
   const keys = (e as CustomEvent<string[]>).detail;
   if (keys.includes("catsHidden")) placeCats(true);
-  if (keys.includes("libGroup")) { renderShelves(); if (location.hash === "#library") keepScroll(renderLibrary); renderMobile(); }
+  if (keys.includes("libGroup") || keys.includes("libSort")) { renderShelves(); if (location.hash === "#library") keepScroll(renderLibrary); renderMobile(); }
 });
 paintHeaderIcons();
 translateStatic();

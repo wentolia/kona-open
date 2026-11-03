@@ -70,7 +70,7 @@ export interface SnapTrack { no: number; t: string; d: number }
 
 
 const OWN: ModuleType[] = ["eq", "output"];
-const TYPES: ModuleType[] = ["shelf", "player", "waveform", "eq", "clock", "info", "log", "output", "turntable", "window", "objects", "distance", "cattower", "scratcher", "catfood", "spectrum", "catbox"];
+const TYPES: ModuleType[] = ["shelf", "player", "waveform", "eq", "clock", "info", "log", "output", "window", "objects", "distance", "cattower", "scratcher", "catfood", "spectrum", "catbox"];
 const MAX_ROWS = 24, MAX_COLS = 8, MAX_CELLS = 8, MAX_SHELF = 600, MAX_ALBUMS = 5000;
 
 // ---------- ホスト: 読み取る ----------

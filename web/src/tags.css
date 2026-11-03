@@ -4,10 +4,11 @@
 .sets { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .sets::-webkit-scrollbar { display: none; }
 .sets[hidden] { display: none; }
-/* ライブラリの上の段: 括り方のすぐ右に置き、検索は右端のまま */
+/* ライブラリの上の段: 括り方・並び順のすぐ右に置き、検索は右端のまま */
 .lib-bar .lib-group { margin-right: 0; }
-.lib-bar .lib-sets { order: 1; }
-.lib-bar .lib-search { order: 2; margin-left: auto; }
+.lib-bar .lib-sort { order: 1; margin-right: 0; }
+.lib-bar .lib-sets { order: 2; }
+.lib-bar .lib-search { order: 3; margin-left: auto; }
 .sets button {
   position: relative; isolation: isolate; flex: none; white-space: nowrap;
   font-size: 12px; color: var(--muted); padding: 4px 9px;

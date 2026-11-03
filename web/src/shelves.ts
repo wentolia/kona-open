@@ -1,7 +1,7 @@
 // ホームに置くモジュールの定義（種類・名前・棚の中身の設定）。どこに置くか（段・列・高さ）は layout.ts
 import { setTag, cleanTag } from "./tags";
 
-export type ModuleType = "shelf" | "player" | "waveform" | "eq" | "clock" | "info" | "log" | "output" | "turntable" | "window" | "objects" | "distance" | "cattower" | "scratcher" | "catfood" | "spectrum" | "catbox";
+export type ModuleType = "shelf" | "player" | "waveform" | "eq" | "clock" | "info" | "log" | "output" | "window" | "objects" | "distance" | "cattower" | "scratcher" | "catfood" | "spectrum" | "catbox";
 // 棚の中身は 3 種類だけ: 検索（検索語と並び順。よく聴く・最近聴いた・フォルダ・アーティスト・気分・タグもこれで表す）・次に再生・小物だけ
 // 小物（灯り・植物など）はどの棚にも置ける（goods）。「小物だけ」はアルバムを並べず小物だけを置く棚
 export type ShelfKind = "search" | "queue" | "goods";
@@ -36,7 +36,6 @@ export const MODULES: ModuleInfo[] = [
   { type: "info", label: "アルバムの情報", minHeight: 140, height: 220, ready: true, single: true },
   { type: "log", label: "聴いた記録", minHeight: 120, height: 220, ready: true, single: true },
   { type: "output", label: "出力", minHeight: 120, height: 170, ready: true, single: true },
-  { type: "turntable", label: "レコードプレーヤー", minHeight: 120, height: 220, ready: true, single: true },
   { type: "window", label: "窓辺", minHeight: 90, height: 200, ready: true, single: true },
   { type: "distance", label: "聴いた距離", minHeight: 90, height: 140, ready: true, single: true },
   { type: "cattower", label: "キャットタワー", minHeight: 240, height: 380, ready: true, single: true },

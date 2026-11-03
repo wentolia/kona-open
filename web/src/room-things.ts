@@ -219,3 +219,28 @@ function paint(remeasure = false) {
 
 /** ホームを作ったあとに呼ぶ（床と壁に置く） */
 export function mountThings() { paint(); }
+
+// ---------- 転がるおもちゃ ----------
+// 毛糸玉・ねずみ・けりぐるみ（<i data-cat-toy="roll|slide">）は、猫が叩く・押すと床の上を転がって（滑って）止まり、止まった所を覚える。
+// 端に当たると跳ね返る。転がる向きは叩いた向き（detail.dir）
+const rolling = new Set<string>();
+document.addEventListener("kona:bat", e => {
+  const mark = e.target as HTMLElement | null, kind = mark?.dataset?.catToy;
+  const el = mark?.closest?.<HTMLElement>(".thing"), id = el?.dataset.thing;
+  if ((kind !== "roll" && kind !== "slide") || !el || !id || !floorLayer?.contains(el) || rolling.has(id)) return;
+  const it = thingOf(id), span = floorLayer.getBoundingClientRect().width - el.getBoundingClientRect().width;
+  if (!it || span <= 0) return;
+  const d = (e as CustomEvent<{ dir?: number; power?: number }>).detail ?? {}, power = clamp(d.power ?? 1, 0, 1.3);
+  const dist = (d.dir ?? 1) * power * (kind === "roll" ? 70 + Math.random() * 90 : 30 + Math.random() * 40) / span;
+  const x0 = it.x, dur = (kind === "roll" ? 900 : 500) * (.7 + .4 * power), t0 = performance.now();
+  const bounce = (x: number) => { x = ((x % 2) + 2) % 2; return x > 1 ? 2 - x : x; }; // 0〜1 の間で跳ね返す
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setThing(id, { x: bounce(x0 + dist * .5) }); return; }
+  rolling.add(id);
+  const step = (now: number) => {
+    const u = Math.min(1, (now - t0) / dur), k = 1 - (1 - u) ** 3, x = bounce(x0 + dist * k);
+    if (!el.isConnected) { rolling.delete(id); return; }
+    el.style.setProperty("--x", x.toFixed(4));
+    if (u < 1) requestAnimationFrame(step); else { rolling.delete(id); setThing(id, { x }); }
+  };
+  requestAnimationFrame(step);
+});

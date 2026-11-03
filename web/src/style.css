@@ -57,7 +57,7 @@ body.view-out :is(main, .np-footer) { opacity: 0; transition-duration: .18s; }
   overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
 }
 .spines::-webkit-scrollbar { display: none; }
-.row-empty { align-self: center; font-size: 12px; color: var(--muted); }
+.row-empty { align-self: center; padding-inline: 12px; font-size: 12px; color: var(--muted); }
 
 .spine {
   flex: none; position: relative; border-radius: 1px 1px 0 0;
@@ -395,7 +395,7 @@ body:is([data-view="home"], [data-view="settings"]) .np-footer { display: none; 
 .np-vol-range::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -5px; border-radius: 50%; background: var(--ink); border: 0; }
 .np-vol-range::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 0; }
 .np-vol-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.np-idle { grid-column: 1 / -1; font-size: 12px; color: var(--muted); padding: 10px 0; }
+.np-idle { grid-column: 1 / -1; justify-self: center; margin: 0; font-size: 12px; color: var(--muted); text-align: center; text-wrap: balance; }
 
 /* ---------- ウィンドウ（最小表示・小窓） ---------- */
 .winctl { display: flex; gap: 2px; }
@@ -563,23 +563,7 @@ body { background: radial-gradient(120% 80% at 50% 45%, color-mix(in srgb, var(-
 .clock-face { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .clock-time { font-family: var(--font-mono); font-size: clamp(28px, 34cqh, 64px); font-weight: 300; letter-spacing: .04em; line-height: 1; font-variant-numeric: tabular-nums; }
 .clock-date { font-size: 11px; color: var(--muted); letter-spacing: .08em; }
-.clock-sleep { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 6px; font-size: 11px; }
-.clock-label { color: var(--muted); margin-right: 2px; }
-.clock-chip { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
-.clock-chip:hover { color: var(--ink); }
-.clock-chip.on { border-color: var(--accent); color: var(--accent); }
 .clock { position: relative; }
-.clock-btn { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); opacity: .55; transition: opacity .15s ease, color .15s ease; }
-.clock:hover .clock-btn, .clock-btn[aria-expanded="true"], .clock-btn.on { opacity: 1; }
-.clock-btn.on { color: var(--accent); }
-.clock-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
-.clock-menu {
-  position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 3; width: max-content; max-width: calc(100% - 16px);
-  display: grid; gap: 8px; padding: 10px 12px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 10px 24px rgba(0, 0, 0, .5);
-}
-.clock-menu[hidden] { display: none; }
-.clock-left { position: absolute; left: 0; right: 0; bottom: 36px; text-align: center; font-family: var(--font-mono); font-size: 10px; color: var(--accent); pointer-events: none; }
-@container (max-height: 150px) { .clock-left { bottom: auto; top: 8px; } }
 @container (max-height: 120px) { .clock-date { display: none; } }
 
 /* ---------- レベルメーター ---------- */
@@ -670,7 +654,6 @@ body { background: radial-gradient(120% 80% at 50% 45%, color-mix(in srgb, var(-
 /* 時計・カード・出力: ランプの光をうっすら */
 .clock { background: radial-gradient(closest-side at 50% 50%, color-mix(in srgb, var(--accent) 10%, transparent), transparent); }   /* 灯りは枠の内側で消える（縁で切れない） */
 .clock-time { color: var(--lamp-ink); text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 35%, transparent); }
-.clock-armed .clock-time { color: var(--accent); }
 /* 図書カード: 生成りの紙 */
 .card {
   border: 0; color: #2e261b; box-shadow: 0 8px 22px rgba(0, 0, 0, .5);
@@ -682,7 +665,7 @@ body { background: radial-gradient(120% 80% at 50% 45%, color-mix(in srgb, var(-
 
 /* レコードプレーヤー・窓辺 */
 .tt, .win { flex: 1; min-height: 0; position: relative; margin: 6px 4px 0; }
-.tt-canvas, .win-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.win-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 .win { margin: 8px 6px 4px; }
 
@@ -809,17 +792,12 @@ body.drop-folder::after { content: ""; position: fixed; inset: 8px; border: 2px 
 .sel-bar .sel-x { width: 30px; height: 30px; padding: 7px; display: grid; place-items: center; }
 .sel-bar .sel-x svg { width: 100%; height: 100%; fill: var(--muted); }
 
-/* 時計の種類: アナログ・振り子。文字盤は高さに合わせて縮む */
+/* 時計の種類: デジタル・アナログ。文字盤は高さに合わせて縮む */
 .clock-dial:empty { display: none; }
 .clock:not([data-kind="digital"]) .clock-time { display: none; }
 .clock-dial svg { display: block; overflow: visible; }
 .ck-analog { height: clamp(40px, calc(100cqh - 24px), 160px); width: auto; }
-.ck-pendulum { height: clamp(48px, 100cqh, 240px); width: auto; }
 @container (max-height: 120px) { .ck-analog { height: clamp(40px, 100cqh, 160px); } }
-/* 文字盤が縦いっぱいを使うので、タイマーのボタンと残り時間は下の隅へ寄せる */
-.clock:not([data-kind="digital"]) .clock-btn { left: auto; right: 8px; transform: none; }
-.clock:not([data-kind="digital"]) .clock-left { left: 12px; right: auto; top: auto; bottom: 14px; text-align: left; }
-.clock[data-kind="pendulum"] .clock-date { display: none; }
 .ck-dial { fill: color-mix(in srgb, var(--lamp-ink) 5%, transparent); stroke: color-mix(in srgb, var(--lamp-ink) 35%, transparent); stroke-width: 1.2; }
 .ck-ticks line { stroke: color-mix(in srgb, var(--lamp-ink) 45%, transparent); stroke-width: 1.2; stroke-linecap: round; }
 .ck-ticks line.big { stroke: var(--lamp-ink); stroke-width: 2.2; }
@@ -828,23 +806,17 @@ body.drop-folder::after { content: ""; position: fixed; inset: 8px; border: 2px 
 .ck-m { stroke-width: 2.2; }
 .ck-s { stroke: var(--accent) !important; stroke-width: 1; }
 .ck-hands circle { fill: var(--accent); }
-.ck-analog, .ck-pendulum { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 18%, transparent)); }
-.clock-armed .ck-dial { stroke: var(--accent); }
-.ck-case { fill: #4a3322; stroke: #6b4a32; stroke-width: 1.5; }
-.ck-pendulum .ck-dial { fill: #1d1712; }
-.ck-window { fill: #17120e; stroke: #6b4a32; stroke-width: 1; }
-.ck-bob { transform-origin: 50px 92px; animation: ck-swing 2s ease-in-out infinite; }
-.ck-bob line { stroke: #b8925a; stroke-width: 1.4; }
-.ck-bob circle { fill: #d9a95a; stroke: #f0c97f; stroke-width: 1; }
-@keyframes ck-swing { 0%, 100% { transform: rotate(13deg); } 50% { transform: rotate(-13deg); } }
-@media (prefers-reduced-motion: reduce) { .ck-bob { animation: none; } }
+.ck-analog { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 18%, transparent)); }
 
 /* ライブラリのまとめ方（フォルダ / アーティスト）の切り替え */
 .lib-bar { align-items: center; gap: 12px; }
-.lib-group { display: inline-flex; margin-right: auto; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.lib-group { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
 .lib-group button { padding: 3px 12px; border-radius: 999px; font-size: 12px; color: var(--muted); }
 .lib-group button:hover { color: var(--ink); }
 .lib-group button[aria-pressed="true"] { background: var(--soft); color: var(--ink); }
+.lib-sort { margin-right: auto; font: inherit; font-size: 12px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.lib-sort:hover, .lib-sort:focus-visible { color: var(--ink); }
+.lib-sort option { color: var(--ink); background: var(--bg); }
 
 /* Spotify: 元へのリンク（曲目パネル）と、DRM のため効かない機能の札 */
 a.opened-link { text-decoration: none; }
