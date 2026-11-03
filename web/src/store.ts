@@ -52,10 +52,16 @@ export function recordPlay(albumKey: string): void {
 }
 
 // 再生の記録（聴いた記録・地図のモジュールで使う）。新しいものほど後ろ
-export interface PlayEvent { k: string; t: number; lat?: number; lon?: number }
+export interface PlayEvent { k: string; t: number }
 const LOG_KEY = "kona.log";
 let log: PlayEvent[] = [];
 try { log = JSON.parse(localStorage.getItem(LOG_KEY) ?? "[]"); if (!Array.isArray(log)) log = []; } catch { log = []; }
+// 以前は再生の記録に聴いた場所（緯度・経度）を付けていた。いまは場所を持たないので、残っていれば消す
+{
+  let had = false;
+  log = log.map(e => { if (e && typeof e === "object" && ("lat" in e || "lon" in e)) { had = true; return { k: e.k, t: e.t }; } return e; });
+  try { if (had) localStorage.setItem(LOG_KEY, JSON.stringify(log)); localStorage.removeItem("kona.mapRecord"); } catch { /* ignore */ }
+}
 const saveLog = () => { try { localStorage.setItem(LOG_KEY, JSON.stringify(log.slice(-4000))); } catch { /* ignore */ } };
 
 export function playLog(): readonly PlayEvent[] { return log; }
@@ -65,11 +71,6 @@ export function logPlay(albumKey: string): PlayEvent {
   const e: PlayEvent = { k: albumKey, t: Date.now() };
   log.push(e); saveLog();
   return e;
-}
-export function setPlace(e: PlayEvent, lat: number, lon: number) {
-  // 端末の正確な位置は残さず、100m ほどの粗さに丸める
-  e.lat = Math.round(lat * 1000) / 1000; e.lon = Math.round(lon * 1000) / 1000;
-  saveLog();
 }
 
 // 聴いた時間の合計（秒）。聴いた距離のモジュールで使う

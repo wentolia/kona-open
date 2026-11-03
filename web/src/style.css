@@ -205,8 +205,6 @@ body.arranging, body.arranging * { cursor: grabbing !important; user-select: non
   font: inherit; font-size: 11px; color: var(--ink); background: transparent;
   border: 0; border-bottom: 1px solid var(--soft); padding: 3px 2px; border-radius: 0;
 }
-.mod-search.search-left { align-self: flex-start; }
-.mod-search.search-center { align-self: center; }
 .mod-search::placeholder { color: var(--muted); }
 .mod-search:hover, .mod-search:focus { border-bottom-color: var(--muted); outline: none; }
 
@@ -219,6 +217,7 @@ body.arranging, body.arranging * { cursor: grabbing !important; user-select: non
 .module-menu label { display: grid; gap: 3px; }
 .module-menu label.sm-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); cursor: pointer; }
 .module-menu label.sm-check input { margin: 0; width: auto; flex: none; padding: 0; accent-color: var(--accent); }
+.module-menu .sm-note { margin: -2px 0 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
 .module-menu input, .module-menu select { font: inherit; font-size: 13px; color: var(--ink); background: var(--bg); border: 1px solid var(--soft); border-radius: 4px; padding: 5px 7px; width: 100%; }
 .module-menu input[type="range"] { padding: 0; border: 0; background: none; accent-color: var(--accent); }
 .sm-hint { margin: 0; line-height: 1.5; }
@@ -383,9 +382,6 @@ body:is([data-view="home"], [data-view="settings"]) .np-footer { display: none; 
 .np-vol .b-mute { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; flex: none; }
 .np-vol .b-mute:hover { background: var(--soft); }
 .np-vol .b-mute svg { width: 15px; height: 15px; fill: var(--muted); }
-.np-vol .b-receipt { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 4px; flex: none; opacity: .6; }
-.np-vol .b-receipt:hover { opacity: 1; background: var(--soft); }
-.np-vol .b-receipt svg { width: 13px; height: 13px; fill: var(--muted); }
 .np-vol-range {
   -webkit-appearance: none; appearance: none; width: clamp(60px, 9vw, 120px); height: 18px; margin: 0; background: transparent; cursor: pointer;
   --fill: 80%;
@@ -589,11 +585,6 @@ body { background: radial-gradient(120% 80% at 50% 45%, color-mix(in srgb, var(-
 .clock-left { position: absolute; left: 0; right: 0; bottom: 36px; text-align: center; font-family: var(--font-mono); font-size: 10px; color: var(--accent); pointer-events: none; }
 @container (max-height: 150px) { .clock-left { bottom: auto; top: 8px; } }
 @container (max-height: 120px) { .clock-date { display: none; } }
-.clock-rest .clock-time { color: var(--muted); text-shadow: none; }
-/* ポモドーロ中: 触れないものは沈める */
-body.focus-lock .grid .mod[inert] { opacity: .28; filter: saturate(.4); transition: opacity .4s ease; }
-body.focus-lock .split-row, body.focus-lock .split-v, body.focus-lock .split-h { pointer-events: none; }
-body.focus-lock .top .tabs, body.focus-lock #open, body.focus-lock .add-mod { opacity: .3; }
 
 /* ---------- レベルメーター ---------- */
 .tone { flex: 1; min-height: 0; position: relative; margin: 6px 12px 0; }
@@ -627,21 +618,6 @@ body.focus-lock .top .tabs, body.focus-lock #open, body.focus-lock .add-mod { op
 .log-spine:hover { transform: translateY(-2px); }
 .log-count { font-family: var(--font-mono); font-size: 10px; color: var(--muted); align-self: center; }
 
-/* ---------- 聴いた場所 ---------- */
-.map { flex: 1; min-height: 0; position: relative; margin: 4px 0 0; border-radius: 3px; overflow: hidden; }
-.map-canvas { position: absolute; inset: 0; background: var(--panel); }
-.map-tiles { filter: grayscale(1) contrast(.95); }
-.map-bar { position: absolute; left: 8px; right: 8px; top: 6px; z-index: 500; display: flex; align-items: center; gap: 10px; font-size: 11px; pointer-events: none; }
-.map-rec { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--bg) 80%, transparent); color: var(--muted); pointer-events: auto; cursor: pointer; }
-.map-rec input { margin: 0; accent-color: var(--accent); }
-.map-count { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--muted); padding: 2px 6px; border-radius: 3px; background: color-mix(in srgb, var(--bg) 80%, transparent); }
-.map-count:empty { display: none; }
-.map-empty { position: absolute; inset: 0; z-index: 400; display: grid; place-items: center; margin: 0; padding: 20px; text-align: center; font-size: 12px; color: var(--muted); pointer-events: none; }
-.map-empty:empty { display: none; }
-.map .leaflet-container { background: var(--panel); font-family: var(--font-body); }
-.map .leaflet-control-attribution { font-size: 9px; background: color-mix(in srgb, var(--bg) 70%, transparent); color: var(--muted); }
-.map .leaflet-control-attribution a { color: var(--muted); }
-.map-tip { font-size: 11px; }
 
 /* ---------- 出力 ---------- */
 .out { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 8px 16px; font-size: 12px; }
@@ -649,10 +625,6 @@ body.focus-lock .top .tabs, body.focus-lock #open, body.focus-lock .add-mod { op
 .out-field > span { color: var(--muted); font-size: 11px; }
 .out-sink { font: inherit; font-size: 12px; color: var(--ink); background: var(--soft); border: 1px solid var(--line); border-radius: 3px; padding: 3px 6px; min-width: 0; }
 .out-sink:disabled { opacity: .6; }
-.out-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; justify-self: start; }
-.out-seg button { padding: 3px 10px; font-size: 11px; color: var(--muted); }
-.out-seg button + button { border-left: 1px solid var(--line); }
-.out-seg button[aria-checked="true"] { background: var(--soft); color: var(--ink); }
 .out-path { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 2px 0 0; font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
 .out-path span { padding: 1px 6px; border: 1px solid var(--soft); border-radius: 3px; }
 .out-path i { font-style: normal; opacity: .6; }
@@ -710,7 +682,6 @@ body.focus-lock .top .tabs, body.focus-lock #open, body.focus-lock .add-mod { op
   --muted: #7a6a52; --line: rgba(60, 40, 20, .35); --accent: #b8432f;
 }
 .card-head { border-color: rgba(184, 67, 47, .5); }
-.map-tiles { filter: grayscale(1) brightness(.9) sepia(.15); }
 .out-path span { border-color: var(--line); }
 
 /* レコードプレーヤー・窓辺 */
@@ -808,7 +779,7 @@ body.focus-lock .top .tabs, body.focus-lock #open, body.focus-lock .add-mod { op
 /* フォルダを画面に落とすときの受け皿 */
 body.drop-folder::after { content: ""; position: fixed; inset: 8px; border: 2px dashed var(--accent); border-radius: 10px; pointer-events: none; z-index: 1000; }
 
-/* ================= 棚の素材（設定で切り替え。<html data-shelf>。既定はウォールナット） =================
+/* ================= 棚の素材（設定で切り替え。<html data-shelf>。色と形は shelf-lowpoly.css） =================
    --wood / --wood-hi / --wood-lo: 木の色（キャンバスの台や窓枠も読むので不透明な色にする）
    --board: 棚板の厚み、--board-bg: 棚板の前面、--side / --side-c: ライブラリの側板 */
 :root {
@@ -817,43 +788,6 @@ body.drop-folder::after { content: ""; position: fixed; inset: 8px; border: 2px 
   --board-blur: none;
   --side: 9px; --side-c: var(--wood-lo);
 }
-/* 白木（オーク・バーチ）: 明るい木目で軽やかに */
-:root[data-shelf="oak"] {
-  --wood: #b48c5c; --wood-hi: #ddc29c; --wood-lo: #85663f;
-  --board-bg:
-    repeating-linear-gradient(to bottom, transparent 0 2px, rgba(110, 72, 34, .13) 2px 3px, transparent 3px 5px),
-    linear-gradient(to bottom, #ecd7b6 0 1px, var(--wood-hi) 1px, #c9a676 40%, var(--wood-lo));
-  --board-shadow: 0 8px 14px -6px rgba(0, 0, 0, .55);
-  --side: 8px; --side-c: #a88456;
-}
-/* 黒スチール: 薄い黒の板と細いフレーム。上の角にだけ鈍い光 */
-:root[data-shelf="steel"] {
-  --wood: #2b2e32; --wood-hi: #5d6268; --wood-lo: #141517; --board: 5px;
-  --board-bg: linear-gradient(to bottom, #7d838a 0 1px, #34383d 1px, #1d1f22 70%, #111214);
-  --board-shadow: 0 6px 10px -4px rgba(0, 0, 0, .75);
-  --side: 3px; --side-c: #1d1f22;
-}
-/* アクリル: 半透明の板。背表紙が浮いて見えるよう、影は薄く、縁だけ光らせる */
-:root[data-shelf="acrylic"] {
-  --wood: #7f949c; --wood-hi: #c3d4da; --wood-lo: #4d5f66; --board: 7px;
-  --board-bg: linear-gradient(to bottom, rgba(255, 255, 255, .6) 0 1px, rgba(205, 228, 236, .26) 1px, rgba(205, 228, 236, .12) 60%, rgba(255, 255, 255, .3) calc(100% - 1px));
-  --board-shadow: 0 6px 14px -8px rgba(0, 0, 0, .35), inset 0 0 0 .5px rgba(255, 255, 255, .25);
-  --board-blur: blur(3px) brightness(1.15);
-  --side: 2px; --side-c: rgba(215, 232, 238, .28);
-}
-/* 和箪笥（欅）: 赤みのある濃い木目に、両端の黒い鉄の金具と鋲 */
-:root[data-shelf="tansu"] {
-  --wood: #7d4426; --wood-hi: #b2703f; --wood-lo: #43210f; --board: 13px;
-  --board-bg:
-    radial-gradient(circle at 9px 50%, #d9c28a 0 1.6px, transparent 2.2px),
-    radial-gradient(circle at calc(100% - 9px) 50%, #d9c28a 0 1.6px, transparent 2.2px),
-    linear-gradient(to right, #26211d 0 18px, transparent 18px calc(100% - 18px), #26211d calc(100% - 18px)),
-    repeating-linear-gradient(to bottom, transparent 0 3px, rgba(30, 10, 0, .16) 3px 4px),
-    linear-gradient(to bottom, var(--wood-hi), var(--wood) 35%, var(--wood-lo));
-  --board-shadow: 0 9px 16px -6px rgba(0, 0, 0, .75);
-  --side: 11px; --side-c: #4b2614;
-}
-:root[data-shelf="acrylic"] :is(.row, .packed, .m-row) { background: none; }
 /* 再生のしかたのボタン（線のアイコン）。通常のときは薄く、くり返し・シャッフルのときは灯る */
 .np-ctrl svg.ic-line { fill: none; stroke: var(--ink); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .np-ctrl svg.ic-line text { fill: var(--ink); stroke: none; font: 600 6px var(--font-mono); }
@@ -862,15 +796,6 @@ body.drop-folder::after { content: ""; position: fixed; inset: 8px; border: 2px 
 .np-ctrl .b-mode:not([data-mode="normal"]) svg.ic-line { stroke: var(--accent); }
 .np-ctrl .b-mode:not([data-mode="normal"]) svg.ic-line text { fill: var(--accent); }
 
-/* 速さとピッチ: 再生バーの小さな札と、そこから開く 2 本のつまみ */
-.b-speed { font: 500 11px var(--font-mono); color: var(--muted); padding: 3px 6px; border-radius: 4px; opacity: .6; white-space: nowrap; }
-.b-speed:hover { opacity: 1; background: var(--soft); }
-.b-speed.on { color: var(--accent); opacity: 1; }
-.speed-pop { position: fixed; width: 240px; padding: 10px 12px; display: grid; gap: 10px; z-index: 60; }
-.speed-pop .sp-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; font-size: 12px; color: var(--muted); }
-.speed-pop .sp-row b { font: 500 12px var(--font-mono); color: var(--ink); }
-.speed-pop input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
-.speed-pop .sp-reset { justify-self: end; padding: 4px 8px; }
 
 /* 複数選択: 選んだ背表紙・ジャケットは灯りの色で縁取る。選んでいる間だけ下に操作の帯を出す */
 .spine.selected, .face.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -924,7 +849,6 @@ a.opened-link { text-decoration: none; }
 .dsp-off { display: none; }
 :root[data-drm] .dsp-off { display: block; position: absolute; inset: auto 8px 8px; font-size: 11px; color: var(--muted); text-align: center; pointer-events: none; }
 :root[data-drm] .eq-stage, :root[data-drm] .eq-bar { opacity: .35; pointer-events: none; }
-:root[data-drm] .b-speed { visibility: hidden; }
 :root[data-drm] .eq { position: relative; }
 
 /* 再生中が狭いとき: 中身を枠に収める（はみ出すと右端の総時間が隣と重なって読めなくなる）。

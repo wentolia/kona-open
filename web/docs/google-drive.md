@@ -39,13 +39,13 @@ Kona はサーバーを持ちません。Google Drive の曲は、**あなたの
 3. **承認済みの JavaScript 生成元** に、Kona を開いている URL のオリジンを入れます
    - 例: `https://wentolia.github.io`
 4. **承認済みのリダイレクト URI** に、Kona を開いている URL を **そのまま** 入れます
-   - 例: `https://wentolia.github.io/kona/`
+   - 例: `https://wentolia.github.io/kona-open/`
    - 末尾の `/` の有無まで一致させます。Kona の Drive の画面に、入れるべき文字列が表示されるので、それをコピーするのが確実です
 5. 作成すると **クライアントID**（`…apps.googleusercontent.com`）が出ます。クライアントシークレットは使いません
 
 ## 4. Kona に入れる
 
-1. Kona を開き、開始画面の **Google Drive から**（または右上の **フォルダを開く → Google Drive**）を押します
+1. Kona を開き、**設定 → その他 → 読み込み元** の **クライアントIDを入れる** を押します（一度入れると、開始画面の **Google Drive から** と右上の **フォルダを開く → Google Drive** からも開けます）
 2. クライアントIDを貼り付けて **保存してサインイン**
 3. Google の画面で自分のアカウントを選びます
    - 「Google はこのアプリを確認していません」と出たら、**続行** を押します（自分で作ったアプリなので、審査を受けていないという表示です）

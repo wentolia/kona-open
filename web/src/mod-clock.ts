@@ -1,6 +1,4 @@
 // 時計とスリープタイマー: 置き時計の文字盤。決めた時間か、アルバムの終わりで静かに止める。
-// ポモドーロ: 集中 25 分（音楽を流す）→ 休憩 5 分（静かに止める）を繰り返す。4 回目の休憩は 15 分。
-// ポモドーロの間は、時計と再生の画面以外を触れなくする（本体が "kona:focus" を受けて鍵をかける）
 
 import { ctx, fmt, everyFrame } from "./modctx";
 
@@ -15,12 +13,6 @@ export function stopAtAlbumEnd(): boolean {
 }
 /** 「アルバムの終わり」で止める予約が入っているか（予約は消さずに見るだけ） */
 export const albumEndArmed = () => !!sleep.albumEnd;
-
-const FOCUS = 25, BREAK = 5, LONG = 15;
-interface Pomo { phase: "focus" | "break"; until: number; round: number }
-let pomo: Pomo | undefined;
-export const focusLocked = () => !!pomo;
-const announce = () => document.dispatchEvent(new CustomEvent("kona:focus", { detail: !!pomo }));
 
 // 時計の種類と、正時の鐘。設定は kona.clock に置く
 type Kind = "digital" | "analog" | "pendulum";
@@ -94,10 +86,6 @@ export function mountClock(body: HTMLElement) {
         <span class="clock-label">おやすみ</span>
         ${CHOICES.map((c, i) => `<button class="clock-chip" data-i="${i}">${c.label}</button>`).join("")}
       </div>
-      <div class="clock-sleep clock-pomo" role="group" aria-label="ポモドーロ">
-        <span class="clock-label">ポモドーロ</span>
-        <button class="clock-chip" data-pomo>${FOCUS} / ${BREAK}分</button>
-      </div>
       <div class="clock-sleep" role="group" aria-label="時計の種類">
         <span class="clock-label">時計</span>
         ${KINDS.map(k => `<button class="clock-chip" data-kind="${k.key}">${k.label}</button>`).join("")}
@@ -110,7 +98,6 @@ export function mountClock(body: HTMLElement) {
   const time = root.querySelector<HTMLTimeElement>(".clock-time")!, date = root.querySelector<HTMLElement>(".clock-date")!;
   const left = root.querySelector<HTMLElement>(".clock-left")!;
   const chips = [...root.querySelectorAll<HTMLButtonElement>(".clock-chip[data-i]")];
-  const pomoChip = root.querySelector<HTMLButtonElement>("[data-pomo]")!;
   const dial = root.querySelector<HTMLElement>(".clock-dial")!;
   const kindChips = [...root.querySelectorAll<HTMLButtonElement>(".clock-chip[data-kind]")];
   const chimeChip = root.querySelector<HTMLButtonElement>("[data-chime]")!;
@@ -132,22 +119,10 @@ export function mountClock(body: HTMLElement) {
   menu.addEventListener("click", e => { if ((e.target as HTMLElement).closest(".clock-chip")) openMenu(false); });
   document.addEventListener("pointerdown", e => { if (!menu.hidden && !(e.target as HTMLElement).closest?.(".clock-menu, .clock-btn")) openMenu(false); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") openMenu(false); });
-  pomoChip.onclick = () => {
-    if (pomo) pomo = undefined;
-    else {
-      sleep.until = undefined; sleep.albumEnd = false; sleep.choice = undefined;
-      pomo = { phase: "focus", until: Date.now() + FOCUS * 60_000, round: 1 };
-      const p = ctx().player;
-      if (p.album && !p.playing) p.toggle();
-    }
-    announce(); sync();
-  };
-
   chips.forEach(b => b.onclick = () => {
     const i = Number(b.dataset.i), c = CHOICES[i];
     const same = sleep.choice === i;
     sleep.until = undefined; sleep.albumEnd = false; sleep.choice = undefined;
-    if (!same && pomo) { pomo = undefined; announce(); }
     if (!same) { sleep.choice = i; if (c.min) sleep.until = Date.now() + c.min * 60_000; else sleep.albumEnd = true; }
     sync();
   });
@@ -157,10 +132,8 @@ export function mountClock(body: HTMLElement) {
   const sync = () => {
     if (sleep.until === undefined && !sleep.albumEnd) sleep.choice = undefined;
     chips.forEach((b, i) => b.classList.toggle("on", sleep.choice === i));
-    root.classList.toggle("clock-armed", sleep.choice !== undefined || pomo?.phase === "focus");
-    root.classList.toggle("clock-rest", pomo?.phase === "break");
-    pomoChip.classList.toggle("on", !!pomo);
-    btn.classList.toggle("on", sleep.choice !== undefined || !!pomo);
+    root.classList.toggle("clock-armed", sleep.choice !== undefined);
+    btn.classList.toggle("on", sleep.choice !== undefined);
     chimeChip.classList.toggle("on", look.chime);
     chimeChip.setAttribute("aria-pressed", String(look.chime));
   };
@@ -187,21 +160,7 @@ export function mountClock(body: HTMLElement) {
       hands.s.setAttribute("transform", `rotate(${s * 6} 50 50)`);
     }
     root.classList.toggle("clock-tick", now.getSeconds() % 2 === 0);
-    if (pomo) {
-      const rest = Math.max(0, (pomo.until - Date.now()) / 1000);
-      left.textContent = `${pomo.phase === "focus" ? "集中" : "休憩"} ${pomo.round}　${fmt(rest)}`;
-      if (rest <= 0) {
-        const p = ctx().player;
-        if (pomo.phase === "focus") {
-          pomo = { ...pomo, phase: "break", until: Date.now() + (pomo.round % 4 === 0 ? LONG : BREAK) * 60_000 };
-          p.fadeOutAndPause(8);
-        } else {
-          pomo = { phase: "focus", until: Date.now() + FOCUS * 60_000, round: pomo.round + 1 };
-          if (p.album && !p.playing) p.toggle();
-        }
-        sync();
-      }
-    } else if (sleep.until !== undefined) {
+    if (sleep.until !== undefined) {
       const rest = Math.max(0, (sleep.until - Date.now()) / 1000);
       left.textContent = `あと ${fmt(rest)}`;
       if (rest <= 0 && !sleep.fading) {

@@ -11,6 +11,8 @@ export interface Award { m: number; label: string; t: number; album?: string; ar
 const KEY = "kona.awards";
 
 let list: Award[] | undefined;
+/** 証書が 1 枚でもあるか（写真の画面に「証書」の札を出すか） */
+export const hasCertificates = () => load().length > 0;
 function load(): Award[] {
   if (list) return list;
   try {
@@ -45,7 +47,8 @@ export function checkAwards(now?: { title: string; artist?: string }) {
 const HEIGHTS = new Set(["東京タワー", "スカイツリー", "富士山", "エベレスト"]);
 const fmtDist = (m: number) => m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("ja-JP", { maximumFractionDigits: 3 })} km`;
 const phrase = (a: Award) => HEIGHTS.has(a.label) ? `${a.label}の高さに届きました` : a.label === "100m 走" ? "100m を走りきりました" : `${a.label}をたどりきりました`;
-const SPEED = metersOf(1);
+// 読み込みの順によっては mod-distance がまだ準備できていないので、使うときに求める
+const speed = () => metersOf(1);
 const SERIF = `"Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif`;
 const MONO = `"IBM Plex Mono", ui-monospace, Menlo, monospace`;
 
@@ -53,7 +56,7 @@ export async function drawCertificate(a: Award): Promise<HTMLCanvasElement> {
   const W = 840, H = 594, K = 2;
   const date = a.t ? new Date(a.t) : undefined;
   const dateText = date ? `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日` : "以前に到達";
-  const hours = a.m / SPEED / 3600;
+  const hours = a.m / speed() / 3600;
   const witness = catNames()[0];
   const body1 = `あなたはレコードの溝を ${fmtDist(a.m)} たどり、`;
   const body2 = `${phrase(a)}。`;
@@ -149,7 +152,7 @@ export function openCertificate(which?: number) {
   if (!got.length) { photoToast("まだ証書はありません。聴いた距離が 100m に届くと最初の 1 枚が届きます"); return; }
   const i = which !== undefined ? got.findIndex(a => a.m === which) : got.length - 1;
   showPicture({
-    label: "到達の証書", prefix: "kona-certificate", choices: got.map(a => `${a.label}（${fmtDist(a.m)}）`), choice: i < 0 ? got.length - 1 : i,
+    label: "到達の証書", prefix: "kona-certificate", tab: "certificate", choices: got.map(a => `${a.label}（${fmtDist(a.m)}）`), choice: i < 0 ? got.length - 1 : i,
     draw: ({ choice }) => drawCertificate(got[choice]),
   });
 }

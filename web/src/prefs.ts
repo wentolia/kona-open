@@ -10,23 +10,13 @@ export interface Prefs {
   font: "gothic" | "mincho";
   /** 動き: OS の設定に従う / いつも減らす */
   motion: "system" | "reduce";
-  /** 季節の飾り（room-decor.ts）・深夜の星空（窓の外の天の川と、部屋の灯りを落とすこと） */
-  decor: boolean;
-  stars: boolean;
-  /** 天井の吊りもの（room-things.ts）: なし・モビール・吊りランプ・ミラーボール */
-  hanging: "off" | "mobile" | "lamp" | "mirrorball";
-  /** 晴れた昼の窓の外の洗濯物・雨の日の傘立て */
-  laundry: boolean;
-  umbrella: boolean;
-  /** 部屋の香り: なし・コーヒーの湯気・お香の煙 */
-  scent: "off" | "coffee" | "incense";
-  /** 棚板に跡を残す（shelf-marks.ts）: 猫の毛・爪あと・コーヒーのしみ */
+  /** 棚板に跡を残す（shelf-marks.ts）: 猫の毛・爪あと */
   marks: boolean;
   /** 曲の切り替え: 0 ならギャップレス、正なら秒数ぶんクロスフェード */
   crossfade: number;
   /** 猫: 出さない・いたずら（よく聴くアルバムを運んでくる）。猫は声を出さない */
   catsHidden: boolean;
-  catMischief: "off" | "queue" | "play";
+  catMischief: "off" | "queue";
   /** 夜中にときどき猫が棚を駆け回る（夜の運動会） */
   catZoomies: boolean;
   /** ほかのアプリから戻ってきたときに、フォルダを読み直す */
@@ -39,14 +29,12 @@ export interface Prefs {
   blankArt: "title" | "plain" | "initial";
   /** 言語 */
   lang: "ja" | "en";
-  /** キーボードの割り当て（操作の名前 → キー。空ならなし） */
-  keys: Record<string, string>;
 }
 
 export const DEFAULT_PREFS: Prefs = {
-  fontScale: 1, font: "gothic", motion: "system", decor: true, stars: true, hanging: "lamp", laundry: true, umbrella: true, scent: "coffee", marks: true, crossfade: 0,
+  fontScale: 1, font: "gothic", motion: "system", marks: true, crossfade: 0,
   catsHidden: false, catMischief: "queue", catZoomies: true,
-  autoRescan: true, libSort: "title", libGroup: "folder", blankArt: "title", lang: "ja", keys: {},
+  autoRescan: true, libSort: "title", libGroup: "folder", blankArt: "title", lang: "ja",
 };
 
 const KEY = "kona.prefs";
@@ -65,21 +53,16 @@ export function prefs(): Prefs {
     fontScale: pick("fontScale", num(.8, 1.4)),
     font: pick("font", oneOf("gothic", "mincho")),
     motion: pick("motion", oneOf("system", "reduce")),
-    decor: pick("decor", bool), stars: pick("stars", bool),
-    hanging: pick("hanging", oneOf("off", "mobile", "lamp", "mirrorball")),
-    laundry: pick("laundry", bool), umbrella: pick("umbrella", bool),
-    scent: pick("scent", oneOf("off", "coffee", "incense")),
     marks: pick("marks", bool),
     crossfade: pick("crossfade", num(0, 12)),
     catsHidden: pick("catsHidden", bool),
-    catMischief: pick("catMischief", oneOf("off", "queue", "play")),
+    catMischief: v.catMischief === "off" ? "off" : d.catMischief, // 以前の「そのまま再生する」は「次に再生に入れる」に
     catZoomies: pick("catZoomies", bool),
     autoRescan: pick("autoRescan", bool),
-    libSort: pick("libSort", oneOf("title", "artist", "year", "yearAsc", "plays", "last")),
+    libSort: pick("libSort", oneOf("title", "artist", "year", "yearAsc", "plays", "last", "hue")),
     libGroup: pick("libGroup", oneOf("folder", "artist")),
     blankArt: pick("blankArt", oneOf("title", "plain", "initial")),
     lang: pick("lang", oneOf("ja", "en")),
-    keys: pick("keys", x => !!x && typeof x === "object" && !Array.isArray(x)),
   };
   return cache;
 }

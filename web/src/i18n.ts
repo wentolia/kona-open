@@ -17,7 +17,7 @@ const EN: Record<string, string> = {
   "PC 向けの画面にする": "Switch to desktop view", "棚の素材": "Shelf material",
   // モジュール
   "棚": "Shelf", "再生中": "Now playing", "波形": "Waveform", "イコライザー": "Equalizer", "時計": "Clock",
-  "アルバムの情報": "Album card", "聴いた記録": "Listening log", "聴いた場所": "Places", "出力": "Output",
+  "アルバムの情報": "Album card", "聴いた記録": "Listening log", "出力": "Output",
   "レコードプレーヤー": "Turntable", "窓辺": "Window", "棚の上の小物": "Shelf objects", "聴いた距離": "Distance",
   "キャットタワー": "Cat tower", "爪とぎ": "Scratcher", "猫のごはん": "Cat food", "スペクトラム": "Spectrum",
   "よく聴く": "Often played", "最近聴いた": "Recently played", "次に再生": "Up next", "アーティスト": "Artist",
@@ -34,7 +34,7 @@ const EN: Record<string, string> = {
   "三毛（日本猫）": "Calico (Japanese)", "アメリカンショートヘア": "American Shorthair", "ロシアンブルー": "Russian Blue",
   "ベンガル": "Bengal", "スフィンクス": "Sphynx", "ペルシャ": "Persian",
   // 棚の素材
-  "壁": "Wall", "床": "Floor", "ラグ": "Rug", "無地": "Plain", "漆喰": "Plaster", "板壁": "Wood panels", "レンガ": "Brick", "丸": "Round", "キリム": "Kilim", "ムートン": "Sheepskin",
+  "壁": "Wall", "床": "Floor", "無地": "Plain", "漆喰": "Plaster", "板壁": "Wood panels", "レンガ": "Brick",
   "ウォールナット": "Walnut", "オーク": "Oak", "スチール": "Steel", "アクリル": "Acrylic", "欅": "Zelkova", "パイン": "Pine", "白樺": "Birch", "黒檀": "Ebony", "石": "Stone", "苔": "Moss", "雪": "Snow",
   // 設定ページ
   "色": "Color", "その他": "Other", "もっと見る": "More", "文字と言語": "Text and language", "ライブラリの細かな設定": "More library settings",
@@ -45,9 +45,8 @@ const EN: Record<string, string> = {
   "朝靄": "Morning mist", "昼の書斎": "Study", "夕焼け": "Sunset", "森": "Forest", "深い夜": "Deep night", "月明かり": "Moonlight", "夜桜": "Night blossoms",
   "棚と明かり": "Shelves and light", "文字と動き": "Text and motion", "文字の大きさ": "Text size", "小": "Small", "標準": "Normal", "大": "Large", "特大": "Extra large",
   "書体": "Typeface", "ゴシック": "Sans", "明朝": "Serif", "動き": "Motion", "端末の設定に従う": "Follow the system", "減らす": "Reduce",
-  "部屋のしつらえ": "Room details", "天井の吊りもの": "From the ceiling", "モビール": "Mobile", "吊りランプ": "Pendant lamp", "ミラーボール": "Mirror ball",
-  "香り": "Scent", "コーヒー": "Coffee", "お香": "Incense", "晴れた昼は窓の外に洗濯物": "Laundry outside on sunny days", "雨の日は傘立て": "Umbrella stand on rainy days", "棚板に暮らした跡を残す（猫の毛・爪あと・コーヒーのしみ）": "Let the shelves wear (cat hair, claw marks, coffee stains)",
-  "季節と夜": "Seasons and night", "季節の飾り": "Seasonal decorations", "深夜の星空": "Starry late-night sky", "季節の飾りを出す": "Show seasonal decorations", "窓の外": "Outside the window",
+  "部屋のしつらえ": "Room details", "棚板に暮らした跡を残す（猫の毛・爪あと）": "Let the shelves wear (cat hair, claw marks)",
+  "季節と夜": "Seasons and night", "窓の外": "Outside the window",
   "イコライザーのプリセット": "Equalizer presets", "フラット": "Flat", "低音を足す": "Bass boost", "声を前に": "Vocal", "明るく": "Bright",
   "夜の小さな音": "Late-night low volume", "古いレコード": "Old record", "いまの形を残す": "Save the current curve", "残す": "Save", "消す": "Delete",
   "音量と曲のつなぎ": "Volume and transitions", "音量の正規化": "Volume normalization", "しない": "Off", "曲ごと": "Per track", "アルバムごと": "Per album",
@@ -63,7 +62,7 @@ const EN: Record<string, string> = {
   "フォルダ未選択": "No folder chosen", "使っていません": "Not in use", "サインイン中": "Signed in", "サインインが切れています": "Signed out", "サインアウト": "Sign out",
   "端末に残したアルバム": "Albums kept on this device", "枚": "albums", "端末から消す": "Remove from device",
   "このブラウザで Kona が使っている容量": "Storage used by Kona in this browser",
-  "聴いた場所を記録する": "Record where I listen", "聴いた記録を消す": "Clear listening history", "すべて初期化する": "Reset everything",
+  "聴いた記録を消す": "Clear listening history", "すべて初期化する": "Reset everything",
   "やめる": "Cancel", "初期化する": "Reset", "解除する": "Forget",
   "再生回数・最後に聴いた日・聴いた記録と場所・聴いた距離を消します。元に戻せません。": "This clears play counts, last-played dates, the listening log, places and distance. It can't be undone.",
   "聴いた記録を消しました。画面を開き直します": "Listening history cleared. Reloading",
@@ -73,9 +72,9 @@ const EN: Record<string, string> = {
   "音量を上げる": "Volume up", "音量を下げる": "Volume down", "消音": "Mute", "なし": "None", "キーを押す…": "Press a key…", "既定に戻す": "Reset to defaults",
   "言語": "Language", "戻る": "Back", "項目を書き出しました": "items exported", "版": "Version", "ライセンス": "License", "無保証": "no warranty", "ソース": "Source",
   "サーバーはなく、アクセス解析もしません。設定・記録・取り込んだ曲は、このブラウザの中にだけ置きます。": "There is no server and no analytics. Settings, history and kept tracks stay in this browser.",
-  "通信するのは Google Drive を使うときの Google の API と、地図を置いたときの地図の画像だけです。": "The only network traffic is Google's API when you use Google Drive, and map images when the Places module is on the home screen.",
+  "通信するのは Google Drive を使うときの Google の API、Spotify を使うときの Spotify だけです。": "The only network traffic is Google's API when you use Google Drive, and Spotify when you use Spotify.",
   "Google Drive は読み取りだけで、サインインはこのタブの中だけ（約 1 時間）有効です。": "Google Drive access is read-only, and sign-in lasts only for this tab (about an hour).",
-  "聴いた場所は約 100 m の粗さに丸めて、この端末にだけ残します。": "Listening places are rounded to about 100 m and kept only on this device.",
+  "聴いた場所は記録しません。位置情報は使いません。": "Kona does not record where you listen and never uses your location.",
 };
 
 export const lang = () => prefs().lang;

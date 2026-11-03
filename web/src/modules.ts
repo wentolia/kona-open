@@ -7,7 +7,6 @@ import { ctx, fmt, css, fit, everyFrame } from "./modctx";
 import { mountClock } from "./mod-clock";
 import { mountInfo } from "./mod-info";
 import { mountLog } from "./mod-log";
-import { mountMap } from "./mod-map";
 import { mountOutput } from "./mod-output";
 import { mountTurntable } from "./mod-turntable";
 import { mountWindow } from "./mod-window";
@@ -25,7 +24,6 @@ export function mountModule(type: ModuleType, body: HTMLElement) {
     case "clock": return mountClock(body);
     case "info": return mountInfo(body);
     case "log": return mountLog(body);
-    case "map": return mountMap(body);
     case "output": return mountOutput(body);
     case "turntable": return mountTurntable(body);
     case "window": return mountWindow(body);

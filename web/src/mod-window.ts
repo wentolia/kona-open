@@ -2,17 +2,17 @@
 
 import { css, ctx, fit, everyFrame } from "./modctx";
 import { noiseLevel } from "./noise";
-import { reduceMotion, prefs as konaPrefs } from "./prefs";
+import { reduceMotion } from "./prefs";
+import { drawFrame, material } from "./window-frame";
 import { type Bird, newBird, stepBird, drawBird, publishBird } from "./window-bird";
-import { type RGB, type SceneKey, type View, hex, mixN, rgba, mix, rnd, SCENES, DAILY, dailyScene, seasonAt, drawScene, precipitation, snowfall, deepNight, drawLaundry } from "./window-scenes";
+import { type RGB, type SceneKey, type View, hex, mixN, rgba, mix, rnd, SCENES, DAILY, dailyScene, seasonAt, drawScene, precipitation, snowfall } from "./window-scenes";
 
-// 設定: 雨（設定で降らせるか、「出力」で雨の音を重ねているときに降る）と、外の景色
+// 設定: 外の景色。雨は「出力」で雨の音を重ねているときだけ降る（降らせる仕組みはひとつ）
 const KEY = "kona.window";
-interface WindowPrefs { rain?: boolean; scene?: string; room?: boolean }
+interface WindowPrefs { scene?: string; room?: boolean }
 const prefs = (): WindowPrefs => { try { return JSON.parse(localStorage.getItem(KEY) ?? "{}"); } catch { return {}; } };
 const savePrefs = (p: WindowPrefs) => { try { localStorage.setItem(KEY, JSON.stringify({ ...prefs(), ...p })); } catch { /* 保存できなくても動く */ } };
-export const windowRain = () => !!prefs().rain;
-export const setWindowRain = (on: boolean) => savePrefs({ rain: on });
+export const windowRain = () => noiseLevel("rain") > 0;
 /** 選べる景色（日替わりを含む） */
 export const WINDOW_SCENES: { key: string; label: string }[] = [...SCENES, { key: DAILY, label: "日替わり" }];
 export const windowScene = () => { const s = prefs().scene; return WINDOW_SCENES.some(x => x.key === s) ? s! : "city"; };
@@ -48,12 +48,6 @@ const STARS = Array.from({ length: 70 }, (_, i) => {
   return { x: r(1), y: r(2) * 0.75, s: 0.5 + r(3), tw: r(4) * 6.28 };
 });
 
-// 深夜の星空: 細かな星と、天の川の帯の中の星（固定の乱数）
-const FAINT = Array.from({ length: 260 }, (_, i) => ({ x: rnd(i, 401), y: rnd(i, 402) * .85, s: .35 + rnd(i, 403) * .6, tw: rnd(i, 404) * 6.28 }));
-const MILKY = Array.from({ length: 320 }, (_, i) => {
-  const k = rnd(i, 411), off = (rnd(i, 412) + rnd(i, 413) + rnd(i, 414) - 1.5) * .09; // 帯の中心に集まる
-  return { x: -.1 + k * 1.2 + off * .5, y: .05 + k * .55 + off, s: .3 + rnd(i, 415) * .5, a: .3 + rnd(i, 416) * .5 };
-});
 
 // 雲: 高さ・大きさ・速さ・形（固定の乱数）
 const CLOUDS = Array.from({ length: 6 }, (_, i) => ({
@@ -110,7 +104,7 @@ export function mountWindow(body: HTMLElement) {
     // カーテンは音に合わせて、ほんの少しだけ揺れる
     const p = ctx().player, [l, r] = p.playing ? p.levels() : [0, 0];
     sway += (Math.min(1, (l + r) * 1.4) - sway) * (1 - Math.exp(-dt / .8));
-    stepRain(rain, dt, (l + r) / 2, windowRain() || noiseLevel("rain") > 0);
+    stepRain(rain, dt, (l + r) / 2, windowRain());
     // 窓辺の鳥: 晴れた朝（6〜10時半ごろ）に来る
     const d = new Date(), hr = d.getHours() + d.getMinutes() / 60;
     stepBird(bird, dt, hr > 5.8 && hr < 10.5 && rain.amt < .1);
@@ -153,7 +147,7 @@ function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bi
   const g = c.getContext("2d")!, W = c.width, H = c.height, d = devicePixelRatio || 1, t = performance.now() / 1000;
   const now = new Date(), h = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
   const calm = reduceMotion();
-  const wood = css("--wood", "#6d4b33"), hi = css("--wood-hi", "#9a6e4c"), lo = css("--wood-lo", "#3b281b"), accent = css("--accent", "#f0b35e");
+  const M = material(), lo = rgba(M.lo), hi = rgba(M.hi), accent = css("--accent", "#f0b35e");
   g.clearRect(0, 0, W, H);
   if (W < 60 * d || H < 50 * d) return;
 
@@ -185,9 +179,6 @@ function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bi
     }
     g.globalAlpha = 1;
   }
-  // 深夜の星空: 天の川がかかり、細かな星が増え、ときどき流れ星が走る（雨の夜は見えない）
-  const deep = (konaPrefs().stars ? deepNight(h) : 0) * night * (1 - wet); // 設定ページの「夜の星空」でオン・オフ
-  if (deep > .01) drawStars(g, X, Y, gw, gh, d, t, deep, calm);
   // 太陽と月は弧を描いて横切る
   const arc = (p: number) => ({ x: X(.08 + .84 * p), y: Y(.82 - .62 * Math.sin(Math.PI * p)) });
   const sunP = (h - 6) / 12, moonP = ((h + 6) % 24) / 12;
@@ -215,7 +206,7 @@ function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bi
     const lit = g.createLinearGradient(0, cy - sz, 0, cy + sz * .4);
     lit.addColorStop(0, wet > .05 ? rgba(mixN([255, 255, 255], [96, 102, 112], wet), (.55 * day + .06) * (1 + wet * .6)) : `rgba(255,255,255,${(.55 * day + .06).toFixed(3)})`);
     lit.addColorStop(1, day > .1 ? rgba(mixN("#ffffff", bottom, .55), .4 * day + .05) : "rgba(120,130,150,.08)");
-    g.fillStyle = lit; g.globalAlpha = 1 - .75 * deep;
+    g.fillStyle = lit; g.globalAlpha = 1;
     // 底は平らに、上はもこもこ
     g.save(); g.beginPath(); g.rect(X(u) - sz * 3, cy - sz * 2, sz * 6, sz * 2.15); g.clip();
     g.beginPath();
@@ -237,11 +228,6 @@ function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bi
   const key = currentScene();
   const V: View = { g, d, t, h, X, Y, gw, gh, x0: ox0, x1: ox1, y1: oy1, night, day, wet, top, bottom, accent, calm, season: seasonAt(now), sun, moon };
   drawScene(key, V);
-  // 晴れた昼は洗濯物を干す（朝 9 時ごろ出して、夕方 4 時ごろ取り込む。雨や雪国では干さない）
-  if (konaPrefs().laundry && key !== "snow") {
-    const out = Math.min(Math.max(0, (h - 8.6) / .6), Math.max(0, (16.4 - h) / .6), 1) * Math.max(0, 1 - wet * 3) * (V.season.wi > .8 ? 0 : 1);
-    drawLaundry(V, out);
-  }
   drawBird(g, bird, X(bird.u), Y(bird.v), gh * .04, t, night + wet * .5, calm);
   const pr = precipitation(key, V);
   if (pr.kind === "snow") { if (pr.amt > .02) snowfall(V, pr.amt); }
@@ -294,17 +280,21 @@ function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bi
 
   // 壁の厚み（窓の奥行き）: 上は影、左右は斜めに、下は明るい
   const reveal = (pts: number[], fill: string | CanvasGradient) => { g.fillStyle = fill; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.fill(); };
-  reveal([ox0, oy0, ox1, oy0, gx1, gy0, gx0, gy0], "rgba(12,9,6,.92)");
-  reveal([ox0, oy0, gx0, gy0, gx0, gy1, ox0, oy1], "rgba(28,20,14,.85)");
-  reveal([ox1, oy0, gx1, gy0, gx1, gy1, ox1, oy1], "rgba(20,14,10,.9)");
+  // 影の色は枠の素材の暗い色から
+  reveal([ox0, oy0, ox1, oy0, gx1, gy0, gx0, gy0], rgba(mixN(M.lo, [0, 0, 0], .72), .92));
+  reveal([ox0, oy0, gx0, gy0, gx0, gy1, ox0, oy1], rgba(mixN(M.lo, [0, 0, 0], .45), .85));
+  reveal([ox1, oy0, gx1, gy0, gx1, gy1, ox1, oy1], rgba(mixN(M.lo, [0, 0, 0], .6), .9));
   reveal([ox0, oy1, gx0, gy1, gx1, gy1, ox1, oy1], lo);
   g.restore();
 
   // ---- サッシ: 今どきの引き違い窓。細いアルミの枠に大きな一枚ガラスが 2 枚、真ん中で前後に重なる ----
+  // アルミの色: 棚の木の色をほんの少し映す
+  const aluBase: RGB[] = [[91, 95, 102], [58, 61, 67], [36, 38, 42]];
+  const aluC = aluBase.map((c, i) => rgba(mixN(c, [M.wood, M.wood, M.lo][i], .12)));
   const sf = Math.max(2 * d, cw * .38), over2 = sf * 1.2, mid = (gx0 + gx1) / 2;
   const alu = (x: number, y: number, w: number, h: number) => {
     const gr = w > h ? g.createLinearGradient(0, y, 0, y + h) : g.createLinearGradient(x, 0, x + w, 0);
-    gr.addColorStop(0, "#5b5f66"); gr.addColorStop(.45, "#3a3d43"); gr.addColorStop(1, "#24262a");
+    gr.addColorStop(0, aluC[0]); gr.addColorStop(.45, aluC[1]); gr.addColorStop(1, aluC[2]);
     g.fillStyle = gr; g.fillRect(x, y, w, h);
   };
   const sash = (x0: number, x1: number, front: boolean) => {
@@ -328,22 +318,8 @@ function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bi
   // レール（下枠の溝）
   g.fillStyle = "rgba(0,0,0,.4)"; g.fillRect(gx0, gy1 - d * .8, gw, d * .8);
 
-  // ---- 外枠（ケーシング）: 木目の明暗と面取り ----
-  const frame = g.createLinearGradient(0, 0, W, H);
-  frame.addColorStop(0, hi); frame.addColorStop(.35, wood); frame.addColorStop(1, lo);
-  g.fillStyle = frame;
-  g.beginPath(); g.rect(X0, 0, X1 - X0, Y1); g.rect(ox0, oy0, ox1 - ox0, oy1 - oy0); g.fill("evenodd");
-  g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = d; g.strokeRect(ox0 + d / 2, oy0 + d / 2, ox1 - ox0 - d, oy1 - oy0 - d);
-  g.strokeStyle = "rgba(255,230,200,.12)"; g.strokeRect(X0 + d / 2, d / 2, X1 - X0 - d, Y1 - d);
-
-  // ---- 窓の下の桟: 上の面と、手前の面と、下に落ちる影 ----
-  const sy = Y1, topH = sh * .38;
-  g.fillStyle = hi; g.fillRect(0, sy, W, topH);
-  const front = g.createLinearGradient(0, sy + topH, 0, H);
-  front.addColorStop(0, wood); front.addColorStop(1, lo);
-  g.fillStyle = front; g.fillRect(0, sy + topH, W, sh - topH);
-  g.fillStyle = "rgba(255,240,220,.18)"; g.fillRect(0, sy, W, d);
-  g.fillStyle = "rgba(0,0,0,.35)"; g.fillRect(0, sy + topH, W, d * .8);
+  // ---- 外枠（ケーシング）と下の桟: 棚の素材に合わせる（ローポリの棚なら三角の面で） ----
+  drawFrame(g, { W, H, d, X0, X1, Y1, ox0, ox1, oy0, oy1, sh }, M);
 
   // ---- カーテン: 左の端に寄せた薄い布。ひだの明暗、裾は少し揺れる ----
   const cx0 = X0 - cw * .2, cwid = Math.max(14 * d, gw * .17), folds = 5, rodY = cw * .45;
@@ -363,31 +339,6 @@ function draw(c: HTMLCanvasElement, sway: number, rain: Rain, fog: Fog, bird: Bi
   for (let i = 0; i <= folds; i++) { g.fillStyle = lo; g.beginPath(); g.arc(cx0 + (cwid * i) / folds, rodY, 1.6 * d, 0, 7); g.fill(); }
 }
 
-function drawStars(g: CanvasRenderingContext2D, X: (u: number) => number, Y: (v: number) => number, gw: number, gh: number, d: number, t: number, k: number, calm: boolean) {
-  // 天の川: 斜めにかかる淡い光の帯
-  g.save();
-  g.translate(X(.5), Y(.33)); g.rotate(Math.atan2(gh * .55, gw * 1.2));
-  const len = Math.hypot(gw * 1.2, gh * .55), band = g.createLinearGradient(0, -gh * .16, 0, gh * .16);
-  band.addColorStop(0, "rgba(200,210,235,0)"); band.addColorStop(.42, `rgba(205,214,238,${(.07 * k).toFixed(3)})`);
-  band.addColorStop(.55, `rgba(225,220,240,${(.1 * k).toFixed(3)})`); band.addColorStop(1, "rgba(200,210,235,0)");
-  g.fillStyle = band; g.fillRect(-len / 2, -gh * .16, len, gh * .32);
-  // 帯の中の暗い筋（暗黒星雲）
-  g.fillStyle = `rgba(6,8,16,${(.08 * k).toFixed(3)})`; g.beginPath(); g.ellipse(len * .05, gh * .01, len * .28, gh * .018, .03, 0, Math.PI * 2); g.fill();
-  g.restore();
-  g.fillStyle = "#eef0fa";
-  for (const s of MILKY) { g.globalAlpha = k * s.a; g.fillRect(X(s.x), Y(s.y), s.s * d, s.s * d); }
-  for (const s of FAINT) { g.globalAlpha = k * (.25 + .25 * Math.sin(t * (.6 + s.tw * .2) + s.tw)) * (1 - s.y * .6); g.fillRect(X(s.x), Y(s.y), s.s * d, s.s * d); }
-  g.globalAlpha = 1;
-  // 流れ星: 数十秒に一度、斜めにすっと流れて消える
-  if (calm) return;
-  const cyc = 23, n = Math.floor(t / cyc), p = (t % cyc) / .9;
-  if (p >= 1 || rnd(n, 431) > .7 * k + .1) return;
-  const x0 = .15 + rnd(n, 432) * .7, y0 = .05 + rnd(n, 433) * .3, dir = rnd(n, 434) > .5 ? 1 : -1, L = .18 + rnd(n, 435) * .15;
-  const hx = X(x0 + dir * L * p), hy = Y(y0 + L * .45 * p), tx = X(x0 + dir * L * Math.max(0, p - .35)), ty = Y(y0 + L * .45 * Math.max(0, p - .35));
-  const a = Math.sin(Math.PI * p) * k, tail = g.createLinearGradient(tx, ty, hx, hy);
-  tail.addColorStop(0, "rgba(255,255,255,0)"); tail.addColorStop(1, `rgba(255,252,240,${(.9 * a).toFixed(3)})`);
-  g.strokeStyle = tail; g.lineWidth = Math.max(.8, d * .9); g.beginPath(); g.moveTo(tx, ty); g.lineTo(hx, hy); g.stroke();
-}
 
 function drawFog(g: CanvasRenderingContext2D, fog: Fog, gx: number, gy: number, gw: number, gh: number, d: number, t: number, night: number) {
   const W = Math.max(1, Math.round(gw)), H = Math.max(1, Math.round(gh));

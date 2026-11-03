@@ -84,7 +84,7 @@ export interface Breed {
 const solid = (base: [number, number, number], ink: string, white = false): Omit<Coat, "p" | "breed"> =>
   ({ ...shades(base), cream: white ? hsl(40, .15, .82) : cream(base), ink });
 export const BREEDS: Record<string, Breed> = {
-  mix: { name: "雑種", weight: 5, size: [.86, 1.1], coat: () => {
+  mix: { name: "雑種", weight: 81, size: [.86, 1.1], coat: () => {
     const base = pick(BASES), c = solid(base, pick(EYES), Math.random() < .4);
     // 茶トラ・灰・こげ茶は縞が入りやすい
     return (base[1] > .25 || base[2] > .25 && base[2] < .4) && Math.random() < .5 ? { ...c, pat: "tabby", mark: shades(base).deep } : c;
@@ -146,3 +146,21 @@ const NAMES = ["むぎ", "こむぎ", "もち", "きなこ", "あずき", "ご�
   "ゆず", "こてつ", "ポテト", "ぽんず", "さくら", "ひなた", "ノア", "ココ", "ミルク", "チョコ", "ねね", "とら", "ふく", "おはぎ", "だいず", "みかん"];
 /** 名前。付いていない以前の猫は、毛並みから決まった名前にする */
 export const nameOf = (C: Coat) => C.name ?? NAMES[Math.floor(seeded(C.hi + C.mid + C.ink)() * NAMES.length)];
+
+/** はじめて開いたときの猫たち（デモ版の部屋と同じ顔ぶれ）。毛並みの細かな揺らぎと性格は毎回その子のものになる */
+export function firstCats(): Coat[] {
+  const mix = (base: [number, number, number], ink: string, tabby = false, white = false): Coat => {
+    const c: Coat = { ...solid(base, ink, white), breed: "mix", p: randomPersona(), name: pick(NAMES) };
+    c.p!.size = rnd(...BREEDS.mix.size);
+    return tabby ? { ...c, pat: "tabby", mark: shades(base).deep } : c;
+  };
+  return [
+    breedCoat("siamese"),                       // クリームにポイント、青い目
+    mix([28, .55, .48], "#e9c46a", false, true), // 茶トラ（胸が白い）
+    mix([40, .30, .70], "#e9c46a"),             // クリーム
+    breedCoat("sphynx"),                        // 箱の中の毛のない子
+    mix([25, .20, .22], "#d8a03a"),             // 焦げ茶
+    mix([32, .30, .34], "#d8a03a", true),       // こげ茶の縞
+    mix([30, .04, .14], "#e9c46a"),             // 黒
+  ];
+}

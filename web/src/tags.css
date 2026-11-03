@@ -1,0 +1,44 @@
+/* タグとアルバムのセット（tags.ts）: 上の帯のセットのタブ・タグをつけるパネル・フォルダの箱と曲目パネルのタグの札 */
+
+/* ---------- 上の帯のセットのタブ: ページのタブより小さく、細い六角の札。選んだものだけ面が立つ ---------- */
+.sets { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.sets::-webkit-scrollbar { display: none; }
+.sets[hidden] { display: none; }
+.top .sets { margin-left: auto; }
+.top .sets:not([hidden]) + .tabs { margin-left: 8px; padding-left: 10px; border-left: 1px solid var(--line); }
+.sets button {
+  position: relative; isolation: isolate; flex: none; white-space: nowrap;
+  font-size: 12px; color: var(--muted); padding: 4px 9px;
+}
+.sets button::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .15s;
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 6px 100%, 0 50%);
+  background: linear-gradient(170deg, color-mix(in srgb, var(--ink) 11%, transparent) 50%, color-mix(in srgb, var(--ink) 6%, transparent) 50%);
+}
+.sets button:hover::before { opacity: .5; }
+.sets button[aria-pressed="true"] { color: var(--ink); }
+.sets button[aria-pressed="true"]::before { opacity: 1; }
+/* 「◯◯ 以外」: 灯りの色で、外していることが分かるように */
+.sets button.not { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .sets button::before { transition: none; } }
+/* スマホ: 上の帯のすぐ下に 1 列 */
+.m-sets { padding: 0 var(--gut, 16px) 6px; flex: none; }
+
+/* ---------- タグをつけるパネル ---------- */
+.tag-pop { z-index: 70; width: 260px; padding: 10px; gap: 8px; }
+.tag-pop .tag-title { font-size: 11px; color: var(--muted); letter-spacing: .06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag-chips:empty { display: none; }
+.tag-pop .tag-chip { display: inline-block; font-size: 12px; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.tag-pop button.tag-chip[aria-pressed="true"] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+.tag-pop button.tag-chip[aria-pressed="mixed"] { color: var(--ink); border-color: var(--ink); border-style: dashed; }
+.tag-pop .tag-chip.inherited { color: var(--ink); border-style: dotted; opacity: .7; }
+.tag-new { font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 0; border-radius: 4px; padding: 6px 8px; }
+.tag-new:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+
+/* ---------- フォルダの箱の札: ふだんは隠し、タグがあれば薄く見せる ---------- */
+.box-tag { margin-left: auto; align-self: center; font-size: 10px; letter-spacing: .04em; color: var(--muted); padding: 1px 6px; border-radius: 3px; opacity: 0; transition: opacity .15s ease; max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.box-tag.on { opacity: .8; }
+.box:hover .box-tag, .box-tag:focus-visible { opacity: 1; }
+.box-tag:hover { color: var(--ink); background: var(--soft); }
+.opened-tag { max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

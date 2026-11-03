@@ -1,4 +1,5 @@
 import "./style.css";
+import "./first-run"; // はじめて開いたときの部屋（ほかの設定を読む前に）
 import { initTheme } from "./theme";
 import { initSettings, renderSettings } from "./settings";
 import { prefs } from "./prefs";
@@ -6,36 +7,32 @@ import { libGroup, setLibGroup, groupKey, groupAlbums, type LibGroup } from "./l
 import { initShortcuts } from "./shortcuts";
 import { t, t as tr, translateStatic } from "./i18n";
 import { signOut, saveDriveConfig } from "./drive";
-import { type Album, type Entry, scan, walkHandle, walkFiles, walkDropped, enrichHead, enrichTracks, eachLimited } from "./library";
-import { Player, RATE_MIN, RATE_MAX, PITCH_MAX } from "./player";
+import { type Album, type Entry, scan, walkHandle, walkFiles, walkDropped, enrichHead, enrichTracks, eachLimited, cachedAlbums } from "./library";
+import { Player } from "./player";
 import { modeButtonHTML } from "./modeui";
 import { exportSettings, importSettings, pickSettingsFile } from "./settings-io";
 import { loadTagCache, pruneTagCache } from "./tagcache";
 import { kvGet, kvSet, stat, recordPlay, logPlay, addListened } from "./store";
-import { type ModuleDef, type ModuleType, type ShelfDef, type ShelfKind, type SortKey, MODULES, KINDS, SORTS, MOODS, moodOf, hsl, isShelf, moduleInfo, kindLabel, ratioLabel, snapRatio, accepts, newId, loadLayout, saveLayout } from "./shelves";
+import { type ModuleDef, type ModuleType, type ShelfDef, type ShelfKind, type SortKey, MODULES, KINDS, SORTS, tagOfShelf, isShelf, moduleInfo, kindLabel, ratioLabel, snapRatio, accepts, newId, loadLayout, saveLayout } from "./shelves";
 import { mountSingle, mountTwin, unwatchRow, folderGap, installWheel } from "./panes";
 import { mountModule } from "./modules";
 import { setModuleContext, fadeSwap } from "./modctx";
-import { stopAtAlbumEnd, albumEndArmed, focusLocked } from "./mod-clock";
+import { stopAtAlbumEnd, albumEndArmed } from "./mod-clock";
 import { setCats, randomCoat, isCoat, breedCoat, setCatsMusic, setCatHooks, catPicksAlbum, toggleWand, wandOn, type Coat } from "./cat";
-import { recordPlace } from "./mod-map";
 import { initNoise, roomTail } from "./noise";
 import { ritual, isPulled } from "./ritual";
 import { wakeCatHost, placeWakeCat, catAwake } from "./wakecat";
 import { initMini, setMini } from "./mini";
-import { windowRain, setWindowRain, WINDOW_SCENES, windowScene, setWindowScene, roomLightOn, setRoomLight } from "./mod-window";
+import { windowRain, WINDOW_SCENES, windowScene, setWindowScene } from "./mod-window";
 import { initRoomLight } from "./room-light";
-import { initRoomDecor } from "./room-decor";
-import { initRoomThings } from "./room-things";
 import { initPhoto } from "./photo";
 import { openReceipt } from "./receipt";
-import { checkAwards } from "./awards";
+import { checkAwards, hasCertificates, openCertificate } from "./awards";
 import { initShelfMarks } from "./shelf-marks";
 import "./photo.css";
 import "./room-light.css";
 import "./header.css";
 import { OBJECTS, objectShown, setObjectShown, mountObjects } from "./mod-objects";
-import { SHELF_SKINS, shelfSkin, setShelfSkin } from "./shelf-skin";
 import { spectrumPrefs, setSpectrumPrefs, type SpectrumPrefs } from "./mod-spectrum";
 import { initDriveUI, openDrive, openDriveSaved, driveSaved, driveReady, resumeDrive } from "./drive-ui";
 import { isDriveEntry, isKept, keepAlbum, forgetAlbum, driveConfig, driveToken, walkDrive, type DriveEntry } from "./drive";
@@ -44,7 +41,8 @@ import { initSpotifyUI, openSpotify, spotifyConfigured, resumeSpotify, forgetSpo
 import { initParty, openParty, partySupported } from "./party";
 import { type Drop, loadHome, saveHome, place, removeModule, addModule, MIN_W as MIN_COL, MIN_H as MIN_STACK } from "./layout";
 import { $, esc, fmt, collator } from "./dom";
-import { hashOf, dailyShuffle, byLast, matches, sortAlbums } from "./album-sort";
+import { hashOf, byLast, matches, sortAlbums } from "./album-sort";
+import { inSet, tagsOf, ownTags, setTag, setTabsHTML, onSetTabClick, openTagEditor, currentSet, setLabel } from "./tags";
 
 initTheme();
 
@@ -54,6 +52,8 @@ let allAlbums: Album[] = [];      // 読み込んだすべて（外したもの�
 // ライブラリから外したアルバム。ファイルはそのままで、アプリの棚に出さないだけ
 const HIDDEN_KEY = "kona.hidden";
 const hidden = new Set<string>((() => { try { return JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? "[]") as string[]; } catch { return []; } })());
+// 棚・ライブラリ・検索に出すアルバム: 外していないもので、上の帯で選んだセット（タグ）に入るもの
+const shown = (a: Album) => !hidden.has(a.key) && inSet(a);
 let rootName = "";
 let savedRoot: FileSystemDirectoryHandle | undefined;
 let liveRoot: FileSystemDirectoryHandle | undefined;   // いま開いているフォルダのハンドル（ファイル選択で開いたときはなし）
@@ -113,14 +113,10 @@ function openSourceMenu(anchor: HTMLElement) {
   el.id = "source-menu"; el.className = "pop-menu"; el.setAttribute("role", "menu");
   const saved = driveSaved();
   el.innerHTML = `<button role="menuitem" data-s="local"><b>${t("この端末のフォルダ")}</b></button>
-    <button role="menuitem" data-s="drive"><b>Google Drive</b>${saved ? `<span>${esc(saved.name)}</span>` : ""}</button>
+    ${driveConfig() ? `<button role="menuitem" data-s="drive"><b>Google Drive</b>${saved ? `<span>${esc(saved.name)}</span>` : ""}</button>` : ""}
     ${spotifyConfigured() ? `<button role="menuitem" data-s="spotify"><b>Spotify</b><span>${t("保存したアルバム")}</span></button>` : ""}
-    <hr>
-    ${partySupported() ? `<button role="menuitem" data-s="party"><b>リスニングパーティー</b><span>同じ曲をいっしょに聴く</span></button>
-    <hr>` : ""}
-    <button role="menuitem" data-s="export"><b>${t("設定を書き出す")}</b><span>${t("配置・イコライザーなど")}</span></button>
-    <button role="menuitem" data-s="export-all"><b>${t("設定と聴いた記録を書き出す")}</b><span>${t("再生回数・聴いた日と場所も")}</span></button>
-    <button role="menuitem" data-s="import"><b>${t("設定を読み込む")}</b></button>`;
+    ${partySupported() ? `<hr>
+    <button role="menuitem" data-s="party"><b>リスニングパーティー</b><span>流している音をいっしょに聴く</span></button>` : ""}`;
   el.onclick = e => {
     const s = (e.target as HTMLElement).closest<HTMLElement>("[data-s]")?.dataset.s;
     if (!s) return;
@@ -129,8 +125,6 @@ function openSourceMenu(anchor: HTMLElement) {
     else if (s === "drive") openDrive();
     else if (s === "spotify") openSpotify();
     else if (s === "party") openParty();
-    else if (s === "export" || s === "export-all") { saveSession(); const n = exportSettings(s === "export-all"); toast(`${n} 項目を書き出しました`); }
-    else loadSettingsFile();
   };
   document.body.append(el);
   const r = anchor.getBoundingClientRect();
@@ -154,7 +148,7 @@ addEventListener("keydown", e => { if (e.key === "Escape") closeSourceMenu(); })
 $("#open").addEventListener("click", e => document.getElementById("source-menu") ? closeSourceMenu() : openSourceMenu(e.currentTarget as HTMLElement));
 
 // フォルダを画面に落としても開ける（ハンドルが取れるブラウザでは、次回もそのまま開ける）
-const carriesFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes("Files") && !focusLocked();
+const carriesFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes("Files");
 let dragDepth = 0;
 addEventListener("dragenter", e => { if (carriesFiles(e)) { dragDepth++; document.body.classList.add("drop-folder"); } });
 addEventListener("dragleave", e => { if (carriesFiles(e) && --dragDepth <= 0) { dragDepth = 0; document.body.classList.remove("drop-folder"); } });
@@ -181,11 +175,45 @@ async function reopenSaved() {
   if (perm === "granted") { liveRoot = savedRoot; liveDrive = undefined; await load(savedRoot.name, walkHandle(savedRoot)); }
 }
 
+// 開き直したとき: 前のフォルダを読む許可が切れていても、覚えているタグで棚と部屋をすぐに出す。
+// 許可は、最初に再生するとき（クリックの中なので、ブラウザが許可を尋ねられる）にもらい、本物のアルバムに入れ替える
+let locked = false;
+async function showCached(root: FileSystemDirectoryHandle): Promise<boolean> {
+  const started = loads;
+  await loadTagCache();
+  const found = cachedAlbums();
+  if (!found.length || loads !== started) return false;
+  locked = true; liveRoot = liveDrive = undefined; rootName = root.name;
+  allAlbums = found;
+  albums = found.filter(shown);
+  showCount(); renderSetTabs();
+  await catAwake();
+  setState("ready");
+  showRescan();
+  restoreSession();
+  renderShelves(); renderCenter();
+  placeCats();
+  return true;
+}
+/** 覚えている棚を、本物のフォルダに切り替える。false: 許可がもらえなかった */
+async function unlock(): Promise<boolean> {
+  if (!locked) return true;
+  // @ts-expect-error requestPermission は DOM 型定義に未収録
+  const perm = savedRoot && await savedRoot.requestPermission({ mode: "read" }).catch(() => "denied");
+  if (!locked) return true;   // 尋ねている間に、別のフォルダが開かれた
+  if (perm !== "granted") { toast("フォルダを読む許可をもらえると、再生できます"); return false; }
+  locked = false; liveRoot = savedRoot; liveDrive = undefined;
+  await rescan(true, true);
+  showRescan();
+  return true;
+}
+
 let loads = 0;   // 読み込みを始めた回数（起動の途中でフォルダが選ばれたかを見分ける）
 // entries の代わりに、アルバムをそのまま返す関数も渡せる（Spotify。ファイルを持たない）
 type Fetch = (progress: (n: number, total: number) => void) => Promise<Album[]>;
 async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry> | Fetch) {
   loads++;
+  locked = false;
   const prevRoot = rootName;
   rootName = name;
   // 読み込みが終わるまでは開始画面に進み具合だけを出し、棚は見せない
@@ -223,9 +251,9 @@ async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry
     progress("ジャケットとタグを読んでいます", `${done} / ${found.length} 枚`, done / found.length);
   });
   allAlbums = found;
-  albums = found.filter(a => !hidden.has(a.key));
+  albums = found.filter(shown);
   if (!remote) pruneTagCache(new Set(found.map(a => a.key))); // Spotify を開いても、手元のフォルダの覚えは消さない
-  showCount();
+  showCount(); renderSetTabs();
   await catAwake();
   setState("ready");
   showRescan(); lastScan = Date.now();
@@ -238,7 +266,7 @@ async function load(name: string, entries: AsyncIterable<Entry> | Iterable<Entry
 let rescanning = false;
 function showRescan() {
   const b = $<HTMLButtonElement>("#rescan");
-  b.hidden = !liveRoot && !liveDrive;
+  b.hidden = !liveRoot && !liveDrive && !locked;
   watchFolder();
 }
 
@@ -270,8 +298,9 @@ function startPolling(minutes: number) {
   pollTimer = window.setInterval(() => { if (document.visibilityState === "visible" && Date.now() - lastScan > 50_000) rescan(true); }, minutes * 60_000);
 }
 let lastScan = 0;
-/** quiet: 画面に戻ってきたときの自動の読み直し。許可を求めず、変わりがなければ何も出さない */
-async function rescan(quiet = false) {
+/** quiet: 画面に戻ってきたときの自動の読み直し。許可を求めず、変わりがなければ何も出さない
+ *  replace: 覚えている棚から本物に入れ替える（今のアルバムは使い回さない） */
+async function rescan(quiet = false, replace = false) {
   const root = liveRoot, drive = liveDrive;
   if ((!root && !drive) || rescanning || document.body.dataset.state !== "ready") return;
   if (root) {
@@ -292,7 +321,7 @@ async function rescan(quiet = false) {
     const old = new Map(allAlbums.map(a => [a.key, a]));
     const files = (a: Album) => [...a.tracks.map(t => t.entry.path)].sort().join("\n") + "\n" + (a.coverEntry?.path ?? "");
     // 中のファイルが同じアルバムは今のものを使い続ける（ジャケット・曲順・再生中の参照がそのまま残る）
-    const next = found.map(f => { const o = old.get(f.key); return o && files(o) === files(f) ? o : f; });
+    const next = found.map(f => { const o = replace ? undefined : old.get(f.key); return o && files(o) === files(f) ? o : f; });
     const fresh = next.filter(a => old.get(a.key) !== a);
     await eachLimited(fresh, 4, a => enrichHead(a).catch(() => {}));
     if (liveRoot !== root || liveDrive !== drive) return; // 読み直しの途中で別のフォルダを開いた
@@ -300,9 +329,9 @@ async function rescan(quiet = false) {
     for (const a of allAlbums) if (!keep.has(a) && a !== player.album && a.cover) URL.revokeObjectURL(a.cover);
     const added = next.filter(a => !old.has(a.key)).length;
     const removed = allAlbums.filter(a => !next.some(n => n.key === a.key)).length;
-    const changed = fresh.length - added;
+    const changed = replace ? 0 : fresh.length - added;
     allAlbums = next;
-    albums = next.filter(a => !hidden.has(a.key));
+    albums = next.filter(shown);
     for (let i = queue.length - 1; i >= 0; i--) if (!byKey(queue[i])) queue.splice(i, 1);
     pruneTagCache(new Set(next.map(a => a.key)));
     showCount(); renderShelves();
@@ -312,7 +341,7 @@ async function rescan(quiet = false) {
     rescanning = false; btn.disabled = false; btn.textContent = "読み直す";
   }
 }
-$("#rescan").addEventListener("click", () => rescan());
+$("#rescan").addEventListener("click", () => locked ? unlock() : rescan());
 // ほかのアプリでフォルダに曲を足して戻ってきたら、ひとりでに反映する（1 分に 1 回まで）
 addEventListener("focus", () => { if (prefs().autoRescan && Date.now() - lastScan > 60_000) rescan(true); });
 
@@ -325,7 +354,7 @@ function restoreSession() {
     queue.splice(0, queue.length, ...q.filter(k => byKey(k)));
     const now: { k: string; i: number; t: number } | null = JSON.parse(localStorage.getItem(NOW_KEY) ?? "null");
     const a = now && byKey(now.k);
-    if (a && !player.album) {
+    if (a && !player.album && !locked) {   // 覚えている棚では鳴らせないので、続きは出さない
       enrichTracks(a).then(() => player.cue(a, Math.min(now!.i, a.tracks.length - 1), now!.t)).finally(() => setTimeout(() => { restored = true; }, 1500));
       return;
     }
@@ -357,18 +386,34 @@ function progress(step: string, detail: string, ratio?: number) {
 function setStatus(s: string) { $("#status").textContent = s; }
 function showCount() {
   const total = albums.reduce((n, a) => n + a.tracks.length, 0);
-  setStatus(`${rootName} · ${albums.length} 枚 · ${total} 曲`);
+  const set = currentSet();
+  // 覚えている棚では、聴いたことのないアルバムの曲数が分からないので枚数だけ
+  setStatus(`${rootName}${set ? ` · ${setLabel(set)}` : ""} · ${albums.length} 枚${locked ? "" : ` · ${total} 曲`}`);
 }
 
 /** アルバムをライブラリから外す（戻す）。棚・次に再生からも消える。外した直後は「元に戻す」を出す */
 function setHidden(keys: string[], hide: boolean, undo = true) {
   for (const k of keys) hide ? hidden.add(k) : hidden.delete(k);
   try { localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hidden])); } catch { /* 保存できなくても動く */ }
-  albums = allAlbums.filter(a => !hidden.has(a.key));
+  albums = allAlbums.filter(shown);
   if (hide) for (let i = queue.length - 1; i >= 0; i--) if (hidden.has(queue[i])) queue.splice(i, 1);
   showCount(); closePop(); renderShelves();
   if (hide && undo) toast(`${keys.length} 枚を外しました`, "元に戻す", () => setHidden(keys, false, false));
 }
+
+// タグやセットが変わったら: 出すアルバムを選び直して描き直す（次に再生はそのまま。セットの外のものは飛ばす）
+function renderSetTabs() {
+  const nav = $("#sets"), html = setTabsHTML();
+  nav.innerHTML = html; nav.hidden = !html;
+}
+$("#sets").addEventListener("click", onSetTabClick);
+document.addEventListener("kona:tags", () => {
+  albums = allAlbums.filter(shown);
+  renderSetTabs();
+  if (!allAlbums.length) return;
+  if (pop && !byKey(pop.key)) closePop();
+  showCount(); renderShelves();
+});
 
 let toastTimer = 0;
 function toast(text: string, action?: string, run?: () => void) {
@@ -402,8 +447,6 @@ async function toggleKeep(a: Album) {
 }
 
 initRoomLight();
-initRoomDecor();
-initRoomThings();
 initParty({ toast: t => toast(t) });
 
 // ---------- スマホ版: タッチ端末の狭い画面では、ホームの代わりに mobile.ts の画面を出す ----------
@@ -415,6 +458,7 @@ initMobile({
   art: a => art(a),
   openSource: kind => kind === "local" ? openFolder() : openDrive(),
   driveName: () => driveSaved()?.name,
+  driveConfigured: () => !!driveConfig(),
   keepState: a => !driveFiles(a).length ? undefined : keeping.has(a.key) ? "keeping" : isKept(a.key) ? "kept" : "none",
   toggleKeep: a => { toggleKeep(a); },
   toast: (text, action, run) => toast(text, action, run),
@@ -440,7 +484,7 @@ function setState(state: AppState, note = "") {
           ${savedRoot ? `<button class="btn primary" id="s-reopen">「${esc(savedRoot.name)}」を開く</button>` : ""}
           ${!savedRoot && driveSaved() ? `<button class="btn primary" id="s-drive-reopen">Drive の「${esc(driveSaved()!.name)}」を開く</button>` : ""}
           <button class="btn ${savedRoot || driveSaved() ? "" : "primary"}" id="s-open">${savedRoot ? "別のフォルダを選ぶ" : "フォルダを選ぶ"}</button>
-          <button class="btn" id="s-drive">Google Drive から</button>
+          ${driveConfig() ? `<button class="btn" id="s-drive">Google Drive から</button>` : ""}
           ${spotifyConfigured() ? `<button class="btn" id="s-spotify">Spotify から</button>` : ""}
         </div>
 `}
@@ -527,7 +571,8 @@ function paintSelection() {
     bar.id = "sel-bar"; bar.className = "sel-bar"; bar.setAttribute("role", "toolbar"); bar.setAttribute("aria-label", "選んだアルバム");
     bar.onclick = e => {
       const act = (e.target as HTMLElement).closest<HTMLElement>("[data-a]")?.dataset.a;
-      if (act) selectionAction(act);
+      if (act === "tag") openTagEditor(e.target as HTMLElement, [...selected].filter(k => byKey(k)), `${selected.size} 枚`);
+      else if (act) selectionAction(act);
     };
     document.body.append(bar);
   }
@@ -535,6 +580,7 @@ function paintSelection() {
   bar.innerHTML = `<span class="sel-n">${selected.size} 枚</span>
     <button data-a="queue">次に再生に入れる</button>
     ${inQueue ? `<button data-a="unqueue">次に再生から外す</button>` : ""}
+    <button data-a="tag" data-tag-edit>タグ</button>
     <button data-a="hide">ライブラリから外す</button>
     <button data-a="clear" class="sel-x" aria-label="選ぶのをやめる" title="選ぶのをやめる（Esc）">${ICON.close}</button>`;
 }
@@ -612,6 +658,7 @@ function renderPop() {
         <div><b>${esc(a.title)}</b><span>${esc(a.artist || a.dir)} · ${a.tracks.length} 曲${total ? " · " + fmt(total) : ""}</span></div>
         <span class="opened-actions">
           ${removable(rowId, a) ? `<button class="opened-remove">この棚から外す</button>` : ""}
+          <button class="opened-remove opened-tag" data-tag-edit>${tagsOf(a).length ? esc(tagsOf(a).join(" · ")) : "タグ"}</button>
           ${rowId.startsWith("shelf-") ? `<button class="opened-remove opened-hide">ライブラリから外す</button>` : ""}
           ${a.remote === "spotify" && a.link ? `<a class="opened-remove opened-link" href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">Spotify で開く</a>` : ""}
           ${driveFiles(a).length ? `<button class="opened-remove opened-keep"${keeping.has(a.key) ? " disabled" : ""}>${keeping.has(a.key) ? "残しています…" : isKept(a.key) ? "端末から消す" : "端末に残す"}</button>` : ""}
@@ -626,7 +673,11 @@ function renderPop() {
   $(".opened-cover", el).onclick = () => play(a);
   $(".opened-close", el).onclick = closePop;
   const rm = $(".opened-remove", el);
-  if (rm && !rm.classList.contains("opened-hide") && !rm.classList.contains("opened-keep") && !rm.classList.contains("opened-link")) rm.onclick = () => { removeFrom(rowId, a.key); closePop(); renderShelves(); };
+  if (rm && !rm.classList.contains("opened-tag") && !rm.classList.contains("opened-hide") && !rm.classList.contains("opened-keep") && !rm.classList.contains("opened-link")) rm.onclick = () => { removeFrom(rowId, a.key); closePop(); renderShelves(); };
+  $(".opened-tag", el).onclick = e => {
+    const own = ownTags(a.key); // フォルダから受け継いだタグは、見せるだけ
+    openTagEditor(e.currentTarget as HTMLElement, [a.key], a.title, tagsOf(a).filter(tg => !own.includes(tg)));
+  };
   const hide = $(".opened-hide", el);
   if (hide) hide.onclick = () => setHidden([a.key], true);
   const keep = $(".opened-keep", el);
@@ -653,7 +704,7 @@ function placePop(el: HTMLElement, anchor: HTMLElement) {
 addEventListener("pointerdown", e => {
   if (!pop) return;
   const t = e.target as HTMLElement;
-  if (t.closest("#pop, .spine, .face")) return;
+  if (t.closest("#pop, #tag-pop, .spine, .face")) return;
   closePop();
 });
 addEventListener("keydown", e => { if (e.key === "Escape" && pop) closePop(); });
@@ -740,7 +791,6 @@ function keepScroll(fn: () => void) {
 }
 
 // ---------- ホームの棚: 種類ごとの中身 ----------
-const ROW_LIMIT = 80;
 const DND_ALBUM = "application/x-kona-album", DND_FROM = "application/x-kona-from";
 const DND_RETURN = "application/x-kona-return"; // 次に再生から持ち出したアルバム
 const DND_FACE = "application/x-kona-face-"; // + 棚の id。面陳の欄を同じ棚の中で動かすとき
@@ -763,17 +813,7 @@ function withFolderGaps(d: ShelfDef, c: Contents): Contents {
 
 
 function contentsOf(d: ShelfDef): Contents {
-  const played = albums.filter(a => stat(a.key).plays > 0);
-  const rest = albums.filter(a => stat(a.key).plays === 0);
   switch (d.kind) {
-    case "often": {
-      const often = [...played].sort((x, y) => stat(y.key).plays - stat(x.key).plays);
-      return { list: [...often, ...rest].slice(0, ROW_LIMIT), faces: new Map(often.slice(0, 2).map(a => [a, `${stat(a.key).plays} 回`] as const)) };
-    }
-    case "recent": {
-      const recent = [...played].sort(byLast);
-      return { list: [...recent, ...dailyShuffle(rest, a => a.key)].slice(0, ROW_LIMIT), faces: new Map(recent.filter(a => a !== player.album).slice(0, 1).map(a => [a, "最近聴いた"] as const)) };
-    }
     case "queue": {
       // 入れたアルバムだけを並べる。欄には、今のアルバムが終わったときに切り替わる1枚を見せる
       const list = queue.map(byKey).filter(Boolean) as Album[];
@@ -784,25 +824,12 @@ function contentsOf(d: ShelfDef): Contents {
         list, faces: next ? new Map([[next, "次に再生"]]) : new Map(),
       };
     }
-    case "folder": {
-      const list = albums.filter(a => a.shelf === d.arg);
-      return { list, faces: recentFace(list) };
-    }
-    case "artist": {
-      const list = albums.filter(a => a.artist === d.arg);
-      return { list, faces: recentFace(list) };
-    }
-    case "mood": {
-      // 同じ気分のアルバムを、色相の順に並べる（色が流れるように）
-      const mood = d.arg ?? MOODS[0];
-      const list = albums.filter(a => moodOf(a.color) === mood).sort((x, y) => (hsl(x.color)?.[0] ?? 0) - (hsl(y.color)?.[0] ?? 0));
-      return { list, faces: recentFace(list) };
-    }
-    case "manual":
-      return { list: (d.albums ?? []).map(byKey).filter(Boolean) as Album[], faces: new Map() };
     case "search": {
-      const list = sortAlbums(albums.filter(a => matches(a, d.query ?? "")), d.sort ?? prefs().libSort);
-      return { list: list.slice(0, 400), faces: recentFace(list) };
+      const sort = d.sort ?? prefs().libSort;
+      const list = sortAlbums(albums.filter(a => matches(a, d.query ?? "")), sort);
+      // 欄に出す 1 枚: 再生回数の順なら上位 2 枚に回数、それ以外は最近聴いた 1 枚
+      const faces = sort === "plays" ? new Map(list.filter(a => stat(a.key).plays > 0).slice(0, 2).map(a => [a, `${stat(a.key).plays} 回`] as const)) : recentFace(list.filter(a => a !== player.album));
+      return { list: list.slice(0, 400), faces };
     }
     case "goods":
       return { list: [], faces: new Map() };
@@ -811,28 +838,32 @@ function contentsOf(d: ShelfDef): Contents {
 
 function removable(rowId: string, a: Album) {
   const d = shelfById(rowId);
-  return d?.kind === "manual" || (d?.kind === "queue" && queue.includes(a.key));
+  const tag = d && tagOfShelf(d);
+  return (!!tag && ownTags(a.key).includes(tag)) || (d?.kind === "queue" && queue.includes(a.key));
 }
 
 function removeFrom(rowId: string, key: string) {
   const d = shelfById(rowId);
   if (!d) return;
   if (d.kind === "queue") { const i = queue.indexOf(key); if (i >= 0) queue.splice(i, 1); }
-  if (d.kind === "manual") { d.albums = (d.albums ?? []).filter(k => k !== key); saveMods(); }
+  const tag = tagOfShelf(d);
+  if (tag) setTag([key], tag, false);
 }
 
 // アルバムを棚に入れる。同じ棚の中なら並べ替え
 function insertInto(d: ShelfDef, key: string, index: number) {
-  const list = d.kind === "queue" ? queue : (d.albums ??= []);
+  // タグの棚: アルバムにそのタグをつける（並びは棚の並び順のまま）
+  const tag = tagOfShelf(d);
+  if (tag) { setTag([key], tag, true); return; }
+  if (d.kind !== "queue") return;
+  const list = queue;
   const from = list.indexOf(key);
   if (from >= 0) { list.splice(from, 1); if (from < index) index--; }
   list.splice(Math.max(0, Math.min(index, list.length)), 0, key);
-  if (d.kind === "manual") saveMods();
 }
 
 function renderShelves() {
   keepScroll(() => { renderModules(); renderLibrary(); });
-  applyFocusLock();
   saveSession();
   if (pop) {
     // 描き直しで元の背表紙が入れ替わったら、同じアルバムの背表紙を基準にし直す
@@ -898,8 +929,8 @@ function moduleEl(d: ModuleDef) {
     wireModuleDrag(sec, d);
     if (!isShelf(d)) kept.set(d.id, sec); // 再生中・EQ・波形などは描き直しても作り直さない
   }
-  if (isShelf(d)) sec.dataset.kind = d.kind;
-  sec.className = `mod mod-${d.type}` + (isShelf(d) && accepts(d.kind) ? " mod-accepts" : "") + (editing?.id === d.id ? " mod-open" : "");
+  if (isShelf(d)) { sec.dataset.kind = d.kind; sec.dataset.sort = d.kind === "search" ? d.sort ?? prefs().libSort : ""; }
+  sec.className = `mod mod-${d.type}` + (isShelf(d) && accepts(d) ? " mod-accepts" : "") + (editing?.id === d.id ? " mod-open" : "");
   $(".mod-title", sec).textContent = d.title;
   if (editing?.id === d.id) editing.anchor = $(".mod-title", sec);
   const body = $(".mod-body", sec);
@@ -909,6 +940,8 @@ function moduleEl(d: ModuleDef) {
   return sec;
 }
 
+/** 棚の上の、その場で絞り込める検索窓: 名前や年で並べる棚で、項目指定（folder: など）もタグの棚でもないときだけ */
+const inlineSearch = (d: ShelfDef) => d.kind === "search" && !["plays", "last", "hue"].includes(d.sort ?? prefs().libSort) && !tagOfShelf(d) && !/(^|\s)-?\w+:/.test(d.query ?? "");
 function shelfBody(body: HTMLElement, d: ShelfDef) {
   // 雑貨の棚: アルバムの代わりに小物を並べる。小物は動き続けるので、描き直しても作り直さない
   if (d.kind === "goods") {
@@ -917,7 +950,7 @@ function shelfBody(body: HTMLElement, d: ShelfDef) {
   }
   const c = withFolderGaps(d, contentsOf(d));
   body.innerHTML = `
-    ${d.kind === "search" ? `<input class="mod-search${d.searchAlign ? ` search-${esc(d.searchAlign)}` : ""}" id="q-${esc(d.id)}" type="search" placeholder="検索" autocomplete="off" value="${esc(d.query ?? "")}" aria-label="${esc(d.title)}の中を検索">` : ""}
+    ${inlineSearch(d) ? `<input class="mod-search" id="q-${esc(d.id)}" type="search" placeholder="検索" autocomplete="off" value="${esc(d.query ?? "")}" aria-label="${esc(d.title)}の中を検索">` : ""}
     <div class="row"></div>`;
   const row = $(".row", body);
   // 次に再生の棚は、再生中を欄の左に置けるよう、欄を端に寄せきらない
@@ -931,7 +964,7 @@ function shelfBody(body: HTMLElement, d: ShelfDef) {
     if (mq && editing?.id === d.id) mq.value = q.value;
   };
   wireFaceMove(row, d);
-  if (accepts(d.kind)) wireAlbumDrop(row, d);
+  if (accepts(d)) wireAlbumDrop(row, d);
 }
 
 // モジュールを足す: ヘッダーの「＋」から種類を選ぶ（メニューはボタンのすぐ下に開く）
@@ -958,7 +991,7 @@ function openAddMenu(anchor: HTMLElement) {
     closeAddMenu();
     const info = moduleInfo(type);
     const d: ModuleDef = type === "shelf"
-      ? { id: newId(), type, kind: "manual", title: "新しい棚", w: 1 / 2, height: info.height, albums: [] }
+      ? { id: newId(), type, kind: "search", query: "", title: "新しい棚", w: 1 / 2, height: info.height }
       : { id: newId(), type, title: tr(info.label), w: 1, height: info.height };
     modules.push(d); addModule(home, d.id, info.height); saveMods(); saveHome(home); renderShelves();
     const t = document.querySelector<HTMLElement>(`.mod[data-id="${d.id}"] .mod-title`);
@@ -998,27 +1031,19 @@ function renderModuleMenu() {
   const opt = (v: string, label: string, sel: boolean) => `<option value="${esc(v)}"${sel ? " selected" : ""}>${esc(label)}</option>`;
   const shelfFields = () => {
     if (!isShelf(d)) return "";
-    const folders = [...new Set(albums.map(a => a.shelf))].sort(collator.compare);
-    const artists = [...new Set(albums.map(a => a.artist).filter(Boolean))].sort(collator.compare);
-    const targets: readonly string[] = d.kind === "folder" ? folders : d.kind === "artist" ? artists : d.kind === "mood" ? MOODS : [];
     return `
     <label>中身<select id="sm-kind">${KINDS.map(k => opt(k.kind, k.label, k.kind === d.kind)).join("")}</select></label>
     ${d.kind === "goods" ? `<fieldset class="sm-objects"><legend>置く小物</legend>${OBJECTS.map(o => `<label class="sm-check"><input type="checkbox" data-obj="${o.key}"${objectShown(o.key) ? " checked" : ""}>${o.label}</label>`).join("")}</fieldset>` : ""}
     ${d.kind !== "queue" && d.kind !== "goods" ? `<label class="sm-check"><input id="sm-folder-gaps" type="checkbox"${d.folderGaps ? " checked" : ""}>${libGroup() === "artist" ? "アーティスト" : "フォルダ"}ごとに隙間をあけて仕切る</label>` : ""}
-    ${d.kind === "mood" ? `<label>気分<select id="sm-arg">${MOODS.map(t => opt(t, t, t === (d.arg ?? MOODS[0]))).join("")}</select></label>` : ""}
-    ${d.kind === "folder" || d.kind === "artist" ? `<label>${d.kind === "folder" ? "フォルダ" : "アーティスト"}<select id="sm-arg"><option value="">—</option>${targets.map(t => opt(t, t, t === d.arg)).join("")}</select></label>` : ""}
     ${d.kind === "search" ? `
-      <label>検索語<input id="sm-query" type="search" autocomplete="off" value="${esc(d.query ?? "")}"></label>
-      <label>並び順<select id="sm-sort">${SORTS.map(o => opt(o.key, o.label, o.key === (d.sort ?? prefs().libSort))).join("")}</select></label>` : ""}
-    <label>棚の素材（すべての棚）<select id="sm-skin">${SHELF_SKINS.map(k => opt(k.key, k.label, k.key === shelfSkin())).join("")}</select></label>`;
+      <label>検索語<input id="sm-query" type="search" autocomplete="off" placeholder="folder:… artist:… tag:… mood:夜" value="${esc(d.query ?? "")}"></label>
+      <p class="sm-note">tag:名前 だけの棚には、アルバムを落としてタグをつけられます</p>
+      <label>並び順<select id="sm-sort">${SORTS.map(o => opt(o.key, o.label, o.key === (d.sort ?? prefs().libSort))).join("")}</select></label>` : ""}`;
   };
   el.innerHTML = `
     <label>名前<input id="sm-title" value="${esc(d.title)}"></label>
-    ${isShelf(d) && d.kind === "search" ? `<label>検索窓の位置<select id="sm-align">${opt("left", "左寄せ", d.searchAlign === "left")}${opt("center", "中央", d.searchAlign === "center")}${opt("right", "右寄せ", !d.searchAlign)}</select></label>` : ""}
     ${shelfFields()}
     ${d.type === "window" ? `<label>景色<select id="sm-scene">${WINDOW_SCENES.map(s => opt(s.key, s.label, s.key === windowScene())).join("")}</select></label>` : ""}
-    ${d.type === "window" ? `<label class="sm-check"><input id="sm-rain" type="checkbox"${windowRain() ? " checked" : ""}>雨を降らせる</label>` : ""}
-    ${d.type === "window" ? `<label class="sm-check"><input id="sm-room" type="checkbox"${roomLightOn() ? " checked" : ""}>部屋の明かりも時刻で変える</label>` : ""}
     ${d.type === "spectrum" ? (sp => `
       <label>並べ方<select id="sm-spec-shape">${opt("circle", "円", sp.shape === "circle")}${opt("line", "直線", sp.shape === "line")}</select></label>
       <label>形<select id="sm-spec-style">${opt("bars", "バー", sp.style === "bars")}${opt("wave", "波", sp.style === "wave")}</select></label>
@@ -1036,13 +1061,10 @@ function renderModuleMenu() {
   if (isShelf(d)) {
     $<HTMLSelectElement>("#sm-kind", el).onchange = e => {
       d.kind = (e.target as HTMLSelectElement).value as ShelfKind;
-      d.arg = undefined;
-      if (d.kind === "manual") d.albums ??= [];
+      if (d.kind === "search") d.query ??= "";
       if (KINDS.some(k => k.label === d.title) || d.title === "新しい棚") d.title = kindLabel(d.kind);
       save();
     };
-    const arg = $<HTMLSelectElement>("#sm-arg", el);
-    if (arg) arg.onchange = () => { d.arg = arg.value || undefined; if (d.arg && (KINDS.some(k => k.label === d.title) || d.title === "新しい棚")) d.title = d.arg; save(); };
     const mq = $<HTMLInputElement>("#sm-query", el);
     if (mq) mq.oninput = () => {
       const inline = document.getElementById(`q-${d.id}`) as HTMLInputElement | null;
@@ -1050,15 +1072,9 @@ function renderModuleMenu() {
     };
     const be = $<HTMLInputElement>("#sm-folder-gaps", el);
     if (be) be.onchange = () => { d.folderGaps = be.checked || undefined; save(); };
-    const al = $<HTMLSelectElement>("#sm-align", el);
-    if (al) al.onchange = () => { d.searchAlign = al.value === "left" || al.value === "center" ? al.value : undefined; save(); };
     const ms = $<HTMLSelectElement>("#sm-sort", el);
     if (ms) ms.onchange = () => { d.sort = ms.value as SortKey; save(); };
-    const sk = $<HTMLSelectElement>("#sm-skin", el);
-    sk.onchange = () => setShelfSkin(sk.value);
   }
-  const rainBox = el.querySelector<HTMLInputElement>("#sm-rain");
-  if (rainBox) rainBox.onchange = () => setWindowRain(rainBox.checked);
   for (const key of ["shape", "style", "dir"] as const) {
     const sel = el.querySelector<HTMLSelectElement>(`#sm-spec-${key}`);
     if (sel) sel.onchange = () => { setSpectrumPrefs({ [key]: sel.value } as Partial<SpectrumPrefs>); if (key === "shape") renderModuleMenu(); };
@@ -1067,8 +1083,6 @@ function renderModuleMenu() {
   if (specSize) specSize.oninput = () => setSpectrumPrefs({ size: Number(specSize.value) / 100 });
   const sceneSel = el.querySelector<HTMLSelectElement>("#sm-scene");
   if (sceneSel) sceneSel.onchange = () => setWindowScene(sceneSel.value);
-  const roomBox = el.querySelector<HTMLInputElement>("#sm-room");
-  if (roomBox) roomBox.onchange = () => setRoomLight(roomBox.checked);
   el.querySelectorAll<HTMLInputElement>("[data-obj]").forEach(cb => cb.onchange = () => setObjectShown(cb.dataset.obj!, cb.checked));
   $(".sm-delete", el).onclick = () => { modules = modules.filter(m => m !== d); removeModule(home, d.id); kept.delete(d.id); closeModuleMenu(); saveMods(); saveHome(home); renderShelves(); };
   $(".sm-done", el).onclick = closeModuleMenu;
@@ -1259,8 +1273,7 @@ function wireAlbumDrop(row: HTMLElement, d: ShelfDef) {
     let keys = [key];
     try { const many = e.dataTransfer!.getData(DND_MANY); if (many) keys = (JSON.parse(many) as string[]).filter(k => byKey(k)); } catch { /* 1 枚だけ */ }
     let at = dropIndex(row, d, e.clientX, e.target).index;
-    const list = d.kind === "queue" ? queue : (d.albums ??= []);
-    for (const k of keys) { insertInto(d, k, at); at = list.indexOf(k) + 1; }
+    for (const k of keys) { insertInto(d, k, at); at = d.kind === "queue" ? queue.indexOf(k) + 1 : at; }
     if (keys.length > 1) clearSelection();
     renderShelves();
   });
@@ -1369,7 +1382,10 @@ function renderLibrary() {
     const list = groups.get(name)!;
     const box = document.createElement("div");
     box.className = "box"; box.id = id(name);
-    box.innerHTML = `<div class="shelf-label">${label(name, list.length)}<button class="box-hide" aria-label="${esc(name)} をライブラリから外す" title="${byArtist ? "まとめて外す" : "フォルダごと外す"}">${ICON.close}</button></div><div class="row"></div>`;
+    // タグ: フォルダの括りならフォルダに（中のアルバムすべてに効く）、アーティストの括りなら中のアルバムそれぞれに
+    const paths = byArtist ? list.map(a => a.key) : [name], own = byArtist ? [] : ownTags(name);
+    box.innerHTML = `<div class="shelf-label">${label(name, list.length)}<button class="box-tag${own.length ? " on" : ""}" data-tag-edit aria-label="${esc(name)} のタグ" title="${byArtist ? "まとめてタグをつける" : "フォルダにタグをつける"}">${own.length ? esc(own.join(" · ")) : "タグ"}</button><button class="box-hide" aria-label="${esc(name)} をライブラリから外す" title="${byArtist ? "まとめて外す" : "フォルダごと外す"}">${ICON.close}</button></div><div class="row"></div>`;
+    $(".box-tag", box).onclick = e => openTagEditor(e.currentTarget as HTMLElement, paths, name);
     $(".box-hide", box).onclick = () => setHidden(list.map(a => a.key), true);
     fillRow($(".row", box), id(name), { list, faces: faceOf(list) });
     return box;
@@ -1410,53 +1426,10 @@ function renderCenter() {
 }
 
 // ---------- 再生中バー ----------
-// ---------- 速さとピッチ: 再生バーの小さな札から。ふだんは「1×」を薄く出すだけ ----------
-const speedLabel = () => {
-  const { rate, pitch } = player.speed;
-  return `${+rate.toFixed(2)}×${pitch ? ` ${pitch > 0 ? "+" : "−"}${Math.abs(pitch)}` : ""}`;
-};
-const speedButton = () => {
-  const { rate, pitch } = player.speed, changed = rate !== 1 || pitch !== 0;
-  return `<button class="b-speed${changed ? " on" : ""}" aria-label="速さとピッチ（いま ${speedLabel()}）" title="速さとピッチ">${speedLabel()}</button>`;
-};
-function openSpeed(anchor: HTMLElement) {
-  closeSpeed();
-  const el = document.createElement("div");
-  el.id = "speed-pop"; el.className = "pop-menu speed-pop";
-  const paint = () => {
-    const { rate, pitch } = player.speed;
-    $(".sp-rate-v", el).textContent = `${rate.toFixed(2)}×`;
-    $(".sp-pitch-v", el).textContent = pitch ? `${pitch > 0 ? "+" : "−"}${Math.abs(pitch)} 半音` : "0 半音";
-    $<HTMLInputElement>(".sp-rate", el).value = String(rate);
-    $<HTMLInputElement>(".sp-pitch", el).value = String(pitch);
-  };
-  el.innerHTML = `<label class="sp-row"><span>速さ</span><b class="sp-rate-v"></b>
-      <input class="sp-rate" type="range" min="${RATE_MIN}" max="${RATE_MAX}" step="0.05" aria-label="速さ（音程は変えない）"></label>
-    <label class="sp-row"><span>ピッチ</span><b class="sp-pitch-v"></b>
-      <input class="sp-pitch" type="range" min="${-PITCH_MAX}" max="${PITCH_MAX}" step="1" aria-label="ピッチ（速さは変えない）"></label>
-    <button class="sp-reset"><b>もとに戻す</b></button>`;
-  const rate = $<HTMLInputElement>(".sp-rate", el), pitch = $<HTMLInputElement>(".sp-pitch", el);
-  rate.oninput = () => { player.setSpeed({ rate: Number(rate.value) }); paint(); };
-  pitch.oninput = () => { player.setSpeed({ pitch: Number(pitch.value) }); paint(); };
-  // ダブルクリックでそのつまみだけ戻す
-  rate.ondblclick = () => { player.setSpeed({ rate: 1 }); paint(); };
-  pitch.ondblclick = () => { player.setSpeed({ pitch: 0 }); paint(); };
-  $(".sp-reset", el).onclick = () => { player.setSpeed({ rate: 1, pitch: 0 }); paint(); };
-  document.body.append(el);
-  paint();
-  const r = anchor.getBoundingClientRect();
-  el.style.right = `${Math.max(16, innerWidth - r.right)}px`;
-  el.style.bottom = `${innerHeight - r.top + 8}px`;
-  rate.focus();
-}
-const closeSpeed = () => document.getElementById("speed-pop")?.remove();
-addEventListener("pointerdown", e => { if (!(e.target as HTMLElement).closest("#speed-pop, .b-speed")) closeSpeed(); });
-addEventListener("keydown", e => { if (e.key === "Escape") closeSpeed(); });
 
 const modeButton = () => modeButtonHTML(player.mode, "b-mode");
 
 const ICON = {
-  receipt: '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M3 1h10v14l-1.66-1.2L9.66 15 8 13.8 6.34 15l-1.68-1.2L3 15zm2 3v1.2h6V4zm0 2.8V8h6V6.8zm0 2.8v1.2h4V9.6z"/></svg>',
   prev: '<svg viewBox="0 0 16 16"><path d="M3 2h2v12H3zM14 2v12L6 8z"/></svg>',
   next: '<svg viewBox="0 0 16 16"><path d="M11 2h2v12h-2zM2 2v12l8-6z"/></svg>',
   play: '<svg viewBox="0 0 16 16"><path d="M4 2v12l10-6z"/></svg>',
@@ -1497,8 +1470,6 @@ function renderNP() {
             ${modeButton()}
           </div>
           <div class="np-vol">
-            <button class="b-receipt" aria-label="レシートにする" title="レシートにする">${ICON.receipt}</button>
-            ${speedButton()}
             <button class="b-mute" aria-label="${player.isMuted ? "消音を解除" : "消音"}">${player.isMuted ? ICON.mute : ICON.vol}</button>
             <input class="np-vol-range" type="range" min="0" max="100" step="1" value="${Math.round(player.volume * 100)}" aria-label="音量">
           </div>
@@ -1532,8 +1503,6 @@ function renderNP() {
     $(".b-play", np).onclick = () => player.toggle();
     $(".b-next", np).onclick = () => player.next();
     $(".b-mode", np).onclick = () => player.cycleMode();   // 描き直しは player.on から
-    $(".b-receipt", np).onclick = () => openReceipt(() => ({ album: player.album, index: player.index, position: player.position }));
-    $(".b-speed", np).onclick = e => document.getElementById("speed-pop") ? closeSpeed() : openSpeed(e.currentTarget as HTMLElement);
     $(".np-track", np).onclick = e => {
       const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
       player.seek((e.clientX - r.left) / r.width);
@@ -1556,13 +1525,18 @@ setInterval(tick, 500);
 // ---------- 再生 ----------
 /** index を省くとアルバムの頭から（シャッフル中は、ばらばらの順の 1 曲目から） */
 async function play(a: Album, index?: number) {
+  if (locked) {
+    if (!await unlock()) return;
+    const real = byKey(a.key);
+    if (!real) { toast("このアルバムは、フォルダの中から見つかりませんでした"); return; }
+    a = real;
+  }
   await enrichTracks(a);
   // どの棚から選んでも、再生中が切り替わるだけ。「次に再生」の中身は変えない
   if (a !== player.album) {
     startRitual(a);
     recordPlay(a.key);
-    const ev = logPlay(a.key);
-    if (modules.some(m => m.type === "map")) recordPlace(ev);
+    logPlay(a.key);
   }
   await player.playAlbum(a, index);
 }
@@ -1598,9 +1572,9 @@ async function interrupt(a: Album) {
 // 今のアルバムが終わったときに切り替わる先: 「次に再生」の中から選んで聴いていればその次、そうでなければ先頭
 const lastUpNext = new Map<string, string | undefined>();
 function upNext() {
+  // セットの外のアルバム（上の帯で絞ったもの）は飛ばす
   const i = player.album ? queue.indexOf(player.album.key) : -1;
-  const key = i >= 0 ? queue[i + 1] : queue[0];
-  return key ? byKey(key) : undefined;
+  return queue.slice(i + 1).map(byKey).find(Boolean);
 }
 
 // アルバムを最後まで聴いたら、聴き終えた分を「次に再生」から外して次へ切り替える
@@ -1657,7 +1631,7 @@ initShortcuts(id => {
     case "volUp": return player.setVolume(Math.min(1, player.volume + .05));
     case "volDown": return player.setVolume(Math.max(0, player.volume - .05));
     case "mute": return player.toggleMute();
-    case "home": case "library": case "settings": if (!focusLocked() || id === "home") location.hash = `#${id}`; return;
+    case "home": case "library": case "settings": location.hash = `#${id}`; return;
     case "search": {
       if (location.hash === "#settings") location.hash = "#home";
       const q = document.querySelector<HTMLInputElement>(location.hash === "#library" ? "#lib-q" : "#view-home .mod-search");
@@ -1669,7 +1643,10 @@ initShortcuts(id => {
 
 // ---------- 最小表示と小窓（mini.ts） ----------
 initMini(player, art);
-initPhoto({ toast });
+initPhoto({ toast, others: {
+  receipt: { label: "レシート", available: () => !!player.album, open: () => openReceipt(() => ({ album: player.album, index: player.index, position: player.position })) },
+  certificate: { label: "証書", available: hasCertificates, open: () => openCertificate() },
+} });
 initShelfMarks();
 
 // タスクバーに置けるように（PWA）。オフラインでも開けるよう、読んだ画面のファイルを手元に残す
@@ -1704,9 +1681,6 @@ setCatHooks({
     return a && { key: a.key, art: a.cover ?? a.color ?? fallbackColor(a) };
   },
   deliver(key) {
-    // 「そのまま再生する」なら、運んできたアルバムをすぐにかける
-    const a = byKey(key);
-    if (prefs().catMischief === "play" && a) { play(a); return; }
     if (!queue.includes(key)) { queue.push(key); renderShelves(); }
   },
   random() {
@@ -1775,20 +1749,8 @@ document.addEventListener("kona:prefs", e => {
 });
 translateStatic();
 
-// ---------- ポモドーロの鍵: 時計と再生の画面（再生中モジュール・下の再生バー）以外を触れなくする ----------
-function applyFocusLock() {
-  const on = focusLocked();
-  document.body.classList.toggle("focus-lock", on);
-  if (on) { if (pop) closePop(); closeAddMenu(); closeModuleMenu(); if (location.hash === "#library" || location.hash === "#settings") location.hash = "#home"; }
-  const free = (el: Element) => el.matches(".mod-clock, .mod-player");
-  document.querySelectorAll(".grid .mod").forEach(el => el.toggleAttribute("inert", on && !free(el)));
-  document.querySelectorAll(".grid .mod-head, .add-mod, .top .tabs, #open, #rescan, #view-library, #view-settings").forEach(el => el.toggleAttribute("inert", on));
-}
-document.addEventListener("kona:focus", applyFocusLock);
-
 // ---------- ルーティング ----------
 function route() {
-  if (focusLocked() && (location.hash === "#library" || location.hash === "#settings")) { location.hash = "#home"; return; }
   const view = location.hash === "#library" ? "library" : location.hash === "#settings" ? "settings" : "home";
   document.body.dataset.view = view;
   const wasSettings = !$("#view-settings").hidden;
@@ -1811,6 +1773,8 @@ addEventListener("hashchange", route);
 
 // ---------- 起動 ----------
 async function boot() {
+  // 覚えたタグやジャケットを、端末の空きが少ないときにもブラウザが消さないように頼んでおく（断られても動きは同じ）
+  navigator.storage?.persist?.().catch(() => {});
   renderHomeFrame(); renderShelves(); route();
   const started = loads;
   savedRoot = await kvGet<FileSystemDirectoryHandle>("root").catch(() => undefined);
@@ -1824,7 +1788,9 @@ async function boot() {
     setState("start");
     // サインインから戻ってきたところなら続きを。同じタブで開き直したなら、前の Drive のフォルダをそのまま
     if (await resumeSpotify()) return;
-    if (!await resumeDrive() && !savedRoot && driveReady()) await openDriveSaved();
+    if (await resumeDrive()) return;
+    if (savedRoot) await showCached(savedRoot);
+    else if (driveReady()) await openDriveSaved();
   }
 }
 boot();

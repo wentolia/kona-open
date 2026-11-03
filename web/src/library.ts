@@ -3,7 +3,7 @@
 import { parseBlob, parseBuffer, type IAudioMetadata } from "music-metadata";
 import { isDriveEntry, type DriveEntry } from "./drive";
 import { kvGet, kvSet } from "./store";
-import { fileSig, getHead, getTracks, putHead, putTracks } from "./tagcache";
+import { fileSig, getHead, getTracks, putHead, putTracks, cachedHeads } from "./tagcache";
 import { collator } from "./dom";
 
 export interface Entry { path: string; getFile: () => Promise<File> }
@@ -160,6 +160,8 @@ export async function enrichHead(a: Album): Promise<void> {
     Object.assign(a, { title: hit.title, artist: hit.artist, year: hit.year, genre: hit.genre, color: hit.color, ratio: hit.ratio });
     const img = coverFile ?? hit.pic;
     if (img) a.cover = URL.createObjectURL(img);
+    // 前の版で覚えたものには、フォルダの画像の写しがない。今のうちに足しておく
+    if (coverFile && !hit.thumb && a.cover) { const thumb = await thumbOf(a.cover); if (thumb) putHead(a.key, { ...hit, thumb }); }
     return;
   }
   const m = await meta(a.tracks[0], first);
@@ -175,7 +177,49 @@ export async function enrichHead(a: Album): Promise<void> {
     a.cover = URL.createObjectURL(img);
     Object.assign(a, await coverInfo(a.cover));
   }
-  if (sig) putHead(a.key, { sig, title: a.title, artist: a.artist, year: a.year, genre: a.genre, color: a.color, ratio: a.ratio, pic });
+  const thumb = coverFile && a.cover ? await thumbOf(a.cover) : undefined;
+  if (sig) putHead(a.key, { sig, title: a.title, artist: a.artist, year: a.year, genre: a.genre, color: a.color, ratio: a.ratio, pic, thumb });
+}
+
+// ジャケットの小さな写し（長い辺 320px の JPEG）。覚えている棚に出すだけなので、これで足りる
+async function thumbOf(url: string): Promise<Blob | undefined> {
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const k = Math.min(1, 320 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.naturalWidth * k));
+    c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise<Blob | undefined>(r => c.toBlob(b => r(b ?? undefined), "image/jpeg", 0.85));
+  } catch { return undefined; }
+}
+
+/** 前に読んだときに覚えたタグだけで、アルバムを組み立てる（フォルダを読む許可を待つ間の棚）。
+ *  ファイルはまだ読めないので、曲は鳴らせない。再生するときに許可をもらって、本物に入れ替える */
+export function cachedAlbums(): Album[] {
+  const locked = () => Promise.reject(new DOMException("フォルダを読む許可がまだありません", "NotAllowedError"));
+  const pathOf = (sig?: string) => sig ? sig.split("|").slice(0, -2).join("|") : ""; // 目印は「パス|大きさ|更新日時」
+  return cachedHeads().map(({ key, head, tracks }) => {
+    const dir = key === "." ? "" : key;
+    const first = pathOf(head.sig.split("\n")[0]), coverPath = pathOf(head.sig.split("\n")[1]);
+    const img = head.pic ?? head.thumb;
+    const list: Track[] = tracks
+      ? tracks.list.map(c => ({ entry: { path: c.path, getFile: locked }, title: c.title, no: c.no, disc: c.disc, duration: c.duration, format: c.format, rgTrack: c.rgTrack, rgAlbum: c.rgAlbum }))
+        .sort((x, y) => x.disc - y.disc || x.no - y.no)
+      : [{ entry: { path: first, getFile: locked }, title: base(first).replace(AUDIO, ""), no: 1, disc: 1 }];
+    return {
+      key, dir: base(dir) || "未分類",
+      shelf: dir.includes("/") ? dir.slice(0, dir.indexOf("/")) : (dir || "未分類"),
+      title: head.title, artist: head.artist, year: tracks?.year ?? head.year, genre: tracks?.genre ?? head.genre,
+      color: head.color, ratio: head.ratio,
+      cover: img ? URL.createObjectURL(img) : undefined,
+      coverEntry: coverPath ? { path: coverPath, getFile: locked } : undefined,
+      tracks: list,
+      tagged: true,   // 曲目は読み直さない（読めないので）。本物に入れ替えたときに読む
+    } satisfies Album;
+  }).sort((a, b) => collator.compare(a.key, b.key));
 }
 
 // 再生時に全曲のタグを読み、曲名と曲順を確定する。どの曲も変わっていなければ、覚えておいた結果を使う
