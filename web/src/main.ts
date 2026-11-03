@@ -879,7 +879,7 @@ function fillRow(row: HTMLElement, rowId: string, c: Contents, pos = 0) {
   row.append(...parts);
   row.classList.toggle("two-panes", panes.length > 1);
   if (panes.length > 1) mountTwin(row, ...panes);
-  else if (panes[0]) { panes[0].style.flex = ""; panes[0].dataset.scroll = rowId; mountSingle(panes[0]); }
+  else if (panes[0]) { panes[0].style.flex = "1 1 0px"; /* 窓が1つなら棚いっぱい（.pane-l の --pos 配分は使わない） */ panes[0].dataset.scroll = rowId; mountSingle(panes[0]); }
   // 次に再生: カーソルが離れたら、次に切り替わるアルバムの面陳に戻す
   if (shelfById(rowId)?.kind === "queue") row.onmouseleave = () => {
     if (pop?.rowId === rowId || document.body.classList.contains("dragging-album")) return;

@@ -323,7 +323,7 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
       if (x0 < 1) addPane(1);
       row.append(...parts);
       if (panes.length > 1) { row.classList.add("two-panes"); mountTwin(row, ...panes); }
-      else { panes[0].style.flex = ""; mountSingle(panes[0]); }
+      else { panes[0].style.flex = "1 1 0px"; /* 窓が1つなら棚いっぱい（.pane-l の --pos 配分は使わない） */ mountSingle(panes[0]); }
     }
     line.append(row);
     body.append(line);
