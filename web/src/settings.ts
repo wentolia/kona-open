@@ -178,27 +178,15 @@ async function fillSinks(el: HTMLElement, p: Player) {
   sel.disabled = !p.canChooseSink || !outs.length;
 }
 
-// モジュール: ホームに並んでいる順に。押すとそのモジュールの設定が開き、ホームでもそのモジュールに札が立つ
+// モジュール: ホームでモジュールを押して選ぶと、ここにそのモジュールの設定だけが出る
 function modulesTab(h: SettingsHooks) {
-  const tree = h.modules.tree(), all = tree.flat(2);
+  const all = h.modules.tree().flat(2);
   if (openMod && !all.some(m => m.id === openMod)) openMod = undefined;
-  const tier = (i: number) => prefs().lang === "en" ? `Row ${i + 1}` : `${i + 1}段目`;
-  const item = (m: ModItem, inner?: number) => `
-    <li class="set-mod${m.id === openMod ? " open" : ""}" data-mod="${esc(m.id)}">
-      <button type="button" class="set-mod-head" aria-expanded="${m.id === openMod}">${inner !== undefined ? `<em>${tier(inner)}</em>` : ""}<b>${esc(m.title)}</b>${m.title !== m.label ? `<i>${esc(m.label)}</i>` : ""}</button>
-      ${m.id === openMod ? `<div class="set-mod-body sm-form">${h.modules.form(m.id)}</div>` : ""}
-    </li>`;
+  const m = all.find(x => x.id === openMod);
   return `
-    ${sec(`${t("ホームのモジュール")} · ${all.length}`, `
-      <ol class="set-tree">${tree.map((row, ri) => `
-        <li class="set-tier"><span class="set-tier-h">${tier(ri)}</span>
-          <ul class="set-mods">${row.map(col => col.length === 1 ? item(col[0]) : `
-            <li class="set-box"><span class="set-box-h">${t("ボックス")}</span>
-              <ul class="set-mods">${col.map((m, k) => item(m, k)).join("")}</ul>
-            </li>`).join("")}
-          </ul>
-        </li>`).join("")}
-      </ol>`)}
+    ${m ? sec(m.title !== m.label ? `${m.title} · ${m.label}` : m.title, `
+      <div class="set-mod-body sm-form" data-mod="${esc(m.id)}">${h.modules.form(m.id)}</div>`)
+    : `<p class="set-pick-hint">${esc(t("ホームのモジュールを押して選ぶ"))}</p>`}
     ${sec(t("モジュールを足す"), `
       <div class="set-chips">${h.modules.addable().map(a => `<button type="button" data-add-mod="${esc(a.type)}"${a.disabled ? " disabled" : ""}>＋ ${esc(a.label)}</button>`).join("")}</div>`)}`;
 }
@@ -308,6 +296,7 @@ export function renderSettings() {
   const body = root.querySelector(".set-body"), scroll = body?.scrollTop ?? 0;
   if (tab === "modules" && document.body.classList.contains("mobile")) tab = "room"; // スマホ版にはモジュールがない
   if (tab !== "modules") hooks.modules.focus(undefined);
+  document.body.classList.toggle("mod-picking", tab === "modules"); // ホームのモジュールを押すと選べる
   const content = { room: roomTab, modules: () => modulesTab(hooks), cats: () => catsTab(hooks), sound: () => soundTab(hooks), other: () => otherTab(hooks) }[tab]();
   root.innerHTML = `
   <div class="set">
@@ -336,9 +325,9 @@ export function openModuleSettings(id: string) {
 }
 function revealOpenMod(focusName: boolean) {
   requestAnimationFrame(() => {
-    const li = root?.querySelector<HTMLElement>(".set-mod.open");
-    li?.scrollIntoView({ block: "nearest" });
-    if (focusName) li?.querySelector<HTMLInputElement>("#sm-title")?.focus({ preventScroll: true });
+    const li = root?.querySelector<HTMLElement>(".set-mod-body");
+    root?.querySelector(".set-body")?.scrollTo({ top: 0 });
+    if (focusName && matchMedia("(pointer: fine)").matches) li?.querySelector<HTMLInputElement>("#sm-title")?.focus({ preventScroll: true });
   });
 }
 
@@ -468,12 +457,6 @@ function wire(el: HTMLElement) {
   };
 
   // モジュール
-  on("[data-mod] > .set-mod-head", "click", b => {
-    const id = b.closest<HTMLElement>("[data-mod]")!.dataset.mod!;
-    openMod = openMod === id ? undefined : id;
-    h.modules.focus(openMod, true);
-    again();
-  });
   const form = el.querySelector<HTMLElement>(".set-mod-body");
   if (form && openMod) h.modules.wire(form, openMod, again);
   on("[data-add-mod]", "click", b => {

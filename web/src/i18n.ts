@@ -45,7 +45,7 @@ const EN: Record<string, string> = {
   "プリセット": "Presets", "前のプリセット": "Previous preset", "次のプリセット": "Next preset", "調整中": "Custom", "オフ": "Off", "イコライザーのいまの形を残す": "Save the current EQ shape",
   "出力先": "Output device", "既定の出力": "Default output", "イコライザーを使う": "Use the equalizer", "重ねる音": "Ambient sounds",
   "招待": "Invite", "リスニングパーティー: 流している音をいっしょに聴く": "Listening party: listen together to what's playing",
-  "モジュール": "Modules", "ホームのモジュール": "Modules on home", "モジュールを足す": "Add a module", "遊ぶ": "Play",
+  "モジュール": "Modules", "ホームのモジュール": "Modules on home", "モジュールを足す": "Add a module", "ホームのモジュールを押して選ぶ": "Click a module on home to choose it", "遊ぶ": "Play",
   "猫じゃらしで遊ぶ": "Play with a cat wand", "猫じゃらしをしまう": "Put the wand away", "ランダムで1枚": "Pick one at random", "新しい棚": "New shelf",
   "テーマカラー": "Theme color", "いつも同じ": "Always the same", "時刻で移ろう": "Shift with the time of day",
   "朝": "Morning", "昼": "Day", "夕": "Evening", "夜": "Night", "移り変わり": "Transition", "すぐ": "Instant",
