@@ -13,4 +13,4 @@ function art() {
   return s;
 }
 
-export default { key: "plainmoss", label: "無地のラグ（苔）", at: "floor", w: 280, h: 0, flat: true, vh: 40, x: 0.5, cat: "敷きもの", order: 25.5, note: "柄のない苔色。何の下にも合う", art } satisfies ItemDef;
+export default { key: "plainmoss", label: "苔色の無地のラグ", at: "floor", w: 280, h: 0, flat: true, vh: 40, x: 0.5, cat: "敷きもの", order: 25.5, note: "柄のない苔色。何の下にも合う", art } satisfies ItemDef;

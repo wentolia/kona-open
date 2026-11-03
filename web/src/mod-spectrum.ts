@@ -1,4 +1,5 @@
 // スペクトラム: いま鳴っている音の周波数ごとの強さを描く。
+import { t as tx } from "./i18n";
 // 並べ方は「円」（真上から時計回りに一周で低音 → 高音）と「直線」（左から右へ低音 → 高音）。
 // 円を左右の鏡写しにすると、左右がほぼ同じ音のステレオでは形がいつも対称になって単調なので、一周に帯域を並べる。
 // 一周の継ぎ目（真上）は、高音の端を低音の端へなだらかにつないで段差を見せない。
@@ -45,7 +46,7 @@ export function mountSpectrum(body: HTMLElement) {
   const look = inCopy() ? parsePrefs(stored(KEY)) : prefs;
   body.innerHTML = `
     <div class="spec">
-      <canvas class="spec-canvas" aria-label="スペクトラム"></canvas>
+      <canvas class="spec-canvas" aria-label="${tx("スペクトラム")}"></canvas>
     </div>`;
   const root = body.querySelector<HTMLElement>(".spec")!;
   const canvas = root.querySelector<HTMLCanvasElement>("canvas")!;

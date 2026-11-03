@@ -2,6 +2,7 @@
 // タグはパス（フォルダかアルバムのフォルダ）につける。アルバムのタグは、そのフォルダと上のフォルダすべてのタグを合わせたもの。
 // セットは「すべて」（既定）か「あるタグのアルバムだけ」か「あるタグ以外」。開き直すと「すべて」に戻る。
 // リスニングパーティーで送るアルバムを絞るときも、同じ inSet を使う。
+import { t, tp } from "./i18n";
 import type { Album } from "./library";
 import { esc, collator } from "./dom";
 import "./tags.css";
@@ -59,7 +60,7 @@ export function inSet(a: Album, s: AlbumSet | null = active) {
   if (!s) return true;
   return tagsOf(a).includes(s.tag) !== s.not;
 }
-export const setLabel = (s: AlbumSet | null) => !s ? "すべて" : s.not ? `${s.tag} 以外` : s.tag;
+export const setLabel = (s: AlbumSet | null) => !s ? t("すべて") : s.not ? tp("{0} 以外", s.tag) : s.tag;
 export function selectSet(s: AlbumSet | null) {
   active = s;
   document.dispatchEvent(new CustomEvent("kona:tags"));
@@ -70,10 +71,10 @@ export function setTabsHTML() {
   const tags = allTags();
   if (!tags.length) return "";
   const tab = (label: string, on: boolean, tag = "", not = false) =>
-    `<button data-tag="${esc(tag)}" aria-pressed="${on}"${not ? ' class="not"' : ""}${tag ? ` title="${esc(on && !not ? `もう一度押すと「${tag} 以外」` : tag)}"` : ""}>${esc(label)}</button>`;
-  return tab("すべて", !active) + tags.map(tg => {
+    `<button data-tag="${esc(tag)}" aria-pressed="${on}"${not ? ' class="not"' : ""}${tag ? ` title="${esc(on && !not ? tp("もう一度押すと「{0} 以外」", tag) : tag)}"` : ""}>${esc(label)}</button>`;
+  return tab(t("すべて"), !active) + tags.map(tg => {
     const on = active?.tag === tg;
-    return tab(on && active!.not ? `${tg} 以外` : tg, on, tg, on && active!.not);
+    return tab(on && active!.not ? tp("{0} 以外", tg) : tg, on, tg, on && active!.not);
   }).join("");
 }
 export function onSetTabClick(e: Event) {
@@ -90,7 +91,7 @@ export function onSetTabClick(e: Event) {
 export function openTagEditor(anchor: HTMLElement, paths: string[], title: string, inherited: string[] = []) {
   closeTagEditor();
   const el = document.createElement("div");
-  el.id = "tag-pop"; el.className = "pop-menu tag-pop"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", `${title} のタグ`);
+  el.id = "tag-pop"; el.className = "pop-menu tag-pop"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", tp("{0} のタグ", title));
   const paint = () => {
     const tags = [...new Set([...allTags(), ...inherited])].sort(collator.compare);
     const state = (tg: string) => {
@@ -99,9 +100,9 @@ export function openTagEditor(anchor: HTMLElement, paths: string[], title: strin
     };
     el.innerHTML = `<div class="tag-title">${esc(title)}</div>
       <div class="tag-chips">${tags.map(tg => inherited.includes(tg) && state(tg) === "false"
-        ? `<span class="tag-chip inherited" title="上のフォルダのタグ">${esc(tg)}</span>`
+        ? `<span class="tag-chip inherited" title="${t("上のフォルダのタグ")}">${esc(tg)}</span>`
         : `<button class="tag-chip" data-t="${esc(tg)}" aria-pressed="${state(tg)}">${esc(tg)}</button>`).join("")}</div>
-      <input class="tag-new" type="text" placeholder="新しいタグ" aria-label="新しいタグ" maxlength="40" autocomplete="off">`;
+      <input class="tag-new" type="text" placeholder="${t("新しいタグ")}" aria-label="${t("新しいタグ")}" maxlength="40" autocomplete="off">`;
     const input = $in(el);
     input.onkeydown = e => {
       if (e.key !== "Enter" || e.isComposing) return;

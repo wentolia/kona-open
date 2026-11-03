@@ -1,5 +1,7 @@
 // 聴いた記録: 週ごとに1段。その週に聴いたアルバムを小さな背表紙で並べる（よく聴いたものほど太い）
 
+import { t, tp } from "./i18n";
+import { locale } from "./i18n";
 import { ctx, esc, hist } from "./modctx";
 import type { Album } from "./library";
 
@@ -31,9 +33,9 @@ export function mountLog(body: HTMLElement) {
     if (!log.length) { root.innerHTML = ""; return; }
     root.innerHTML = rows.map((r, i) => `
       <div class="log-row">
-        <span class="log-week">${i === 0 ? "今週" : i === 1 ? "先週" : new Date(r.start).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" }) + "〜"}</span>
-        <span class="log-spines">${r.list.map(([a, n]) => `<button class="log-spine" data-key="${esc(a.key)}" title="${esc(a.title)}${a.artist ? " — " + esc(a.artist) : ""}（${n} 回）" style="--c:${c.colorOf(a)};--n:${Math.min(4, n)}"></button>`).join("")}</span>
-        <span class="log-count">${r.total ? `${r.total} 回` : ""}</span>
+        <span class="log-week">${i === 0 ? t("今週") : i === 1 ? t("先週") : new Date(r.start).toLocaleDateString(locale(), { month: "numeric", day: "numeric" }) + "〜"}</span>
+        <span class="log-spines">${r.list.map(([a, n]) => `<button class="log-spine" data-key="${esc(a.key)}" title="${esc(a.title)}${a.artist ? " — " + esc(a.artist) : ""} · ${esc(tp("{0} 回", n))}" style="--c:${c.colorOf(a)};--n:${Math.min(4, n)}"></button>`).join("")}</span>
+        <span class="log-count">${r.total ? tp("{0} 回", r.total) : ""}</span>
       </div>`).join("");
   };
   root.addEventListener("dblclick", e => {

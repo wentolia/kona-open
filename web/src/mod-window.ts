@@ -1,5 +1,6 @@
 // 窓辺: いまの時刻の空を、部屋の窓から見る。朝焼け・昼・夕焼け・夜（星と月）が時間とともに移る
 
+import { t } from "./i18n";
 import { css, ctx, fit, everyFrame, onDocument, stored, inCopy } from "./modctx";
 import { noiseLevel } from "./noise";
 import { reduceMotion } from "./prefs";
@@ -54,7 +55,7 @@ export const frostAt = (h: number, winter: number, snow: boolean, night: number)
 };
 
 export function mountWindow(body: HTMLElement) {
-  body.innerHTML = `<div class="win"><canvas class="win-canvas" aria-label="窓"></canvas></div>`;
+  body.innerHTML = `<div class="win"><canvas class="win-canvas" aria-label="${t("窓")}"></canvas></div>`;
   const root = body.querySelector<HTMLElement>(".win")!;
   const canvas = root.querySelector<HTMLCanvasElement>("canvas")!;
   let sway = 0, last = performance.now();

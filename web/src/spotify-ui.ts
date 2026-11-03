@@ -1,5 +1,6 @@
 // Spotify の入口: 設定の「読み込み元」で Client ID を入れてサインイン → 保存したアルバムを棚に並べる。
 // 画面の文字はすべて textContent か esc() で入れ、Spotify の曲名などを HTML として読ませない
+import { t } from "./i18n";
 import type { Album } from "./library";
 import type { Player } from "./player";
 import { coverInfo, eachLimited } from "./library";
@@ -20,11 +21,11 @@ interface Host {
 let host: Host | undefined;
 
 const MESSAGES: Record<string, string> = {
-  account_error: "Spotify の曲を鳴らすには Premium のアカウントが要ります",
-  initialization_error: "このブラウザでは Spotify の曲を鳴らせません（パソコンの Chrome・Edge・Firefox などで開いてください）",
-  sdk: "Spotify の再生の部品を読み込めませんでした。通信の具合を確かめてください",
-  play: "Spotify で再生を始められませんでした。少し待ってからもう一度どうぞ",
-  playback_error: "Spotify の曲を再生できませんでした",
+  account_error: t("Spotify の曲を鳴らすには Premium のアカウントが要ります"),
+  initialization_error: t("このブラウザでは Spotify の曲を鳴らせません。パソコンの Chrome・Edge・Firefox などで開いてください"),
+  sdk: t("Spotify の再生の部品を読み込めませんでした。通信の具合を確かめてください"),
+  play: t("Spotify で再生を始められませんでした。少し待ってからもう一度どうぞ"),
+  playback_error: t("Spotify の曲を再生できませんでした"),
 };
 
 /** main から一度だけ呼ぶ */
@@ -36,7 +37,7 @@ export function initSpotifyUI(h: Host) {
     if (Date.now() - last < 8000) return;
     last = Date.now();
     const c = spotifyConfig();
-    if (c) host?.toast("Spotify のサインインが切れました", "サインインし直す", () => { spotifySignIn(c.clientId).catch(() => {}); });
+    if (c) host?.toast(t("Spotify のサインインが切れました"), t("サインインし直す"), () => { spotifySignIn(c.clientId).catch(() => {}); });
   };
   document.addEventListener("kona:spotify-auth", authLost);
   document.addEventListener("kona:spotify-error", e => {
@@ -86,7 +87,7 @@ export const isSpotifyError = (e: unknown) => e instanceof SpotifyAuthError;
 export function spotifySettingsHTML(t: (s: string) => string): string {
   const c = spotifyConfig(), signed = spotifySignedIn();
   return `
-    <p class="set-note">${t("自分の Spotify for Developers で作った Client ID を入れると、保存したアルバムを棚に並べて聴けます（Premium が必要）。")}<a href="${docHref("spotify")}" target="_blank" rel="noopener noreferrer">${t("作り方の手順")}</a></p>
+    <p class="set-note">${t("自分の Spotify for Developers で作った Client ID を入れると、保存したアルバムを棚に並べて聴けます。Premium が必要です。")}<a href="${docHref("spotify")}" target="_blank" rel="noopener noreferrer">${t("作り方の手順")}</a></p>
     <dl class="dlg-uris set-uris">
       <dt>Redirect URI</dt><dd><code>${esc(spotifyRedirectUri())}</code><button type="button" class="set-btn" id="set-sp-copy">${t("コピー")}</button></dd>
     </dl>
@@ -112,7 +113,7 @@ export function wireSpotifySettings(root: HTMLElement, again: () => void) {
   q<HTMLFormElement>("#set-sp-form")?.addEventListener("submit", e => {
     e.preventDefault();
     const input = q<HTMLInputElement>("#set-sp-client")!, err = q<HTMLElement>("#set-sp-err")!, id = input.value.trim();
-    if (!CLIENT_ID_RE.test(id)) { err.hidden = false; err.textContent = "Client ID は 32 文字の英数字です（Spotify for Developers のアプリの「Basic Information」にあります）"; input.focus(); return; }
+    if (!CLIENT_ID_RE.test(id)) { err.hidden = false; err.textContent = t("Client ID は 32 文字の英数字です。Spotify for Developers のアプリの「Basic Information」にあります"); input.focus(); return; }
     const was = spotifyConfig()?.clientId;
     if (was !== id) { spotifySignOut(); saveSpotifyConfig({ clientId: id }); }
     again();

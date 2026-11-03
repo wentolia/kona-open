@@ -10,4 +10,4 @@ function art() {
 
 const live: Live = svg => albumPic(svg, 14, 14, 64, 64);
 
-export default { key: "cover", label: "ジャケットの額", at: "wall", w: 92, h: 92, cat: "音楽", order: 110, note: "★ いま聴いている（止めているときは選んでいる）アルバムのジャケットを飾る", art, live } satisfies ItemDef;
+export default { key: "cover", label: "ジャケットの額", at: "wall", w: 92, h: 92, cat: "音楽", order: 110, note: "★ いま聴いているアルバムのジャケットを飾る。止めているときは選んでいるアルバム", art, live } satisfies ItemDef;

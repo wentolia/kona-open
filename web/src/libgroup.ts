@@ -1,11 +1,12 @@
 // アルバムの括り方: フォルダごと / アーティストごと。ライブラリ・ホームの棚の仕切り・スマホの棚で共通。
 // 設定は prefs().libGroup（設定ページと、ライブラリ上の切り替えで変える）
+import { t } from "./i18n";
 import type { Album } from "./library";
 import { prefs, setPrefs, type Prefs } from "./prefs";
 import { collator } from "./dom";
 
 export type LibGroup = Prefs["libGroup"];
-export const NO_ARTIST = "アーティスト不明";
+export const NO_ARTIST = t("アーティスト不明");
 export const libGroup = (): LibGroup => prefs().libGroup;
 export const setLibGroup = (g: LibGroup) => setPrefs({ libGroup: g });
 

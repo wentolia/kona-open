@@ -4,6 +4,7 @@
 //  - 音の大きさ・スペクトラムは、届いた音そのものから測る（ホストの音の写しなので、ホストの画面とほぼ同じ形になる）
 //  - 操作（シーク・再生・EQ のつまみ）は受け付けない。参加者の端末には何も残さない
 
+import { t } from "./i18n";
 import { Eq } from "./eq";
 import type { Album, Track } from "./library";
 import type { Player, PlayMode } from "./player";
@@ -20,7 +21,7 @@ export interface NowState {
 }
 
 type Listener = () => void;
-const locked = () => Promise.reject(new DOMException("ホストの曲です", "NotAllowedError"));
+const locked = () => Promise.reject(new DOMException(t("ホストの曲です"), "NotAllowedError"));
 
 export class MirrorPlayer {
   album?: Album;

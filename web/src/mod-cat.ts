@@ -3,6 +3,7 @@
 // 猫が使うと document に "kona:cat" が届き（detail.kind: eat / scratch / toy）、家具の見た目が変わる。
 // ごはんを入れると "kona:feed" を出し、お腹の空いた猫が寄ってくる
 
+import { t } from "./i18n";
 import "./mod-cat.css";
 import { onDocument, stored } from "./modctx";
 
@@ -171,7 +172,7 @@ export function mountScratcher(body: HTMLElement) {
 export function mountCatFood(body: HTMLElement) {
   body.innerHTML = `<div class="cfood">
     <i class="cf-mat"></i>
-    <button class="cf-bowl" data-bowl aria-label="ごはんを入れる"><i class="cf-kibble"></i><i class="cf-dish"></i></button>
+    <button class="cf-bowl" data-bowl aria-label="${t("ごはんを入れる")}"><i class="cf-kibble"></i><i class="cf-dish"></i></button>
     <i class="cf-water"><i></i></i>
     <div class="cf-board" data-cat-plat="deck"></div>
   </div>`;
@@ -180,7 +181,7 @@ export function mountCatFood(body: HTMLElement) {
   const paint = () => {
     bowl.dataset.level = level.toFixed(2);
     root.style.setProperty("--food", String(level));
-    bowl.title = level < .05 ? "空っぽ。押すとごはんを入れる" : level < .4 ? "少し残っている。押すと足す" : "ごはんが入っている";
+    bowl.title = level < .05 ? t("空っぽ。押すとごはんを入れる") : level < .4 ? t("少し残っている。押すと足す") : t("ごはんが入っている");
   };
   paint();
   bowl.addEventListener("click", () => {
@@ -206,7 +207,7 @@ export function mountCatBox(body: HTMLElement) {
   const paint = () => {
     const bag = isBag;
     root.classList.toggle("bag", bag);
-    root.title = bag ? "紙袋（ダブルクリックで箱にする）" : "段ボール箱（ダブルクリックで紙袋にする）";
+    root.title = bag ? t("紙袋。ダブルクリックで箱にする") : t("段ボール箱。ダブルクリックで紙袋にする");
   };
   paint();
   root.addEventListener("dblclick", () => { isBag = !isBag; put(BOX, isBag ? 1 : 0); paint(); });

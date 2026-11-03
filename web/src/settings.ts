@@ -16,7 +16,7 @@ import { BANDS, BUILTIN_PRESETS, userPresets, savePreset, deletePreset, presetMa
 import { BREEDS, type Coat } from "./cat";
 import { nameOf } from "./cat-coat";
 import { ACTIONS, keyFor, keyLabel } from "./shortcuts";
-import { t } from "./i18n";
+import { t, LANGS, tp } from "./i18n";
 import type { Player, Normalize } from "./player";
 import { spotifySettingsHTML, wireSpotifySettings } from "./spotify-ui";
 import { openDrive } from "./drive-ui";
@@ -150,14 +150,14 @@ function roomTab() {
 // 位置は自動（家具は床で左右に動かせる）、大きさはホームで角のつまみを引いて変える（size-knob.ts）
 function putBlock(h: SettingsHooks) {
   const tile = (id: string, label: string, at: string | undefined, art: string) =>
-    `<button type="button" class="set-put${at ? " placed" : ""}" data-put="${id}" aria-pressed="${!!at}" title="${esc(at ? `${label}（${at}）。押すと${/^\d+$/.test(at) ? "すべて" : ""}しまう` : `${label}: ホームへドラッグして置く`)}">
+    `<button type="button" class="set-put${at ? " placed" : ""}" data-put="${id}" aria-pressed="${!!at}" title="${esc(at ? tp(/^\d+$/.test(at) ? "{0}: {1}。押すとすべてしまう" : "{0}: {1}。押すとしまう", label, at) : tp("{0}: ホームへドラッグして置く", label))}">
       <span class="set-put-art">${art}</span><span class="set-put-label">${esc(label)}</span>${at && /^\d+$/.test(at) ? `<span class="set-put-n">×${at}</span>` : ""}</button>`;
   const placed = (k: string) => { const n = countOf(k); return n ? (n > 1 ? `${n}` : t("置いた")) : undefined; };
   const things = (at: string) => THINGS.filter(x => x.at === at && regionAllows(x.key) && presentAllows(x.key)).map(x => tile(`thing:${x.key}`, t(x.label), placed(x.key), "")).join("");
   return `
-    <p class="set-note">${t("ホームの棚・床・壁へドラッグして置く（家具はいくつでも）。しまうときは、ホームで品の左上の箱を押すか、ここへ戻す。ダブルクリックで左右を反転")}</p>
+    <p class="set-note">${t("ホームの棚・床・壁へドラッグして置きます。家具はいくつでも置けます。しまうときは、ホームで品の左上の箱を押すか、ここへ戻します。ダブルクリックで左右が反転します")}</p>
     <div class="set-puts-head">${t("棚に置く")}</div>
-    <div class="set-puts">${OBJECTS.filter(o => objectAvailable(o.key)).map(o => tile(`obj:${o.key}`, t(o.label.replace(/（.*）/, "")), h.goods.shelfOf(o.key), "")).join("")}</div>
+    <div class="set-puts">${OBJECTS.filter(o => objectAvailable(o.key)).map(o => tile(`obj:${o.key}`, t(o.label), h.goods.shelfOf(o.key), "")).join("")}</div>
     <div class="set-checks">${check("set-chime", chimeOn(), t("時計が正時に鐘を鳴らす"))}</div>
     <div class="set-puts-head">${t("床に置く")}</div>
     <div class="set-puts">${things("floor")}</div>
@@ -169,7 +169,7 @@ function putBlock(h: SettingsHooks) {
 function presentBlock() {
   const p = presentStats(), done = new Map(achieved().map(a => [a.id, a.d]));
   return `
-    <p class="set-note">${t("音楽を 30 分聴くごとに、その日はじめて聴いたときに、包みがひとつ届きます（1 日 5 つまで）。包みはホームの床に置かれ、押すと開きます")}</p>
+    <p class="set-note">${t("その日はじめて聴いたときと、30 分聴くごとに、包みがひとつ届きます。届くのは 1 日 5 つまでです。包みはホームの床に置かれ、押すと開きます")}</p>
     <div class="set-row"><span>${t("今日届いた包み")} ${p.today} / ${p.cap}${p.today < p.cap ? ` · ${t("次まで")} ${t("あと")} ${p.left} ${t("分")}` : ""}</span></div>
     <span class="set-sub">${t("届いた品")} ${p.owned} / ${p.all} · ${t("アクセサリー")} ${p.accs} / ${p.accAll} · ${t("飼える猫")} ${p.cats} / ${p.catMax} ${t("匹")}</span>
     ${fold("ach-list", `${t("実績の一覧")} ${done.size} / ${Object.keys(ACHIEVEMENTS).length}`, `<ul class="set-ach">${Object.entries(ACHIEVEMENTS).map(([id, a]) => {
@@ -186,12 +186,12 @@ function regionalBlock() {
     : s === "denied" ? t("位置情報が許可されていません。ブラウザのサイトの設定で許可できます")
     : s === "unsupported" ? t("このブラウザは位置情報を使えません")
     : s === "unknown" ? t("土地が分かりませんでした")
-    : here ? `${t("いま")}: ${esc(landName(here))} · ${next ? `${t("あと")} ${left} ${t("分聴くと")}「${esc(t(next.label))}」${t("が届きます")}` : t("この土地の品はみんな届きました")}` : "";
+    : here ? `${t("いま")}: ${esc(landName(here))} · ${next ? esc(tp("あと {0} 分聴くと「{1}」が届きます", left, t(next.label))) : t("この土地の品はみんな届きました")}` : "";
   const tag = (g: { from?: string; at: string; d: string }) =>
-    `${g.from ? `${esc(g.from)}${t("さんの部屋で")}（${esc(landName(g.at))}）` : `${esc(landName(g.at))}${t("で")}`} · ${esc(g.d.slice(5).replace("-", "/"))}`;
+    `${g.from ? `${esc(g.from)}${t("さんの部屋で")} · ${esc(landName(g.at))}` : `${esc(landName(g.at))}${t("で")}`} · ${esc(g.d.slice(5).replace("-", "/"))}`;
   return `
-    <p class="set-note">${t("いる土地（都道府県・国）で合わせて 30 分聴くと、その土地らしい品がひとつ届きます。パーティーでは、ホストの土地の品が届きます")}</p>
-    <div class="set-checks">${check("set-regional", on, t("いる土地の品を受け取る（位置情報を使う）"))}</div>
+    <p class="set-note">${t("いる都道府県や国で合わせて 30 分聴くと、その土地らしい品がひとつ届きます。パーティーでは、ホストの土地の品が届きます")}</p>
+    <div class="set-checks">${check("set-regional", on, t("位置情報を使って、いる土地の品を受け取る"))}</div>
     <p class="set-note">${t("位置情報は 1 日 1 回だけ使い、端末の中で都道府県・国に置き換えます。座標は保存も送信もしません")}</p>
     ${on ? `<div class="set-row"><span>${where}</span>${s === "asking" ? "" : `<button type="button" class="set-btn" id="set-regional-again">${t("調べ直す")}</button>`}</div>` : ""}
     <span class="set-sub">${t("届いた品")} ${got.length} / ${all}</span>
@@ -257,21 +257,21 @@ function catsTab(h: SettingsHooks) {
           <button type="button" class="set-x set-cat-bye" aria-label="${esc(t("手放す"))}" title="${esc(t("手放す"))}">×</button>
         </li>`).join("")}
       </ul>
-      <p class="set-note">${t("通りすがりの猫が気まぐれに遊びに来ます。気に入ったら飼い猫にできます（猫の名札を押しても）。品種は変えられません。飼える数はプレゼントで増えます（10 匹まで）")}</p>
-      ${stray ? `<div class="set-row"><span>${t("遊びに来ている猫")}: <b>${esc(nameOf(stray))}</b>（${esc(breed(stray))}）</span><button type="button" class="set-btn" id="set-cat-adopt"${cats.length >= cap ? " disabled" : ""}>${t("飼い猫にする")}</button></div>` : ""}
+      <p class="set-note">${t("通りすがりの猫が気まぐれに遊びに来ます。気に入ったら、ここか猫の名札から飼い猫にできます。品種は変えられません。飼える数はプレゼントで増え、10 匹まで飼えます")}</p>
+      ${stray ? `<div class="set-row"><span>${t("遊びに来ている猫")}: <b>${esc(nameOf(stray))}</b> · ${esc(breed(stray))}</span><button type="button" class="set-btn" id="set-cat-adopt"${cats.length >= cap ? " disabled" : ""}>${t("飼い猫にする")}</button></div>` : ""}
       ${check("set-cats-hidden", q.catsHidden, t("猫を出さない"))}`)}
     ${sec(t("遊ぶ"), `
       <div class="set-row set-btns">
         <button type="button" class="set-btn" id="set-wand"${cats.length ? "" : " disabled"} aria-pressed="${h.play.wandOn()}">${h.play.wandOn() ? t("猫じゃらしをしまう") : t("猫じゃらしで遊ぶ")}</button>
       </div>`)}
     ${fold("cats-more", t("もっと見る"), `
-      ${check("set-zoomies", q.catZoomies, t("夜中にときどき駆け回る（夜の運動会）"))}
+      ${check("set-zoomies", q.catZoomies, t("夜中にときどき駆け回る"))}
       ${row(t("よく聴くアルバムをくわえてきたら"), seg("mischief", [{ v: "off", label: t("させない") }, { v: "queue", label: t("次に再生に入れる") }], q.catMischief))}`)}`;
 }
 
 function otherTab(h: SettingsHooks) {
   const s = h.source(), q = prefs(), d = h.drive(), kept = h.keptAlbums();
-  const kind = { local: t("この端末のフォルダ"), drive: "Google Drive", spotify: "Spotify", files: t("この端末のフォルダ（選んだファイル）"), none: t("開いていません") }[s.kind];
+  const kind = { local: t("この端末のフォルダ"), drive: "Google Drive", spotify: "Spotify", files: t("この端末で選んだファイル"), none: t("開いていません") }[s.kind];
   const total = kept.reduce((n, a) => n + a.bytes, 0);
   return `
     ${sec(t("ライブラリ"), `
@@ -286,7 +286,7 @@ function otherTab(h: SettingsHooks) {
       ${row(t("文字の大きさ"), seg("font-scale", [{ v: ".9", label: t("小") }, { v: "1", label: t("標準") }, { v: "1.15", label: t("大") }, { v: "1.3", label: t("特大") }], String(q.fontScale)))}
       ${row(t("書体"), seg("font", [{ v: "gothic", label: t("ゴシック") }, { v: "mincho", label: t("明朝") }], q.font))}
       ${row(t("動き"), seg("motion", [{ v: "system", label: t("端末の設定に従う") }, { v: "reduce", label: t("減らす") }], q.motion))}
-      ${row(t("言語"), seg("lang", [{ v: "ja", label: "日本語" }, { v: "en", label: "English" }], q.lang))}`)}
+      ${row(t("言語"), seg("lang", LANGS, q.lang))}`)}
     ${fold("lib-more", t("ライブラリの細かな設定"), `
       ${row(t("ジャケットがないとき"), seg("blank", [{ v: "title", label: t("色と題名") }, { v: "initial", label: t("頭文字") }, { v: "plain", label: t("色だけ") }], q.blankArt))}
       ${check("set-autoscan", q.autoRescan, t("ほかのアプリから戻ってきたら、フォルダの変化を反映する"))}
@@ -307,8 +307,8 @@ function otherTab(h: SettingsHooks) {
       </div>`)}
     ${fold("keys", t("キーボード"), `
       <ul class="set-keys">${ACTIONS.map(a => `<li><span>${esc(t(a.label))}</span><kbd class="set-key">${esc(keyLabel(keyFor(a.id)))}</kbd></li>`).join("")}</ul>`)}
-    ${fold("sources", t("読み込み元（Google Drive・Spotify）"), `
-      <p class="set-note">${t("この端末のフォルダのほかに、Google Drive と Spotify からも聴けます。どちらも、使う人が自分で作った ID を入れて使います（Kona にはサーバーも、誰かの ID もありません）。入れると、はじめの画面と「フォルダを開く」に出ます。")}</p>
+    ${fold("sources", t("Google Drive と Spotify"), `
+      <p class="set-note">${t("この端末のフォルダのほかに、Google Drive と Spotify からも聴けます。どちらも、使う人が自分で作った ID を入れて使います。Kona にはサーバーも、誰かの ID もありません。入れると、はじめの画面と「フォルダを開く」に出ます。")}</p>
       <span class="set-sub">Google Drive</span>
       <div class="set-source"><b>${d.configured ? esc(d.folder ?? t("フォルダ未選択")) : t("使っていません")}</b><span>${d.configured ? (d.signedIn ? t("サインイン中") : t("サインインが切れています")) : ""}</span></div>
       <div class="set-row set-btns">
@@ -325,14 +325,14 @@ function aboutSection() {
   return `
     <dl class="set-about">
       <dt>${t("版")}</dt><dd>${esc(pkg.version)}</dd>
-      <dt>${t("ライセンス")}</dt><dd>MIT（${t("無保証")}）</dd>
+      <dt>${t("ライセンス")}</dt><dd>MIT · ${t("無保証")}</dd>
       <dt>${t("ソース")}</dt><dd><a href="https://github.com/wentolia/kona-open" target="_blank" rel="noopener">github.com/wentolia/kona-open</a></dd>
       <dt>${t("決まりごと")}</dt><dd><a href="${docHref("privacy")}" target="_blank" rel="noopener">${t("プライバシーと利用条件")}</a> · <a href="./THIRD_PARTY_NOTICES.txt" target="_blank" rel="noopener">${t("使っているソフトウェアのライセンス")}</a></dd>
     </dl>
     <ul class="set-privacy">
       <li>${t("サーバーはなく、アクセス解析もしません。設定・記録・取り込んだ曲は、このブラウザの中にだけ置きます。")}</li>
-      <li>${t("通信するのは Google Drive を使うときの Google の API、Spotify を使うときの Spotify、リスニングパーティーを使うときの公開の Nostr リレー（暗号化した接続情報だけ）、STUN サーバーとホストが設定した中継サーバー（どちらも IP アドレスが届きます）だけです。このページを置いている GitHub Pages も、開いた人の IP アドレスを記録します。")}</li>
-      <li>${t("Google Drive は読み取りだけで、サインインはこのタブの中だけ（約 1 時間）有効です。")}</li>
+      <li>${t("通信するのは、Google Drive を使うときの Google の API、Spotify を使うときの Spotify、リスニングパーティーを使うときの公開の Nostr リレー、STUN サーバー、ホストが設定した中継サーバーだけです。Nostr リレーに送るのは暗号化した接続情報だけです。STUN サーバーと中継サーバーには IP アドレスが届きます。このページを置いている GitHub Pages も、開いた人の IP アドレスを記録します。")}</li>
+      <li>${t("Google Drive は読み取りだけで、サインインはこのタブの中でだけ約 1 時間有効です。")}</li>
       <li>${t("聴いた場所は記録しません。位置情報は「ご当地の品」をオンにしたときだけ 1 日 1 回使い、端末の中で都道府県・国に置き換えます。座標は保存も送信もしません。")}</li>
       <li>${t("リスニングパーティーでは、つながったホストと参加者の間でお互いの IP アドレスが見えます。通話のマイクは本人が入れたときだけ開き、Kona は録音しません。")}</li>
     </ul>`;
@@ -543,7 +543,7 @@ function wire(el: HTMLElement) {
   on("#set-rescan", "click", () => h.rescan());
   on("#set-open", "click", b => h.openSource(b));
   on("#set-forget", "click", async () => {
-    if (!await confirmDialog(t("フォルダを解除する"), t("覚えているフォルダ（と Google Drive のフォルダ）を忘れて、はじめの画面に戻ります。ファイルや聴いた記録は消えません。"), t("解除する"))) return;
+    if (!await confirmDialog(t("フォルダを解除する"), t("覚えているフォルダと Google Drive のフォルダを忘れて、はじめの画面に戻ります。ファイルや聴いた記録は消えません。"), t("解除する"))) return;
     await h.forgetSource();
   });
   on<HTMLInputElement>("#set-autoscan", "change", c => setPrefs({ autoRescan: c.checked }));

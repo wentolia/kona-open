@@ -1,11 +1,12 @@
 // 重ねる環境音: ホワイト・ピンク・ブラウンのノイズと、雨・焚き火・波・レコードのチリチリ。
 // それぞれ好きな音量で、音楽に重ねる（再生中だけ鳴る）。音はその場で作り、数秒〜十数秒をつなぎ目なく繰り返す
 
+import { t } from "./i18n";
 import type { Player } from "./player";
 
 export const NOISES = [
-  { key: "white", label: "ホワイト" }, { key: "pink", label: "ピンク" }, { key: "brown", label: "ブラウン" },
-  { key: "rain", label: "雨" }, { key: "fire", label: "焚き火" }, { key: "waves", label: "波" }, { key: "vinyl", label: "レコード" },
+  { key: "white", label: t("ホワイト") }, { key: "pink", label: t("ピンク") }, { key: "brown", label: t("ブラウン") },
+  { key: "rain", label: t("雨") }, { key: "fire", label: t("焚き火") }, { key: "waves", label: t("波") }, { key: "vinyl", label: t("レコード") },
 ] as const;
 export type NoiseKind = typeof NOISES[number]["key"];
 

@@ -1,16 +1,16 @@
 <h1>Spotify で聴く</h1>
 <p>Kona はサーバーを持ちません。Spotify の曲は、利用者のブラウザが Spotify と直接通信して再生します。そのために、利用者自身が Spotify for Developers でアプリを作成し、その Client ID を Kona に入力します。作成は一度だけで、料金はかかりません。</p>
-<p>必要なもの: Spotify Premium のアカウント（Web Playback SDK の規定と、2026 年 2 月以降の開発者向けアプリの規定による）。DRM（Widevine）に対応したパソコンのブラウザ（Chrome、Edge、Firefox など）。スマートフォンのブラウザでは再生できません。</p>
+<p>必要なもの: Spotify Premium のアカウント。Web Playback SDK の規定と、2026 年 2 月以降の開発者向けアプリの規定によります。Widevine の DRM に対応した、Chrome、Edge、Firefox などのパソコンのブラウザ。スマートフォンのブラウザでは再生できません。</p>
 
 <h2>仕組み</h2>
 <table>
   <tbody>
     <tr><th>Client ID</th><td>利用者の Spotify for Developers のもの。Kona には誰の ID も含まれていません。</td></tr>
-    <tr><th>サインイン</th><td>PKCE（クライアントシークレットを使わない方式）。シークレットはどこにも入力しません。</td></tr>
-    <tr><th>権限</th><td>再生（<code>streaming</code>）、プロフィール（<code>user-read-email</code> <code>user-read-private</code>。SDK が要求するもの）、保存したアルバムの読み取り（<code>user-library-read</code>）、再生先の確認と操作（<code>user-read-playback-state</code> <code>user-modify-playback-state</code>）。プレイリストやライブラリを変更する権限は求めません。</td></tr>
-    <tr><th>トークン</th><td>このブラウザの中（localStorage）にだけ保存します。サインアウトで削除されます。</td></tr>
-    <tr><th>送信先</th><td>Spotify（<code>accounts.spotify.com</code> <code>api.spotify.com</code>、再生部品の <code>sdk.scdn.co</code>、ジャケットの <code>i.scdn.co</code>）のみ。開発者を含め、ほかには何も送りません。</td></tr>
-    <tr><th>端末に残るもの</th><td>トークンと、再生回数・再生履歴（曲名など。ほかの曲と同じ）。曲目とジャケットは保存せず、開くたびに Spotify から読み込みます。</td></tr>
+    <tr><th>サインイン</th><td>クライアントシークレットを使わない PKCE 方式。シークレットはどこにも入力しません。</td></tr>
+    <tr><th>権限</th><td>再生の <code>streaming</code>、SDK が要求するプロフィールの <code>user-read-email</code> と <code>user-read-private</code>、保存したアルバムを読む <code>user-library-read</code>、再生先を確認・操作する <code>user-read-playback-state</code> と <code>user-modify-playback-state</code>。プレイリストやライブラリを変更する権限は求めません。</td></tr>
+    <tr><th>トークン</th><td>このブラウザの localStorage にだけ保存します。サインアウトで削除されます。</td></tr>
+    <tr><th>送信先</th><td>Spotify の <code>accounts.spotify.com</code>、<code>api.spotify.com</code>、再生部品の <code>sdk.scdn.co</code>、ジャケットの <code>i.scdn.co</code> のみ。開発者を含め、ほかには何も送りません。</td></tr>
+    <tr><th>端末に残るもの</th><td>トークンと、ほかの曲と同じく曲名などを含む再生回数・再生履歴。曲目とジャケットは保存せず、開くたびに Spotify から読み込みます。</td></tr>
     <tr><th>外部スクリプト</th><td>Spotify を使うと決めた場合に限り、Spotify の Web Playback SDK を読み込みます。</td></tr>
   </tbody>
 </table>
@@ -18,11 +18,11 @@
 <h2>できること・できないこと</h2>
 <ul>
   <li>棚には、Spotify で保存したアルバムが「Spotify」という名前で並びます。</li>
-  <li>棚、猫、再生履歴は、曲の情報（曲名・アーティスト・長さ）に基づいて通常どおり動きます。</li>
+  <li>棚、猫、再生履歴は、曲名・アーティスト・長さに基づいて通常どおり動きます。</li>
   <li>ジャケットは加工しません。背表紙の模様とレコードのレーベルには使わず、平均色だけを使います。</li>
   <li>曲目パネルに「Spotify で開く」を表示します。</li>
   <li>Spotify の音声は DRM で保護されており、Kona の音声処理を通せません。イコライザー、波形、スペクトラム、レベル、音量の正規化、クロスフェード、環境音、余韻は無効です。おやすみタイマーは音量を徐々に下げて止めます。</li>
-  <li>開発者向けアプリ（Development Mode）を使えるのは、Spotify の規定により 5 人までです。</li>
+  <li>Development Mode の開発者向けアプリを使えるのは、Spotify の規定により 5 人までです。</li>
 </ul>
 
 <h2>1. アプリを作成する</h2>
@@ -30,19 +30,19 @@
   <li><a href="https://developer.spotify.com/dashboard">Spotify for Developers のダッシュボード</a>を開き、Spotify のアカウントでログインします。</li>
   <li>「Create app」を押し、次のように入力します。
     <ul>
-      <li>App name、App description: 任意（例: <code>Kona</code>）。</li>
-      <li>Redirect URIs: Kona を開いている URL をそのまま入力します（例: <code>https://wentolia.github.io/kona-open/</code>）。末尾の <code>/</code> まで一致させてください。設定の「その他」→「読み込み元」に表示される文字列をコピーすると確実です。</li>
+      <li>App name、App description: 任意です。例えば <code>Kona</code> とします。</li>
+      <li>Redirect URIs: Kona を開いている URL をそのまま入力します。公開版なら <code>https://wentolia.github.io/kona-open/</code> です。末尾の <code>/</code> まで一致させてください。設定の「その他」→「Google Drive と Spotify」に表示される文字列をコピーすると確実です。</li>
       <li>Which API/SDKs are you planning to use?: Web API と Web Playback SDK を選びます。</li>
       <li>Developer Terms of Service と Design Guidelines を読み、同意して保存します。</li>
     </ul>
   </li>
-  <li>作成したアプリの Settings → Basic Information に Client ID（32 文字の英数字）が表示されます。Client secret は使いません。</li>
+  <li>作成したアプリの Settings → Basic Information に 32 文字の英数字の Client ID が表示されます。Client secret は使いません。</li>
   <li>ほかの人も使う場合は、User Management にその人の名前と Spotify のメールアドレスを追加します。</li>
 </ol>
 
 <h2>2. Kona に入力する</h2>
 <ol>
-  <li>設定の「その他」→「読み込み元」を開きます。</li>
+  <li>設定の「その他」→「Google Drive と Spotify」を開きます。</li>
   <li>Client ID を貼り付け、「保存してサインイン」を押します。</li>
   <li>Spotify の画面で許可します。</li>
   <li>保存したアルバムが棚に並びます。</li>
@@ -55,14 +55,14 @@
   <tbody>
     <tr><td>サインインできませんでした</td><td>Client ID が正しいか。Redirect URI が Kona の表示と完全に一致しているか。</td></tr>
     <tr><td>Premium のアカウントが要ります</td><td>アカウントが Premium か。</td></tr>
-    <tr><td>このブラウザでは鳴らせません</td><td>パソコンの Chrome、Edge、Firefox か。保護されたコンテンツの再生（DRM）が無効になっていないか。</td></tr>
+    <tr><td>このブラウザでは鳴らせません</td><td>パソコンの Chrome、Edge、Firefox か。DRM による保護されたコンテンツの再生が無効になっていないか。</td></tr>
     <tr><td>再生を始められませんでした</td><td>別の端末で Spotify を操作していないか。少し待ってから再度試してください。</td></tr>
   </tbody>
 </table>
 
 <h2>利用をやめる</h2>
 <ul>
-  <li>設定の「その他」→「読み込み元」の「サインアウト」で、このブラウザのトークンを削除できます。「Client ID を消す」で設定ごと削除できます。</li>
+  <li>設定の「その他」→「Google Drive と Spotify」の「サインアウト」で、このブラウザのトークンを削除できます。「Client ID を消す」で設定ごと削除できます。</li>
   <li>権限そのものは、<a href="https://www.spotify.com/account/apps/">Spotify アカウントの「アプリ」</a>から取り消せます。</li>
   <li>ダッシュボードでアプリを削除すると、Client ID も無効になります。</li>
 </ul>

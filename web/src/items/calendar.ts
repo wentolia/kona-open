@@ -29,4 +29,4 @@ const live: Live = svg => {
   };
 };
 
-export default { key: "calendar", label: "日めくり", at: "wall", w: 50, h: 72, cat: "小物", order: 112, note: "今日の日付を出す（日曜は赤、土曜は青）", art, live } satisfies ItemDef;
+export default { key: "calendar", label: "日めくり", at: "wall", w: 50, h: 72, cat: "小物", order: 112, note: "今日の日付を出す。日曜は赤、土曜は青", art, live } satisfies ItemDef;

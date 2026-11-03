@@ -3,7 +3,7 @@ import "./presents.css";
 import { pendingPresents, openPresent, ACHIEVEMENTS, type Present } from "./presents";
 import { itemOf, viewBoxOf } from "./items";
 import { accOf } from "./cat-acc";
-import { t } from "./i18n";
+import { t, tp } from "./i18n";
 import { esc } from "./dom";
 
 const PAPERS = [["#c8553f", "#e8c46a"], ["#3d6b8a", "#efe6d2"], ["#5f8a5a", "#d9584a"], ["#e0d7c2", "#b04a3b"], ["#8a5a9a", "#f0d27a"], ["#2c2a28", "#d8b46a"]];
@@ -81,7 +81,7 @@ function reveal(p: Present) {
   const title = p.c.t === "cat" ? t("飼える猫がもう 1 匹ふえました") : `「${esc(name)}」${t("が届きました")}`;
   const d = new Date(p.d), when = `${d.getMonth() + 1}/${d.getDate()}`;
   const why = p.from ? `${esc(p.from)}${t("さんから")} · ${when}` : p.k === "ach" ? `${t("実績")}「${esc(t(ACHIEVEMENTS[p.ach ?? ""]?.label ?? ""))}」`
-    : p.al ? `${when} · 「${esc(p.al)}」${t("を聴いていたとき")}` : when;
+    : p.al ? `${when} · ${esc(tp("「{0}」を聴いていたとき", p.al))}` : when;
   const where = p.c.t === "item" ? t("設定の「部屋」→「置くもの」から置けます") : p.c.t === "acc" ? t("飼い猫の名札か、設定の「猫」からつけられます") : t("通りすがりの猫を飼い猫にできます");
   const el = document.createElement("div");
   el.className = "present-reveal"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", t("プレゼント"));

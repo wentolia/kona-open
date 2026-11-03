@@ -15,7 +15,7 @@ npm run build:mock    # dist-mock/ — the phone layout with sample albums and s
 ## Conventions
 
 - Text from tags, file names and peers is inserted with `esc()` (`src/dom.ts`) or `textContent`. Never as raw HTML.
-- UI strings are written in Japanese and looked up in the English table in `src/i18n.ts` with `t()`. A string missing from the table falls back to Japanese.
+- UI strings are written in Japanese and passed through `t()` (`src/i18n.ts`). The Japanese text is the key into `src/i18n/en.ts`, `ko.ts` and `zh.ts`, which must hold the same keys. A key missing from Korean or Chinese falls back to English, then to Japanese. Text with values uses `tp("…{0}…", value)`; a translation of the form `one|many` picks the left side when the first value is 1.
 - In-app documents live in `src/docs/<lang>/<name>.html` and are rendered by `docs.html`. All four languages (`ja`, `en`, `ko`, `zh`) must be updated together.
 - UI CSS uses the spacing, radius and control-size tokens in `docs/design-tokens.md`. Illustration CSS (room, cats, shelves, objects) is exempt.
 - Persistent state uses `localStorage` keys prefixed `kona.` and the `kona` IndexedDB database. A loader that meets an older format migrates it in place.
@@ -43,11 +43,11 @@ npm run build:mock    # dist-mock/ — the phone layout with sample albums and s
 | `library.ts` | Folder scan, tag and cover reading (average colour, aspect ratio), album assembly from cached tags (`cachedAlbums`) |
 | `tagcache.ts` | IndexedDB cache of tags, cover thumbnails and waveform shapes. Unchanged files are not read again |
 | `store.ts` | Play counts, last-played time, listening log (album and time only) |
-| `prefs.ts` | Fine-grained preferences (`kona.prefs`): text size, typeface, motion, crossfade, cats, language |
+| `prefs.ts` | Fine-grained preferences (`kona.prefs`): text size, typeface, motion, crossfade, cats, language (`ja`, `en`, `ko`, `zh`) |
 | `settings.ts`, `settings.css` | Settings page (`#settings`): Room, Modules, Cats, Sound, Other |
 | `settings-io.ts` | Export and import of `kona.*` settings as a JSON file |
 | `shortcuts.ts` | Fixed keyboard bindings |
-| `i18n.ts` | Japanese → English string table |
+| `i18n.ts`, `i18n/` | `t()` and `tp()`, language list, per-language tables (`en`, `ko`, `zh`) |
 | `doc-link.ts` | Links to the in-app documents, with the document language |
 | `dom.ts` | Shared helpers: `$`, `esc`, `fmt`, `collator` |
 | `album-sort.ts` | Album ordering (including by cover colour) and search syntax (`artist:` `tag:` `mood:` …, quoted phrases, `-` to exclude) |

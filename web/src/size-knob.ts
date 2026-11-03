@@ -52,7 +52,7 @@ export function initSizeKnob() {
   if (knob) return;
   knob = document.createElement("button");
   knob.type = "button"; knob.className = "size-knob"; knob.hidden = true;
-  knob.setAttribute("aria-label", "大きさを変える"); knob.title = "引いて大きさを変える（ダブルクリックで元の大きさ）";
+  knob.setAttribute("aria-label", tr("大きさを変える")); knob.title = tr("引いて大きさを変える。ダブルクリックで元の大きさ");
   document.body.append(knob);
   // しまうボタン: 押すとその 1 つだけをしまう（元に戻せる）
   stow = document.createElement("button");

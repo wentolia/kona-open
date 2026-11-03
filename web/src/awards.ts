@@ -1,4 +1,5 @@
 // 到達の記録: 聴いた距離が目じるし（東京タワー・富士山・フルマラソンなど）に届いた日を覚えておく。
+import { t, tp } from "./i18n";
 // 棚の上の小物の「賞状」が、届いた数を見せる。記録は端末の中（kona.awards）だけ
 
 import { MARKS, metersOf } from "./mod-distance";
@@ -34,5 +35,5 @@ export function checkAwards(now?: { title: string; artist?: string }) {
   for (const [v, label] of fresh) got.push({ m: v, label, t: Date.now(), ...(now ? { album: now.title, ...(now.artist ? { artist: now.artist } : {}) } : {}) });
   save();
   const last = fresh[fresh.length - 1];
-  document.dispatchEvent(new CustomEvent("kona:award", { detail: `聴いた距離が「${last[1]}」に届きました` }));
+  document.dispatchEvent(new CustomEvent("kona:award", { detail: tp("聴いた距離が「{0}」に届きました", t(last[1])) }));
 }

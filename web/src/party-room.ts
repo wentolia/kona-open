@@ -3,6 +3,7 @@
 // つなぐ・送るのは party.ts。ここは部屋の画面と、猫を選ぶ画面と、届いたものの確かめ
 // 猫は音を出さない。画面の文字はすべて textContent か esc() で入れる
 
+import { t, t as tr, t as tx, tp } from "./i18n";
 import "./party-room.css";
 import { randomPersona } from "./cat-coat";
 import { BREEDS, breedCoat, isCoat, puppetCat, randomCoat, EMOTES, type Coat, type Emote, type Puppet } from "./cat";
@@ -16,7 +17,7 @@ export interface Req { id: string; i?: number; t: string; a: string; tr?: string
 export interface Line { from: string; text: string; to: string[]; at: number; req?: Req }
 /** 参加者ができること。ホストが部屋の既定を決め、人ごとに上書きできる */
 export interface Perms { chat: boolean; request: boolean; voice: boolean }
-export const PERMS: [keyof Perms, string][] = [["chat", "チャット"], ["request", "リクエスト"], ["voice", "通話（話す）"]];
+export const PERMS: [keyof Perms, string][] = [["chat", t("チャット")], ["request", t("リクエスト")], ["voice", t("通話")]];
 export const isPerms = (x: unknown): x is Perms => !!x && typeof x === "object" && PERMS.every(([k]) => typeof (x as Record<string, unknown>)[k] === "boolean");
 
 // ---------- 届いた猫を確かめる ----------
@@ -52,22 +53,22 @@ export function myCat(): Coat {
 function saveCat(c: Coat) { try { localStorage.setItem(CAT_KEY, JSON.stringify(c)); } catch { /* ignore */ } }
 
 const TRAITS: [keyof NonNullable<Coat["p"]>, string, number, number][] = [
-  ["energy", "元気さ", 0, 1], ["sleepy", "眠たがり", 0, 1], ["social", "人なつこさ", 0, 1], ["playful", "遊び好き", 0, 1],
-  ["curious", "好奇心", 0, 1], ["speed", "足の速さ", .85, 1.25], ["size", "体の大きさ", .86, 1.26],
+  ["energy", t("元気さ"), 0, 1], ["sleepy", t("眠たがり"), 0, 1], ["social", t("人なつこさ"), 0, 1], ["playful", t("遊び好き"), 0, 1],
+  ["curious", t("好奇心"), 0, 1], ["speed", t("足の速さ"), .85, 1.25], ["size", t("体の大きさ"), .86, 1.26],
 ];
 /** 猫を選ぶ欄（ランダムに作る・品種・毛色・性格をランダムに変える）。性格は細かく決められない。name は名札に出す名前を返す */
 export function editorHtml(): string {
   const c = myCat();
   return `<div class="pe">
-    <span class="dlg-note">あなたの猫（パーティーではこの猫になります）</span>
+    <span class="dlg-note">${t("パーティーでのあなたの猫")}</span>
     <div class="pe-stage" id="pe-stage"></div>
     <div class="party-row">
-      <button class="btn" id="pe-random">ランダムに作る</button>
-      <select id="pe-breed" aria-label="品種">${Object.entries(BREEDS).map(([k, b]) => `<option value="${esc(k)}"${k === (c.breed ?? "mix") ? " selected" : ""}>${esc(b.name)}</option>`).join("")}</select>
-      <button class="btn" id="pe-coat">毛色を変える</button>
+      <button class="btn" id="pe-random">${t("ランダムに作る")}</button>
+      <select id="pe-breed" aria-label="${t("品種")}">${Object.entries(BREEDS).map(([k, b]) => `<option value="${esc(k)}"${k === (c.breed ?? "mix") ? " selected" : ""}>${esc(t(b.name))}</option>`).join("")}</select>
+      <button class="btn" id="pe-coat">${t("毛色を変える")}</button>
     </div>
-    <details class="pe-traits"><summary>性格（動き方のくせになります）</summary>
-      <div class="party-row"><button class="btn" id="pe-persona">性格を変える</button><span class="dlg-note">性格は選べません。押すたびにランダムに決まります</span></div>
+    <details class="pe-traits"><summary>${t("性格は動き方のくせになります")}</summary>
+      <div class="party-row"><button class="btn" id="pe-persona">${t("性格を変える")}</button><span class="dlg-note">${t("性格は選べません。押すたびにランダムに決まります")}</span></div>
       ${TRAITS.map(([k, label, a, b]) => `<label><span>${label}</span><meter data-trait="${k}" min="${a}" max="${b}" value="${c.p?.[k] ?? (a + b) / 2}"></meter></label>`).join("")}
     </details>
   </div>`;
@@ -78,7 +79,7 @@ export function wireEditor(root: HTMLElement, name: () => string) {
   let pup: Puppet | undefined;
   const show = (c: Coat) => {
     pup?.remove();
-    pup = puppetCat(stage, { ...c, name: name() || "あなた" }, { plat: 0, fx: .5, emote: "sit" }, .9);
+    pup = puppetCat(stage, { ...c, name: name() || t("あなた") }, { plat: 0, fx: .5, emote: "sit" }, .9);
   };
   const set = (c: Coat) => { const ok = cleanCoat(c)!; saveCat(ok); show(ok); sync(ok); };
   const sync = (c: Coat) => {
@@ -129,7 +130,7 @@ export function startSpot(): { plat: number; fx: number } {
 }
 
 // ---------- 部屋の画面 ----------
-const EMOTE_LABEL: Record<Emote, string> = { stand: "立つ", sit: "座る", lie: "伏せる", sleep: "寝る", wag: "しっぽを振る", groove: "リズムをとる", groom: "毛づくろい", stretch: "伸び", yawn: "あくび" };
+const EMOTE_LABEL: Record<Emote, string> = { stand: t("立つ"), sit: t("座る"), lie: t("伏せる"), sleep: t("寝る"), wag: t("しっぽを振る"), groove: t("リズムをとる"), groom: t("毛づくろい"), stretch: t("伸び"), yawn: t("あくび") };
 export interface RoomOpts {
   me: string;
   host: boolean;
@@ -214,7 +215,7 @@ export class Room {
     try { mode.value = localStorage.getItem(MIC_KEY) === "hold" ? "hold" : "toggle"; } catch { /* ignore */ }
     const paint = () => {
       const hold = mode.value === "hold";
-      btn.textContent = hold ? (this.micOn ? "話しています…" : "押している間だけ話す") : (this.micOn ? "マイク オン" : "マイク オフ");
+      btn.textContent = hold ? (this.micOn ? t("話しています…") : t("押している間だけ話す")) : (this.micOn ? t("マイク オン") : t("マイク オフ"));
       btn.setAttribute("aria-pressed", String(this.micOn));
       btn.classList.toggle("primary", this.micOn);
     };
@@ -232,7 +233,7 @@ export class Room {
     if (on && !this.perms.voice) on = false;
     this.micOn = on; this.paintMic();
     const ok = await this.o.mic(on);
-    if (!ok && on) { this.micOn = false; this.paintMic(); this.o.toast?.("マイクを使えませんでした（ブラウザの設定でマイクを許可してください）"); }
+    if (!ok && on) { this.micOn = false; this.paintMic(); this.o.toast?.(t("マイクを使えませんでした。ブラウザの設定でマイクを許可してください")); }
   }
   /** 話している人の名札に印を出す */
   setTalking(ids: string[]) {
@@ -251,23 +252,23 @@ export class Room {
     const inline = this.o.host;
     el.className = "party-room" + (inline ? " pr-inline" : "");
     if (!inline) { el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); }
-    el.setAttribute("aria-label", "リスニングパーティーの部屋");
+    el.setAttribute("aria-label", t("リスニングパーティーの部屋"));
     el.innerHTML = `
       ${inline ? "" : `<div class="pr-stage" id="pr-stage"></div>`}
       <aside class="pr-side" id="pr-side" hidden>
-        <div class="pr-chat-head"><b id="pr-side-title"></b><button class="dlg-x" id="pr-side-x" aria-label="閉じる">×</button></div>
+        <div class="pr-chat-head"><b id="pr-side-title"></b><button class="dlg-x" id="pr-side-x" aria-label="${t("閉じる")}">×</button></div>
         <div class="pr-side-body" id="pr-chat-body">
           <ol class="pr-log" id="pr-log" aria-live="polite"></ol>
           <form class="pr-say" id="pr-say">
-            <select id="pr-to" aria-label="宛先"></select>
-            <input id="pr-text" type="text" maxlength="${MAX_SAY}" autocomplete="off" placeholder="話しかける…">
-            <button class="btn primary">送る</button>
+            <select id="pr-to" aria-label="${t("宛先")}"></select>
+            <input id="pr-text" type="text" maxlength="${MAX_SAY}" autocomplete="off" placeholder="${t("話しかける…")}">
+            <button class="btn primary">${t("送る")}</button>
           </form>
           <form class="pr-find" id="pr-find">
-            <input id="pr-q" type="search" maxlength="60" autocomplete="off" placeholder="リクエストする曲を探す（題名・アーティスト）">
+            <input id="pr-q" type="search" maxlength="60" autocomplete="off" placeholder="${t("リクエストする曲を題名やアーティストで探す")}">
             <ul class="pr-found" id="pr-found"></ul>
           </form>
-          <p class="dlg-note">個別に送ったものも、ホストを通って届きます。</p>
+          <p class="dlg-note">${t("個別に送ったものも、ホストを通って届きます。")}</p>
         </div>
         <div class="pr-side-body" id="pr-perm-body"></div>
         <div class="pr-side-body" id="pr-gift-body"></div>
@@ -277,16 +278,16 @@ export class Room {
         <div class="pr-now" id="pr-now"></div>
         <div class="pr-emotes">${EMOTES.map(e => `<button class="btn" data-emote="${e}">${EMOTE_LABEL[e]}</button>`).join("")}</div>
         <div class="pr-tools">
-          ${this.o.volume ? `<label class="pr-vol"><span>音量</span><input id="pr-vol" type="range" min="0" max="1" step="0.01" value="${this.o.volume.get()}"></label>` : ""}
+          ${this.o.volume ? `<label class="pr-vol"><span>${t("音量")}</span><input id="pr-vol" type="range" min="0" max="1" step="0.01" value="${this.o.volume.get()}"></label>` : ""}
           <span class="pr-mic" id="pr-mic-box" hidden>
-            <button class="btn" id="pr-mic" aria-pressed="false">マイク オフ</button>
-            <select id="pr-mic-mode" aria-label="マイクの使い方"><option value="toggle">押して切り替え</option><option value="hold">押している間だけ</option></select>
+            <button class="btn" id="pr-mic" aria-pressed="false">${t("マイク オフ")}</button>
+            <select id="pr-mic-mode" aria-label="${t("マイクの使い方")}"><option value="toggle">${t("押して切り替え")}</option><option value="hold">${t("押している間だけ")}</option></select>
           </span>
           <span class="pr-people" id="pr-people"></span>
-          ${this.o.host ? `<button class="btn" id="pr-perm-btn">権限</button>` : ""}
-          <button class="btn" id="pr-chat-btn" hidden>チャット</button>
-          ${this.o.gift ? `<button class="btn" id="pr-gift-btn">贈る</button>` : ""}
-          ${inline ? "" : `<button class="btn" id="pr-exit">抜ける</button>`}
+          ${this.o.host ? `<button class="btn" id="pr-perm-btn">${t("権限")}</button>` : ""}
+          <button class="btn" id="pr-chat-btn" hidden>${t("チャット")}</button>
+          ${this.o.gift ? `<button class="btn" id="pr-gift-btn">${t("贈る")}</button>` : ""}
+          ${inline ? "" : `<button class="btn" id="pr-exit">${t("抜ける")}</button>`}
         </div>
       </div>`;
     document.body.append(el);
@@ -386,7 +387,7 @@ export class Room {
       for (const [id, url] of this.covers) this.homeView.setCover(id, url);
       this.homeView.setNow(this.nowId);
     } else {
-      this.stage.innerHTML = `<p class="pr-wait">ホームを受け取っています…</p>`;
+      this.stage.innerHTML = `<p class="pr-wait">${t("ホームを受け取っています…")}</p>`;
       this.space = undefined;
     }
     requestAnimationFrame(() => { for (const c of this.cats.values()) this.place(c); });
@@ -468,15 +469,15 @@ export class Room {
     meta.append(t, ar);
     const can = this.o.host || this.perms.request;
     if (can) {
-      const rq = document.createElement("button"); rq.className = "btn primary"; rq.textContent = this.o.host ? "かける" : "このアルバムをリクエスト";
+      const rq = document.createElement("button"); rq.className = "btn primary"; rq.textContent = this.o.host ? tx("かける") : tx("このアルバムをリクエスト");
       rq.onclick = () => { this.o.host ? this.o.play?.(id) : this.o.request(id); if (!this.o.host) rq.disabled = true; };
       meta.append(rq);
     }
-    const x = document.createElement("button"); x.className = "dlg-x"; x.textContent = "×"; x.setAttribute("aria-label", "閉じる"); x.onclick = () => this.closeCard();
+    const x = document.createElement("button"); x.className = "dlg-x"; x.textContent = "×"; x.setAttribute("aria-label", tx("閉じる")); x.onclick = () => this.closeCard();
     head.append(art, meta, x);
     const ol = document.createElement("ol"); ol.className = "pr-tracks";
     const tr = this.tracks.get(id);
-    if (!tr) { const li = document.createElement("li"); li.textContent = "曲目を受け取っています…"; ol.append(li); }
+    if (!tr) { const li = document.createElement("li"); li.textContent = tx("曲目を受け取っています…"); ol.append(li); }
     else tr.forEach((s, i) => {
       const li = document.createElement("li");
       const n = document.createElement("span"); n.textContent = String(s.no).padStart(2, "0");
@@ -484,7 +485,7 @@ export class Room {
       const d = document.createElement("span"); d.textContent = s.d ? fmt(s.d) : "";
       li.append(n, nm, d);
       if (can) {
-        const b = document.createElement("button"); b.className = "btn"; b.textContent = this.o.host ? "かける" : "リクエスト";
+        const b = document.createElement("button"); b.className = "btn"; b.textContent = this.o.host ? tx("かける") : tx("リクエスト");
         b.onclick = () => { this.o.host ? this.o.play?.(id, i) : this.o.request(id, i); if (!this.o.host) b.disabled = true; };
         li.append(b);
       }
@@ -517,7 +518,7 @@ export class Room {
     const t = performance.now(), first = this.entered.get(c.id) ?? t;
     this.entered.set(c.id, first);
     const enter = t - first < 2000;
-    this.pups.set(c.id, puppetCat(this.space, { ...c.coat, name: c.name || "名無し" }, { plat: Math.min(c.plat, floor), fx: c.fx, emote: c.emote }, 1, enter));
+    this.pups.set(c.id, puppetCat(this.space, { ...c.coat, name: c.name || tr("名無し") }, { plat: Math.min(c.plat, floor), fx: c.fx, emote: c.emote }, 1, enter));
   }
 
   // ---------- 届いたことを部屋に映す ----------
@@ -555,7 +556,7 @@ export class Room {
     const side = this.el?.querySelector<HTMLElement>("#pr-side");
     if (!side) return;
     side.hidden = !this.panel;
-    side.querySelector<HTMLElement>("#pr-side-title")!.textContent = this.panel === "perm" ? "権限" : this.panel === "gift" ? "贈りもの" : "チャット";
+    side.querySelector<HTMLElement>("#pr-side-title")!.textContent = this.panel === "perm" ? t("権限") : this.panel === "gift" ? t("贈りもの") : t("チャット");
     side.querySelector<HTMLElement>("#pr-gift-body")!.hidden = this.panel !== "gift";
     if (this.panel === "gift") this.drawGifts();
     side.querySelector<HTMLElement>("#pr-chat-body")!.hidden = this.panel !== "chat";
@@ -571,18 +572,18 @@ export class Room {
     const { defaults, guests } = this.o.permsOf();
     const others = [...this.cats.values()].filter(c => c.id !== this.o.me);
     body.innerHTML = `
-      <p class="dlg-note">全員の既定（あとから入る人にも効きます）</p>
+      <p class="dlg-note">${t("全員の既定。あとから入る人にも効きます")}</p>
       ${PERMS.map(([k, label]) => `<label class="pr-perm"><input type="checkbox" data-def="${k}"${defaults[k] ? " checked" : ""}> ${esc(label)}</label>`).join("")}
-      <p class="dlg-note">人ごと（「既定」は上の設定に従います）</p>
-      ${others.length ? others.map(c => `<fieldset class="pr-perm-who"><legend>${esc(c.name || "名無し")}</legend>${PERMS.map(([k, label]) => {
+      <p class="dlg-note">${t("人ごとの設定。「既定」は上の設定に従います")}</p>
+      ${others.length ? others.map(c => `<fieldset class="pr-perm-who"><legend>${esc(c.name || t("名無し"))}</legend>${PERMS.map(([k, label]) => {
         const v = guests.get(c.id)?.[k];
-        return `<label><span>${esc(label.replace(/（.*）/, ""))}</span><select data-who="${esc(c.id)}" data-perm="${k}"><option value=""${v === undefined ? " selected" : ""}>既定（${defaults[k] ? "可" : "不可"}）</option><option value="1"${v === true ? " selected" : ""}>可</option><option value="0"${v === false ? " selected" : ""}>不可</option></select></label>`;
-      }).join("")}<button type="button" class="btn pr-kick" data-kick="${esc(c.id)}">退出させる</button></fieldset>`).join("") : `<p class="dlg-note">まだだれも入っていません。</p>`}
-      <p class="dlg-note">入った人には、棚の並び・アルバムの題名とジャケット・曲目が見えます（フォルダの場所は送りません）。</p>`;
+        return `<label><span>${esc(label)}</span><select data-who="${esc(c.id)}" data-perm="${k}"><option value=""${v === undefined ? " selected" : ""}>${tp("既定: {0}", defaults[k] ? t("可") : t("不可"))}</option><option value="1"${v === true ? " selected" : ""}>${t("可")}</option><option value="0"${v === false ? " selected" : ""}>${t("不可")}</option></select></label>`;
+      }).join("")}<button type="button" class="btn pr-kick" data-kick="${esc(c.id)}">${t("退出させる")}</button></fieldset>`).join("") : `<p class="dlg-note">${t("まだだれも入っていません。")}</p>`}
+      <p class="dlg-note">${t("入った人には、棚の並び・アルバムの題名とジャケット・曲目が見えます。フォルダの場所は送りません。")}</p>`;
     body.querySelectorAll<HTMLInputElement>("[data-def]").forEach(i => i.onchange = () => { this.o.perm?.(i.dataset.def as keyof Perms, i.checked); this.drawPerms(); });
     body.querySelectorAll<HTMLButtonElement>("[data-kick]").forEach(b => b.onclick = () => {
       if (b.dataset.armed) { this.o.kick?.(b.dataset.kick!); return; }
-      b.dataset.armed = "1"; b.textContent = "もう一度押すと退出";   // 押しまちがえ防止（確認のダイアログは出さない）
+      b.dataset.armed = "1"; b.textContent = t("もう一度押すと退出");   // 押しまちがえ防止（確認のダイアログは出さない）
     });
     body.querySelectorAll<HTMLSelectElement>("[data-who]").forEach(s => s.onchange = () => this.o.perm?.(s.dataset.perm as keyof Perms, s.value === "" ? undefined : s.value === "1", s.dataset.who));
   }
@@ -595,33 +596,33 @@ export class Room {
     const others = [...this.cats.values()].filter(c => c.id !== this.o.me);
     if (!others.some(c => c.id === this.giftTo)) this.giftTo = others[0]?.id ?? "";
     body.innerHTML = `
-      <p class="dlg-note">持っている品を贈れます。贈っても手元からは無くなりません。贈れるのは 1 日 1 種類まで（同じ品なら何人にでも）。</p>
-      ${others.length ? `<label class="pr-gift-to"><span>相手</span><select id="pr-gift-to">${others.map(c => `<option value="${esc(c.id)}"${c.id === this.giftTo ? " selected" : ""}>${esc(c.name || "名無し")}さん</option>`).join("")}</select></label>` : `<p class="dlg-note">まだだれも入っていません。</p>`}
-      ${today ? `<p class="dlg-note">今日の品: 「${esc(items.find(i => i.key === today)?.label ?? today)}」</p>` : ""}
-      ${items.length ? `<div class="pr-gifts">${items.map(i => `<button type="button" class="pr-gift" data-gift="${esc(i.key)}" title="${esc(i.label)}"${(today && today !== i.key) || !others.length ? " disabled" : ""}><span>${i.svg}</span><small>${esc(i.label)}</small></button>`).join("")}</div>`
-        : `<p class="dlg-note">贈れる品がまだありません（包みで届いた品を贈れます）。</p>`}`;
+      <p class="dlg-note">${t("持っている品を贈れます。贈っても手元からは無くなりません。贈れるのは 1 日 1 種類までで、同じ品なら何人にでも贈れます。")}</p>
+      ${others.length ? `<label class="pr-gift-to"><span>${t("相手")}</span><select id="pr-gift-to">${others.map(c => `<option value="${esc(c.id)}"${c.id === this.giftTo ? " selected" : ""}>${esc(tp("{0}さん", c.name || t("名無し")))}</option>`).join("")}</select></label>` : `<p class="dlg-note">${t("まだだれも入っていません。")}</p>`}
+      ${today ? `<p class="dlg-note">${esc(tp("今日の品: 「{0}」", t(items.find(i => i.key === today)?.label ?? today)))}</p>` : ""}
+      ${items.length ? `<div class="pr-gifts">${items.map(i => `<button type="button" class="pr-gift" data-gift="${esc(i.key)}" title="${esc(t(i.label))}"${(today && today !== i.key) || !others.length ? " disabled" : ""}><span>${i.svg}</span><small>${esc(t(i.label))}</small></button>`).join("")}</div>`
+        : `<p class="dlg-note">${t("贈れる品がまだありません。包みで届いた品を贈れます。")}</p>`}`;
     const sel = body.querySelector<HTMLSelectElement>("#pr-gift-to");
     if (sel) sel.onchange = () => { this.giftTo = sel.value; };
     body.querySelectorAll<HTMLButtonElement>("[data-gift]").forEach(b => b.onclick = () => {
       const to = this.giftTo, key = b.dataset.gift!;
       if (!to) return;
-      if (this.o.gift?.(to, key)) this.o.toast?.(`${this.nameOf(to)}さんに「${b.title}」を贈りました`);
-      else this.o.toast?.("今日はもう別の品を贈りました");
+      if (this.o.gift?.(to, key)) this.o.toast?.(tp("{0}さんに「{1}」を贈りました", this.nameOf(to), b.title));
+      else this.o.toast?.(t("今日はもう別の品を贈りました"));
       this.drawGifts();
     });
   }
-  private nameOf(id: string) { return this.cats.get(id)?.name || "名無し"; }
+  private nameOf(id: string) { return this.cats.get(id)?.name || t("名無し"); }
   refresh() {
     if (!this.el) return;
     const people = this.el.querySelector<HTMLElement>("#pr-people")!;
-    people.textContent = `${this.cats.size}匹`;
-    people.title = [...this.cats.values()].map(c => c.name || "名無し").join("・");
+    people.textContent = tp("{0}匹", this.cats.size);
+    people.title = [...this.cats.values()].map(c => c.name || t("名無し")).join("・");
     this.el.querySelector<HTMLButtonElement>("#pr-chat-btn")!.hidden = !(this.perms.chat || this.perms.request || this.o.host);
     this.el.querySelector<HTMLFormElement>("#pr-say")!.hidden = !this.perms.chat;
     this.el.querySelector<HTMLFormElement>("#pr-find")!.hidden = !(this.perms.request || this.o.host);
     const to = this.el.querySelector<HTMLSelectElement>("#pr-to")!, was = to.value;
-    to.innerHTML = `<option value="">全員へ</option>` + [...this.cats.values()].filter(c => c.id !== this.o.me)
-      .map(c => `<option value="${esc(c.id)}">${esc(c.name || "名無し")}さんだけへ</option>`).join("");
+    to.innerHTML = `<option value="">${t("全員へ")}</option>` + [...this.cats.values()].filter(c => c.id !== this.o.me)
+      .map(c => `<option value="${esc(c.id)}">${esc(tp("{0}さんだけへ", c.name || t("名無し")))}</option>`).join("");
     to.value = [...to.options].some(o => o.value === was) ? was : "";
     const n = this.el.querySelector<HTMLElement>("#pr-now"); if (n) n.textContent = this.now;
     this.el.querySelector<HTMLElement>("#pr-mic-box")!.hidden = !this.perms.voice;
@@ -633,16 +634,16 @@ export class Room {
     if (!ol || this.panel !== "chat") return;
     ol.replaceChildren(...this.log.map(l => {
       const li = document.createElement("li"), who = document.createElement("b"), t = document.createElement("span");
-      who.textContent = this.nameOf(l.from) + (l.to.length ? ` → ${l.to.map(i => i === this.o.me ? "あなた" : this.nameOf(i)).join("・")}` : "") + (l.req ? " のリクエスト" : "");
+      who.textContent = this.nameOf(l.from) + (l.to.length ? ` → ${l.to.map(i => i === this.o.me ? tr("あなた") : this.nameOf(i)).join("・")}` : "") + (l.req ? tr(" のリクエスト") : "");
       if (l.req) {
         const r = l.req;
-        t.textContent = r.tr ? `${r.tr}（${r.t}${r.a ? ` · ${r.a}` : ""}）` : `${r.t}${r.a ? ` · ${r.a}` : ""}`;
+        t.textContent = r.tr ? `${r.tr} · ${r.t}${r.a ? ` · ${r.a}` : ""}` : `${r.t}${r.a ? ` · ${r.a}` : ""}`;
         li.className = "req";
         li.append(who, t);
         const row = document.createElement("div"); row.className = "pr-req-acts";
-        const see = document.createElement("button"); see.className = "btn"; see.textContent = "見る"; see.onclick = () => this.openCard(r.id);
+        const see = document.createElement("button"); see.className = "btn"; see.textContent = tr("見る"); see.onclick = () => this.openCard(r.id);
         row.append(see);
-        if (this.o.host) { const play = document.createElement("button"); play.className = "btn primary"; play.textContent = "かける"; play.onclick = () => this.o.play?.(r.id, r.i); row.append(play); }
+        if (this.o.host) { const play = document.createElement("button"); play.className = "btn primary"; play.textContent = tr("かける"); play.onclick = () => this.o.play?.(r.id, r.i); row.append(play); }
         li.append(row);
         return li;
       }

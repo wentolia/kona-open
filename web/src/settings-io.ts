@@ -1,4 +1,5 @@
 // 設定の書き出し・読み込み: ブラウザに保存した設定（kona.*）を JSON ファイルにして、別の端末やブラウザへ持っていく。サーバーは使わない
+import { t } from "./i18n";
 
 const FORMAT = "kona-settings";
 const VERSION = 1;
@@ -40,8 +41,8 @@ export function exportSettings(records: boolean): number {
 /** 書き出したファイルを読み、設定を置き換える。読み込んだ項目の数を返す（形式が違えば例外） */
 export async function importSettings(file: File): Promise<number> {
   const data = JSON.parse(await file.text()) as Partial<SettingsFile>;
-  if (data?.format !== FORMAT || typeof data.items !== "object" || !data.items) throw new Error("Kona の設定ファイルではありません");
-  if ((data.version ?? 0) > VERSION) throw new Error("新しい版の Kona で書き出したファイルです");
+  if (data?.format !== FORMAT || typeof data.items !== "object" || !data.items) throw new Error(t("Kona の設定ファイルではありません"));
+  if ((data.version ?? 0) > VERSION) throw new Error(t("新しい版の Kona で書き出したファイルです"));
   let n = 0;
   for (const [k, v] of Object.entries(data.items)) {
     if (!k.startsWith("kona.") || isNever(k) || typeof v !== "string") continue;

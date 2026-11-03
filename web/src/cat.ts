@@ -1,3 +1,4 @@
+import { t, t as tx, tp } from "./i18n";
 import "./cat.css";
 import { reduceMotion, onMotionChange, prefs } from "./prefs";
 import { SILL, windowRain, roomLightOn } from "./mod-window";
@@ -1572,22 +1573,22 @@ document.addEventListener("kona:feed", () => {
 
 // ---------- 名札と性格 ----------
 // 猫にしばらくカーソルを乗せると、頭の上に名札が出る。名札を押すと、名前・性格・好きなアルバム・今日の機嫌が見られる
-const TRAITS: [keyof Persona, string][] = [["energy", "元気さ"], ["sleepy", "眠たがり"], ["social", "人なつこさ"], ["playful", "遊び好き"], ["curious", "好奇心"]];
+const TRAITS: [keyof Persona, string][] = [["energy", t("元気さ")], ["sleepy", t("眠たがり")], ["social", t("人なつこさ")], ["playful", t("遊び好き")], ["curious", t("好奇心")]];
 const DOING: Partial<Record<State, string>> = {
-  sleep: "眠っている", lie: "くつろいでいる", sit: "座っている", stand: "立ち止まっている", walk: "歩いている", jump: "跳んでいる", fall: "降りている",
-  purr: "喉を鳴らしている", groom: "毛づくろいしてあげている", groomed: "毛づくろいしてもらっている", play: "じゃれている", poke: "ちょっかいを出している",
-  stretch: "伸びをしている", yawn: "あくびをしている", selfgroom: "身づくろいしている", stalk: "獲物を狙っている", annoyed: "ご機嫌ななめ",
-  chatter: "窓の外の鳥を見ている", watch: "窓の外の猫を見つめている", flinch: "びくっとした", held: "抱っこされている", eat: "ごはんを食べている", scratch: "爪をといでいる", greet: "あいさつしている",
+  sleep: t("眠っている"), lie: t("くつろいでいる"), sit: t("座っている"), stand: t("立ち止まっている"), walk: t("歩いている"), jump: t("跳んでいる"), fall: t("降りている"),
+  purr: t("喉を鳴らしている"), groom: t("毛づくろいしてあげている"), groomed: t("毛づくろいしてもらっている"), play: t("じゃれている"), poke: t("ちょっかいを出している"),
+  stretch: t("伸びをしている"), yawn: t("あくびをしている"), selfgroom: t("身づくろいしている"), stalk: t("獲物を狙っている"), annoyed: t("ご機嫌ななめ"),
+  chatter: t("窓の外の鳥を見ている"), watch: t("窓の外の猫を見つめている"), flinch: t("びくっとした"), held: t("抱っこされている"), eat: t("ごはんを食べている"), scratch: t("爪をといでいる"), greet: t("あいさつしている"),
 };
 /** 今日の機嫌: 日ごとに決まる気分に、お腹の具合・撫ですぎ・眠気を重ねる */
 function moodOf(c: Cat): string {
-  if (c.state === "annoyed" || c.pets.length >= c.patience) return "ちょっと不機嫌";
-  if (c.t < c.waryT) return "警戒中";
-  if (c.hunger > .75) return "おなかぺこぺこ";
+  if (c.state === "annoyed" || c.pets.length >= c.patience) return t("ちょっと不機嫌");
+  if (c.t < c.waryT) return t("警戒中");
+  if (c.hunger > .75) return t("おなかぺこぺこ");
   const day = seeded(new Date().toDateString() + nameOf(c.coat))();
-  if (c.state === "sleep" || ear.calm > .6 || day < .2 + c.p.sleepy * .15) return "ねむたい";
-  if (day > .75 - c.p.playful * .15) return "ごきげん";
-  return day > .45 ? "まあまあ" : "おだやか";
+  if (c.state === "sleep" || ear.calm > .6 || day < .2 + c.p.sleepy * .15) return t("ねむたい");
+  if (day > .75 - c.p.playful * .15) return t("ごきげん");
+  return day > .45 ? t("まあまあ") : t("おだやか");
 }
 let card: HTMLElement | undefined;
 function closeCard() { card?.remove(); card = undefined; }
@@ -1597,18 +1598,18 @@ function openCard(c: Cat) {
   const best = [...c.bond].filter(([o]) => cats.includes(o)).sort((a, b) => b[1] - a[1])[0];
   const dots = (v: number) => Array.from({ length: 5 }, (_, i) => `<i${i < Math.round(v * 5) ? ` class="on"` : ""}></i>`).join("");
   const el = document.createElement("div");
-  el.className = "cat-card"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", `${nameOf(C)}のこと`);
+  el.className = "cat-card"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", tp("{0}のこと", nameOf(C)));
   el.innerHTML = `
-    <input class="cat-name" value="${esc(nameOf(C))}" maxlength="12" aria-label="名前" spellcheck="false"${C.stray ? " readonly" : ""}>
-    <p class="cat-breed">${esc(breedOf(C).name)}・${esc(DOING[c.state] ?? "")}${C.stray ? `・通りすがり` : ""}</p>
-    <dl>${TRAITS.map(([k, label]) => `<dt>${label}</dt><dd>${dots(c.p[k])}</dd>`).join("")}<dt>毛づや</dt><dd>${dots(.1 + .9 * (C.gloss ?? 0))}</dd></dl>
-    <p><span>今日の機嫌</span>${esc(moodOf(c))}</p>
-    ${title ? `<p><span>好きなアルバム</span>${esc(title)}</p>` : ""}
-    ${(() => { const t = tastes(c); return (t.love ? `<p><span>好きな音楽</span>${esc(t.love)}</p>` : "") + (t.hate ? `<p><span>苦手な音楽</span>${esc(t.hate)}</p>` : ""); })()}
-    ${best && best[1] > .45 ? `<p><span>仲良し</span>${esc(nameOf(best[0].coat))}</p>` : ""}
+    <input class="cat-name" value="${esc(nameOf(C))}" maxlength="12" aria-label="${t("名前")}" spellcheck="false"${C.stray ? " readonly" : ""}>
+    <p class="cat-breed">${esc(t(breedOf(C).name))}${t("・")}${esc(DOING[c.state] ?? "")}${C.stray ? t("・通りすがり") : ""}</p>
+    <dl>${TRAITS.map(([k, label]) => `<dt>${label}</dt><dd>${dots(c.p[k])}</dd>`).join("")}<dt>${t("毛づや")}</dt><dd>${dots(.1 + .9 * (C.gloss ?? 0))}</dd></dl>
+    <p><span>${t("今日の機嫌")}</span>${esc(moodOf(c))}</p>
+    ${title ? `<p><span>${t("好きなアルバム")}</span>${esc(title)}</p>` : ""}
+    ${(() => { const t = tastes(c); return (t.love ? `<p><span>${tx("好きな音楽")}</span>${esc(t.love)}</p>` : "") + (t.hate ? `<p><span>${tx("苦手な音楽")}</span>${esc(t.hate)}</p>` : ""); })()}
+    ${best && best[1] > .45 ? `<p><span>${t("仲良し")}</span>${esc(nameOf(best[0].coat))}</p>` : ""}
     ${C.stray ? (() => { const r = hooks?.room?.(), full = !!r && r.pets >= r.cap;
-      return `<button type="button" class="cat-adopt"${full ? " disabled" : ""}>飼い猫にする</button>${full ? `<p class="cat-full">いまは ${r!.cap} 匹まで飼えます</p>` : ""}`; })()
-    : hooks?.accs ? `<p><span>アクセサリー</span><select class="cat-acc-pick" aria-label="アクセサリー"><option value="">なし</option>${hooks.accs().map(a => `<option value="${esc(a.key)}"${a.key === C.acc ? " selected" : ""}>${esc(a.label)}</option>`).join("")}</select></p>` : ""}`;
+      return `<button type="button" class="cat-adopt"${full ? " disabled" : ""}>${t("飼い猫にする")}</button>${full ? `<p class="cat-full">${tp("いまは {0} 匹まで飼えます", r!.cap)}</p>` : ""}`; })()
+    : hooks?.accs ? `<p><span>${t("アクセサリー")}</span><select class="cat-acc-pick" aria-label="${t("アクセサリー")}"><option value="">${t("なし")}</option>${hooks.accs().map(a => `<option value="${esc(a.key)}"${a.key === C.acc ? " selected" : ""}>${esc(a.label)}</option>`).join("")}</select></p>` : ""}`;
   // 猫の頭の上あたりに出す（画面からはみ出さないように）
   const g = frameOf(c.grid);
   c.layer.append(el);
@@ -1995,7 +1996,7 @@ function strokeCat(c: Cat, pts: [number, number][]) {
 }
 
 // ---------- 寝言 ----------
-const SLEEPTALK = ["…みゃ", "…ん", "むにゃ", "…ぷ", "…ゃ"];
+const SLEEPTALK = [t("…みゃ"), t("…ん"), t("むにゃ"), t("…ぷ"), t("…ゃ")];
 function say(c: Cat, text: string) {
   const b = c.el.querySelector<HTMLElement>(".cat-say");
   if (!b) return;

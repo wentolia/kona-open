@@ -3,6 +3,7 @@
 // 中継サーバーを、ホストが 1 か所で設定しておけば、参加者は何もしなくてもその中継を通してつながる
 // （参加者の側から中継サーバーへ送るので、参加者の回線の NAT は問題にならない）。
 // 認証情報はこの端末の localStorage にだけ置き、招待リンクやリレーには載せない。
+import { t, tp } from "./i18n";
 import { esc } from "./dom";
 
 type Kind = "metered" | "cloudflare" | "custom" | "none";
@@ -13,10 +14,10 @@ const OLD_KEY = "kona.party.ice";   // 以前の版: 「stun:… turn:…?userna
 const DEFAULT_STUN = "stun:stun.l.google.com:19302";
 
 const KINDS: { kind: Kind; name: string; note: string }[] = [
-  { kind: "metered", name: "Metered", note: "metered.ca の TURN。ダッシュボードの「ユーザー名」「パスワード」をそのまま入れます（無料枠 月 500MB ≒ 参加者 1 人で 8 時間ほど）" },
-  { kind: "cloudflare", name: "Cloudflare", note: "Cloudflare Realtime の TURN。API で発行した username と credential を入れます（無料枠 月 1000GB。発行した認証情報には有効期限があります）" },
-  { kind: "custom", name: "その他", note: "自分で用意した TURN サーバー（coturn など）。URL を空白区切りで並べます" },
-  { kind: "none", name: "使わない", note: "直接つなげる相手（同じ Wi-Fi など）とだけつなぎます。別の回線の人とはつながらないことがあります" },
+  { kind: "metered", name: "Metered", note: t("metered.ca の TURN。ダッシュボードの「ユーザー名」「パスワード」をそのまま入れます。無料枠は月 500MB で、参加者 1 人なら 8 時間ほどです") },
+  { kind: "cloudflare", name: "Cloudflare", note: t("Cloudflare Realtime の TURN。API で発行した username と credential を入れます。無料枠は月 1000GB です。発行した認証情報には有効期限があります") },
+  { kind: "custom", name: t("その他"), note: t("coturn など、自分で用意した TURN サーバー。URL を空白区切りで並べます") },
+  { kind: "none", name: t("使わない"), note: t("同じ Wi-Fi など、直接つなげる相手とだけつなぎます。別の回線の人とはつながらないことがあります") },
 ];
 const SERVERS: Record<"metered" | "cloudflare", string[]> = {
   metered: ["turn:global.relay.metered.ca:80", "turn:global.relay.metered.ca:80?transport=tcp", "turn:global.relay.metered.ca:443", "turns:global.relay.metered.ca:443?transport=tcp"],
@@ -87,10 +88,10 @@ function probe(c: RelayConf): Promise<boolean> {
 /** 上に出す一行: いまの中継の様子 */
 export function relayStatusHTML(): string {
   const k = KINDS.find(x => x.kind === conf.kind)!;
-  if (!relayReady()) return `<span class="relay-status warn"><i></i>中継サーバーが未設定です。別の回線の人とはつながらないことがあります</span>`;
+  if (!relayReady()) return `<span class="relay-status warn"><i></i>${t("中継サーバーが未設定です。別の回線の人とはつながらないことがあります")}</span>`;
   const ck = conf.checked;
-  const tail = !ck ? "（未確認）" : ck.ok ? "（つながることを確認済み）" : "（確認できませんでした）";
-  return `<span class="relay-status ${ck && !ck.ok ? "warn" : "ok"}"><i></i>中継サーバー: ${esc(k.name)}${tail}</span>`;
+  const tail = !ck ? t("。未確認") : ck.ok ? t("。つながることを確認済み") : t("。確認できませんでした");
+  return `<span class="relay-status ${ck && !ck.ok ? "warn" : "ok"}"><i></i>${esc(tp("中継サーバー: {0}", k.name))}${tail}</span>`;
 }
 
 /** 設定の欄。host: ホストの画面（開いて見せる）か、参加者の画面（たたんでおく） */
@@ -98,30 +99,30 @@ export function relayHTML(host: boolean): string {
   const k = KINDS.find(x => x.kind === conf.kind)!;
   const needCred = conf.kind !== "none";
   const lead = host
-    ? "別の回線（携帯・会社・学校・ほかの家）の人とつなぐには、音を中継するサーバーが要ります。ホストが設定しておけば、参加者は設定しなくてもつながります。"
-    : "ふつうは設定しなくてもかまいません（ホストが中継サーバーを設定していれば、それを通してつながります）。ホストが設定していないときだけ、ここに入れてください。";
+    ? t("携帯や会社、学校、ほかの家など、別の回線の人とつなぐには、音を中継するサーバーが要ります。ホストが設定しておけば、参加者は設定しなくてもつながります。")
+    : t("ふつうは設定しなくてもかまいません。ホストが中継サーバーを設定していれば、それを通してつながります。ホストが設定していないときだけ、ここに入れてください。");
   return `<details class="party-relay-conf"${host && !relayReady() ? " open" : ""}>
   <summary>${relayStatusHTML()}</summary>
   <div class="relay-body">
     <p class="dlg-note">${lead}</p>
-    <div class="relay-kinds" role="radiogroup" aria-label="中継サーバー">
+    <div class="relay-kinds" role="radiogroup" aria-label="${t("中継サーバー")}">
       ${KINDS.map(x => `<label class="relay-kind"><input type="radio" name="relay-kind" value="${x.kind}"${x.kind === conf.kind ? " checked" : ""}><span>${esc(x.name)}</span></label>`).join("")}
     </div>
     <p class="dlg-note" id="relay-note">${esc(k.note)}</p>
     <div class="relay-fields"${needCred ? "" : " hidden"}>
-      <label class="dlg-field relay-urls"${conf.kind === "custom" ? "" : " hidden"}><span>TURN の URL（空白区切り）</span>
+      <label class="dlg-field relay-urls"${conf.kind === "custom" ? "" : " hidden"}><span>${t("TURN の URL を空白区切りで")}</span>
         <input id="relay-urls" type="text" spellcheck="false" autocapitalize="off" autocomplete="off" value="${esc(conf.urls)}" placeholder="turn:turn.example.com:3478 turns:turn.example.com:5349"></label>
-      <label class="dlg-field"><span>ユーザー名（username）</span>
+      <label class="dlg-field"><span>${t("ユーザー名: username")}</span>
         <input id="relay-user" type="text" spellcheck="false" autocapitalize="off" autocomplete="off" value="${esc(conf.user)}"></label>
-      <label class="dlg-field"><span>パスワード（credential）</span>
+      <label class="dlg-field"><span>${t("パスワード: credential")}</span>
         <input id="relay-pass" type="password" spellcheck="false" autocapitalize="off" autocomplete="off" value="${esc(conf.pass)}"></label>
-      <div class="party-row"><button class="btn" id="relay-check" type="button">つながるか確かめる</button><span class="dlg-note" id="relay-result" aria-live="polite"></span></div>
+      <div class="party-row"><button class="btn" id="relay-check" type="button">${t("つながるか確かめる")}</button><span class="dlg-note" id="relay-result" aria-live="polite"></span></div>
     </div>
-    <details class="relay-adv"><summary>STUN サーバー</summary>
-      <label class="dlg-field"><span>相手までの道を調べるサーバー（空白区切り。既定は Google の公開 STUN で、あなたの IP アドレスが Google に届きます）</span>
+    <details class="relay-adv"><summary>${t("STUN サーバー")}</summary>
+      <label class="dlg-field"><span>${t("相手までの道を調べるサーバーを空白区切りで。既定は Google の公開 STUN で、あなたの IP アドレスが Google に届きます")}</span>
         <input id="relay-stun" type="text" spellcheck="false" autocapitalize="off" autocomplete="off" value="${esc(conf.stun)}" placeholder="${DEFAULT_STUN}"></label>
     </details>
-    <p class="dlg-note">ユーザー名とパスワードはこの端末の中にだけ置きます。招待リンクにも、仲介のリレーにも載せません。</p>
+    <p class="dlg-note">${t("ユーザー名とパスワードはこの端末の中にだけ置きます。招待リンクにも、仲介のリレーにも載せません。")}</p>
   </div>
 </details>`;
 }
@@ -150,12 +151,12 @@ export function wireRelay(root: HTMLElement, changed?: () => void) {
   if (btn) btn.onclick = async () => {
     // 入力中（まだ change が来ていない）の値も拾う
     box.querySelectorAll<HTMLInputElement>(".relay-fields input, #relay-stun").forEach(i => i.onchange?.(new Event("change")));
-    if (!relayReady()) { out.textContent = conf.kind === "custom" && !turnUrls(conf).length ? "URL の形が正しくありません（turn: か turns: で始めます）" : "ユーザー名とパスワードを入れてください"; return; }
-    btn.disabled = true; out.textContent = "確かめています…";
+    if (!relayReady()) { out.textContent = conf.kind === "custom" && !turnUrls(conf).length ? t("URL の形が正しくありません。turn: か turns: で始めます") : t("ユーザー名とパスワードを入れてください"); return; }
+    btn.disabled = true; out.textContent = t("確かめています…");
     const ok = await probe(conf);
     btn.disabled = false;
     conf.checked = { at: Date.now(), ok }; save();
-    out.textContent = ok ? "つながりました。この設定で使えます" : "中継サーバーに届きませんでした。ユーザー名・パスワード（有効期限）を確かめてください";
+    out.textContent = ok ? t("つながりました。この設定で使えます") : t("中継サーバーに届きませんでした。ユーザー名とパスワード、その有効期限を確かめてください");
     repaint();
   };
 }

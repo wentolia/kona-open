@@ -3,6 +3,7 @@
 // 音楽のファイル・フォルダ・Drive・Spotify・聴いた記録・タグなど、ライブラリに結びつくものは含めない。
 // 包みで届く品も一部置いている（植物など）。置いた品は起動時に「持っている」ことになり、包みの山札からは外れる（presents.ts の seedPresents）
 
+import { t } from "./i18n";
 import type { ModuleDef } from "./shelves";
 import type { Home } from "./layout";
 import { firstCats } from "./cat-coat";
@@ -12,17 +13,17 @@ function seed() {
     ({ id, type: "shelf", kind, title, w: 1, height: 180, facePos: 0, ...extra });
   const mod = (id: string, type: ModuleDef["type"], title: string, height: number): ModuleDef => ({ id, type, title, w: 1, height, facePos: 0 });
 
-  const clock = mod("qawc05e", "clock", "時計", 170);
-  const goods = shelf("xyuiiip", "goods", "雑貨", { w: .5, query: "", goods: ["vase", "mug"] });
-  const queue = shelf("7geneo6", "queue", "次に再生", { goods: ["records", "cactus", "pinebonsai"] });
-  const win = mod("5doa618", "window", "窓辺", 200);
-  const player = mod("86oze8k", "player", "再生中", 220);
-  const spectrum = mod("sdm30qh", "spectrum", "スペクトラム", 220);
-  const folders = shelf("5owrkf6", "search", "フォルダ", { w: .5, query: "", sort: "title", folderGaps: true, goods: ["knit"], goodsAt: { knit: .957 } });
-  const recent = shelf("ck7l74r", "search", "最近聴いたアルバム", { w: .5, query: "", sort: "last" });
-  const fav = shelf("18165ci", "search", "お気に入り", { w: .5, query: "tag:お気に入り" });
-  const often = shelf("1r5fe69", "search", "よく聴く", { w: .5, query: "", sort: "plays", goods: ["figcat", "bowl", "jar", "incense"] });
-  const wave = mod("gh5j85l", "waveform", "波形", 110);
+  const clock = mod("qawc05e", "clock", t("時計"), 170);
+  const goods = shelf("xyuiiip", "goods", t("雑貨"), { w: .5, query: "", goods: ["vase", "mug"] });
+  const queue = shelf("7geneo6", "queue", t("次に再生"), { goods: ["records", "cactus", "pinebonsai"] });
+  const win = mod("5doa618", "window", t("窓辺"), 200);
+  const player = mod("86oze8k", "player", t("再生中"), 220);
+  const spectrum = mod("sdm30qh", "spectrum", t("スペクトラム"), 220);
+  const folders = shelf("5owrkf6", "search", t("フォルダ"), { w: .5, query: "", sort: "title", folderGaps: true, goods: ["knit"], goodsAt: { knit: .957 } });
+  const recent = shelf("ck7l74r", "search", t("最近聴いたアルバム"), { w: .5, query: "", sort: "last" });
+  const fav = shelf("18165ci", "search", t("お気に入り"), { w: .5, query: t("tag:お気に入り") });
+  const often = shelf("1r5fe69", "search", t("よく聴く"), { w: .5, query: "", sort: "plays", goods: ["figcat", "bowl", "jar", "incense"] });
+  const wave = mod("gh5j85l", "waveform", t("波形"), 110);
   const mods = [player, queue, folders, often, win, spectrum, wave, recent, goods, clock, fav];
 
   const col = (w: number, ...ids: string[]) => ({ w, stack: ids.map(id => ({ id, h: 1 / ids.length })) });

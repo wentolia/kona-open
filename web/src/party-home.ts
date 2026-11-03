@@ -5,6 +5,7 @@
 //  - 参加者の側では、HTML を受け取らない。届いた文字は textContent、色は形を確かめてから style に入れる
 //  - 時計・窓・小物・猫の家具は、参加者の端末で動く飾りとしてそのまま置く。再生中・EQ などは、ホストの「いま流れているもの」の札だけ
 
+import { t as tr, t as tx } from "./i18n";
 import { ctx, everyFrame, fmt, mountingWith, releaseIn, type ModOverride } from "./modctx";
 import type { Player } from "./player";
 import { enrichTracks, type Album } from "./library";
@@ -491,18 +492,18 @@ function mountNowCard(body: HTMLElement, player: Player, opts: { open(id: string
         <div class="np-bar"><span class="np-pos">0:00</span><div class="np-track"><div class="np-fill"></div></div><span class="np-dur">0:00</span></div>
         <div class="np-row">
           <div class="np-ctrl">
-            <button class="b-prev" disabled aria-label="前の曲（ホストが操作します）">${ICON.prev}</button>
-            <button class="b-play play" disabled aria-label="${player.playing ? "再生中" : "一時停止中"}（ホストが操作します）">${player.playing ? ICON.pause : ICON.play}</button>
-            <button class="b-next" disabled aria-label="次の曲（ホストが操作します）">${ICON.next}</button>
+            <button class="b-prev" disabled aria-label="${tr("前の曲。ホストが操作します")}">${ICON.prev}</button>
+            <button class="b-play play" disabled aria-label="${tr(player.playing ? "再生中。ホストが操作します" : "一時停止中。ホストが操作します")}">${player.playing ? ICON.pause : ICON.play}</button>
+            <button class="b-next" disabled aria-label="${tr("次の曲。ホストが操作します")}">${ICON.next}</button>
             ${modeButtonHTML(player.mode, "b-mode").replace("<button", "<button disabled")}
           </div>
           <div class="np-vol">
             <span class="b-mute" aria-hidden="true">${ICON.vol}</span>
-            <input class="np-vol-range" type="range" min="0" max="100" step="1" value="${Math.round(vol * 100)}" aria-label="あなたの手元の音量"${src.volume ? "" : " disabled"}>
+            <input class="np-vol-range" type="range" min="0" max="100" step="1" value="${Math.round(vol * 100)}" aria-label="${tr("あなたの手元の音量")}"${src.volume ? "" : " disabled"}>
           </div>
         </div>
       </div>
-      <ol class="tracks np-tracks" aria-label="曲目">${a.tracks.map((tr, i) => `
+      <ol class="tracks np-tracks" aria-label="${tx("曲目")}">${a.tracks.map((tr, i) => `
         <li class="${i === player.index ? "current" : ""}"><button type="button" tabindex="-1">
           <span class="no">${String(tr.no).padStart(2, "0")}</span><span class="t">${esc(tr.title)}</span><span class="dur">${tr.duration ? fmt(tr.duration) : ""}</span>
         </button></li>`).join("")}</ol></div>`;

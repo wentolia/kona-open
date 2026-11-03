@@ -9,7 +9,7 @@ import { ITEMS, itemOf, viewBoxOf } from "./items";
 import { ACCESSORIES, accOf } from "./cat-acc";
 import { gotOf, landName } from "./region";
 import { ACHIEVEMENTS, REWARD_KEYS } from "./achievement-list";
-import { t } from "./i18n";
+import { t, tp } from "./i18n";
 
 const KEY = "kona.presents";
 const DAY_CAP = 5, LISTEN_SEC = 30 * 60, CAT_MAX = 10;
@@ -173,10 +173,10 @@ export function itemTag(key: string): string | undefined {
   if (g) {
     if (g.from) return `${g.from}${t("さんから")} · ${md(g.d)}`;
     if (g.ach) return `${t("実績")}「${t(ACHIEVEMENTS[g.ach]?.label ?? g.ach)}」 · ${md(g.d)}`;
-    return g.al ? `${md(g.d)} · 「${g.al}」${t("を聴いていたとき")}` : md(g.d);
+    return g.al ? `${md(g.d)} · ${tp("「{0}」を聴いていたとき", g.al)}` : md(g.d);
   }
   const r = gotOf(key);
-  if (r) return `${r.from ? `${r.from}${t("さんの部屋で")}（${landName(r.at)}）` : `${landName(r.at)}${t("で")}`} · ${md(r.d)}`;
+  if (r) return `${r.from ? `${r.from}${t("さんの部屋で")} · ${landName(r.at)}` : `${landName(r.at)}${t("で")}`} · ${md(r.d)}`;
   return undefined;
 }
 

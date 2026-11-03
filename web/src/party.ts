@@ -9,6 +9,7 @@
 //  - 部屋では入った人がそれぞれ猫になる（party-room.ts）。猫の動き・しぐさ・目線・チャットはホストが中継する
 // 画面の文字はすべて esc() か textContent で入れる（相手の名前や曲名を HTML として読ませない）
 
+import { t, t as tr, t as tx, tp } from "./i18n";
 import "./party.css";
 import { ctx, esc } from "./modctx";
 import { Mailbox, b64, isRoomKey, newRoomKey, unb64, type Letter } from "./party-relay";
@@ -206,7 +207,7 @@ let ears: { meters: AnalyserNode[]; spec: AnalyserNode } | undefined;
 let earVol: GainNode | undefined, earOn = false, offEq: (() => void) | undefined;   // 参加者: 手元の EQ・音量を通して鳴らす経路
 
 const myName = () => { try { return localStorage.getItem(NAME_KEY) ?? ""; } catch { return ""; } };
-const label = (n: string) => n || "名無し";
+const label = (n: string) => n || t("名無し");
 const partyVol = () => { try { const v = Number(localStorage.getItem(VOL_KEY) ?? 0.8); return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.8; } catch { return 0.8; } };
 
 // ---------- WebRTC ----------
@@ -237,7 +238,7 @@ async function describe(pc: RTCPeerConnection, d: RTCSessionDescriptionInit) {
   return musicSdp(pc.localDescription!.sdp);
 }
 /** つながらなかった理由（参加者に見せる）。どんな経路の候補が出ていたかも添える（原因を調べる手がかり） */
-const NO_ROUTE = "つながりませんでした（おたがいの回線のあいだに通り道が見つかりませんでした）";
+const NO_ROUTE = t("つながりませんでした。おたがいの回線のあいだに通り道が見つかりませんでした");
 /** 同じ回線（外から見たアドレスが同じ）らしいか。STUN に届かず分からないときも、同じ回線として案内する */
 // IPv6 は端末ごとにアドレスが違う（NAT がない）ので、前半の 64 ビット（同じ回線なら同じ）で比べる
 function netOf(ip: string) {
@@ -259,29 +260,29 @@ const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Mac/.test(
 const isMac = () => !isIOS() && /Mac/.test(navigator.platform || navigator.userAgent);
 // 同じ Wi-Fi なのにつながらないときは、たいてい端末がブラウザーに同じ回線の相手との通信（ローカルネットワーク）を許していない
 const MAC_STEPS = `<ol class="party-tip-steps">
-    <li>「システム設定」→「プライバシーとセキュリティ」→「ローカルネットワーク」を開く</li>
-    <li>使っているブラウザー（Chrome など）をオンにする</li>
-    <li>ブラウザーをいったん終了して（⌘Q）開き直し、もう一度招待リンクから入る</li></ol>`;
+    <li>${t("「システム設定」→「プライバシーとセキュリティ」→「ローカルネットワーク」を開く")}</li>
+    <li>${t("Chrome など、使っているブラウザーをオンにする")}</li>
+    <li>${t("ブラウザーを ⌘Q でいったん終了して開き直し、もう一度招待リンクから入る")}</li></ol>`;
 const IOS_STEPS = `<ol class="party-tip-steps">
-    <li>「設定」→「プライバシーとセキュリティ」→「ローカルネットワーク」を開く（または「設定」→ アプリ → 使っているブラウザー）</li>
-    <li>使っているブラウザー（Chrome など）をオンにする。一覧にないときは、一度このページで招待リンクから入り直すと許可を求められます</li>
-    <li>ブラウザーをアプリの切り替え画面から上にはらって終了し、開き直してもう一度招待リンクから入る</li></ol>`;
+    <li>${t("「設定」→「プライバシーとセキュリティ」→「ローカルネットワーク」か、「設定」→ アプリ → 使っているブラウザー を開く")}</li>
+    <li>${t("Chrome など、使っているブラウザーをオンにする。一覧にないときは、一度このページで招待リンクから入り直すと許可を求められます")}</li>
+    <li>${t("ブラウザーをアプリの切り替え画面から上にはらって終了し、開き直してもう一度招待リンクから入る")}</li></ol>`;
 const lanTip = (open: boolean) => {
-  const here = isIOS() ? "iPad・iPhone" : "Mac", other = isIOS() ? "Mac" : "iPad・iPhone";
+  const here = isIOS() ? t("iPad・iPhone") : "Mac", other = isIOS() ? "Mac" : t("iPad・iPhone");
   const mine = isIOS() ? IOS_STEPS : MAC_STEPS, theirs = isIOS() ? MAC_STEPS : IOS_STEPS;
   const known = isIOS() || isMac();
-  return `<${open ? "div" : "details"}>${open ? `<p><b>同じ Wi-Fi の相手とつながらないとき</b>${known ? `（${here}）` : ""}</p>` : `<summary>同じ Wi-Fi なのにつながらないとき（${here}）</summary>`}${mine}
-    <p>相手が ${other} のときは、相手の端末でも:</p>${theirs}</${open ? "div" : "details"}>`;
+  return `<${open ? "div" : "details"}>${open ? `<p><b>${known ? tp("{0} で同じ Wi-Fi の相手とつながらないとき", here) : t("同じ Wi-Fi の相手とつながらないとき")}</b></p>` : `<summary>${tp("{0} で同じ Wi-Fi なのにつながらないとき", here)}</summary>`}${mine}
+    <p>${tp("相手が {0} のときは、相手の端末でも:", other)}</p>${theirs}</${open ? "div" : "details"}>`;
 };
 function tipHTML() {
   if (endTip === "lan") return `<div class="party-tip">${lanTip(true)}</div>`;
-  if (endTip === "turn") return `<div class="party-tip"><p><b>別の回線どうしでつながらないとき</b>: ${relayReady() ? "中継サーバーが設定されていても届かなかったようです。ホストにも中継サーバーを設定してもらうか、「つながるか確かめる」で設定を確かめてください。" : "ホストに、リスニングパーティーの画面で「中継サーバー」を設定してもらってから、新しい招待リンクで入り直してください。"}</p>
+  if (endTip === "turn") return `<div class="party-tip"><p><b>${t("別の回線どうしでつながらないとき")}</b>: ${relayReady() ? t("中継サーバーが設定されていても届かなかったようです。ホストにも中継サーバーを設定してもらうか、「つながるか確かめる」で設定を確かめてください。") : t("ホストに、リスニングパーティーの画面で「中継サーバー」を設定してもらってから、新しい招待リンクで入り直してください。")}</p>
     ${lanTip(false)}</div>`;
   return "";
 }
 function routes(pc: RTCPeerConnection) {
   const kinds = (sdp?: string) => { const n = { host: 0, srflx: 0, relay: 0 }; for (const m of (sdp ?? "").matchAll(/ typ (host|srflx|prflx|relay)/g)) n[m[1] === "prflx" ? "srflx" : m[1] as "host"]++; return `${n.host}/${n.srflx}/${n.relay}`; };
-  return `経路の候補 自分 ${kinds(pc.localDescription?.sdp)}・ホスト ${kinds(pc.remoteDescription?.sdp)}`;
+  return tp("経路の候補 自分 {0}・ホスト {1}", kinds(pc.localDescription?.sdp), kinds(pc.remoteDescription?.sdp));
 }
 function wire(peer: Peer, dc: RTCDataChannel) {
   peer.dc = dc;
@@ -353,7 +354,7 @@ function hostLetter(l: Letter) {
     if (k) return;
     if (knocks.length >= MAX_KNOCKS) return;
     knocks.push({ id: l.from, name: l.note.name.slice(0, 40) });
-    toastIn(`${label(l.note.name)}さんが入りたがっています`);
+    toastIn(tp("{0}さんが入りたがっています", label(l.note.name)));
     render();
   } else if (l.note.t === "answer") {
     const peer = peers.find(p => p.id === l.from && !p.open);
@@ -375,7 +376,7 @@ async function admit(id: string) {
   voiceHost?.addPeer(peer.cid, peer.voice.sender);
   pc.ontrack = e => { if (e.transceiver === peer.voice) voiceHost?.incoming(peer.cid, e.track, can(peer, "voice")); };
   // つながらないまま 40 秒たったらあきらめる
-  peer.timer = window.setTimeout(() => { if (!peer.open) { dropped(peer); toastFn?.(`${label(peer.name)}さんとつながりませんでした`); } }, 40_000);
+  peer.timer = window.setTimeout(() => { if (!peer.open) { dropped(peer); toastFn?.(tp("{0}さんとつながりませんでした", label(peer.name))); } }, 40_000);
   render();
   try {
     const sdp = await describe(pc, await pc.createOffer());
@@ -455,11 +456,11 @@ function guestSrc(): HomeSource {
 const toHost = (m: Msg) => { const h = peers[0]; if (h) send(h, m); };
 /** 贈りものを受け取る（送り主の猫の名前を札に） */
 function giftIn(key: string, from: string) {
-  const name = room?.cats.get(from)?.name || "名無し";
+  const name = room?.cats.get(from)?.name || t("名無し");
   if (receiveGift(key, name)) {
     const d = itemOf(key);
-    toastFn?.(`${name}さんから「${d?.label ?? key}」が届きました`);
-    room?.said({ from, text: `「${d?.label ?? key}」を贈りました`, to: [me], at: Date.now() });
+    toastFn?.(tp("{0}さんから「{1}」が届きました", name, d ? t(d.label) : key));
+    room?.said({ from, text: tp("「{0}」を贈りました", d ? t(d.label) : key), to: [me], at: Date.now() });
   }
 }
 /** ホスト: 部屋に入っている参加者（except 以外）に送る */
@@ -528,7 +529,7 @@ function hostRoom(peer: Peer, m: Msg) {
     if (m.i !== undefined && !tr) return;
     const req: Req = { id: m.id, i: m.i, t: a.title.slice(0, 200), a: (a.artist ?? "").slice(0, 200), tr: tr ? (tr.title ?? "").slice(0, 200) : undefined };
     deliver({ t: "say", id, text: "", to: [], req });
-    toastIn(`${label(peer.name)}さんから「${req.tr ?? req.t}」のリクエスト`);
+    toastIn(tp("{0}さんから「{1}」のリクエスト", label(peer.name), req.tr ?? req.t));
   }
 }
 /** 参加者: ホストから届いた部屋のこと */
@@ -643,7 +644,7 @@ function knock() {
   let n = 0;
   const again = () => { if (role === "guest" && guestStep === "knock") { box?.send(hostId, { t: "knock", name: myName() }); knockTimer = window.setTimeout(again, Math.min(15_000, 3000 + n++ * 1000)); } };
   knockTimer = window.setTimeout(again, 800);
-  waitTimer = window.setTimeout(() => { if (role === "guest" && guestStep !== "in") end(relaysOpen ? "ホストから返事がありませんでした" : "仲介のリレーにつながりませんでした"); }, 5 * 60_000);
+  waitTimer = window.setTimeout(() => { if (role === "guest" && guestStep !== "in") end(relaysOpen ? t("ホストから返事がありませんでした") : t("仲介のリレーにつながりませんでした")); }, 5 * 60_000);
   quiet();
   blocked = false;
   render();
@@ -651,7 +652,7 @@ function knock() {
 async function guestLetter(l: Letter) {
   // ホスト（招待リンクに書かれた公開鍵）からの知らせだけを読む。部屋の鍵を知るほかの人がホストをかたれないように
   if (role !== "guest" || l.from !== hostId) return;
-  if (l.note.t === "no") { end("ホストが入れませんでした"); return; }
+  if (l.note.t === "no") { end(t("ホストが入れませんでした")); return; }
   if (l.note.t !== "offer" || guestStep !== "knock") return;
   guestStep = "connect"; clearTimeout(knockTimer);
   hostName = l.note.name;
@@ -679,7 +680,7 @@ async function guestLetter(l: Letter) {
     const sdp = await describe(pc, await pc.createAnswer());
     await box?.send(hostId, { t: "answer", sdp });
     peer.timer = window.setTimeout(() => { if (!peer.open) end(`${NO_ROUTE}［${routes(pc)}］`, sameNetwork(pc) ? "lan" : "turn"); }, 40_000);
-  } catch (e) { console.error(e); end(`つながりませんでした（このブラウザーでは接続の準備ができませんでした: ${(e as Error)?.name ?? "error"}）`); }
+  } catch (e) { console.error(e); end(tp("つながりませんでした。このブラウザーでは接続の準備ができませんでした: {0}", (e as Error)?.name ?? "error")); }
 }
 function hear(stream: MediaStream) {
   if (!audio) { audio = new Audio(); audio.autoplay = true; }
@@ -770,7 +771,7 @@ function opened(peer: Peer) {
     sendPeers();
     send(peer, snapshot());
     room?.cats.set("h", { ...room.cats.get("h")!, name: cleanName(hostName) });
-    toastIn(`${label(peer.name)}さんが参加しました`);
+    toastIn(tp("{0}さんが参加しました", label(peer.name)));
   } else {
     guestStep = "in"; clearTimeout(waitTimer);
     send(peer, { t: "cat", coat: myCat() });   // この猫で部屋に入る
@@ -790,9 +791,9 @@ function dropped(peer: Peer) {
     voiceHost?.removePeer(peer.cid);
     sendPeers();
     if (peer.inRoom) { room?.remove(peer.cid); relay({ t: "part", id: peer.cid }); }
-    if (was) toastIn(`${label(peer.name)}さんが抜けました`);
+    if (was) toastIn(tp("{0}さんが抜けました", label(peer.name)));
   }
-  else end(was ? "ホストとの接続が切れました" : "つながりませんでした");
+  else end(was ? t("ホストとの接続が切れました") : t("つながりませんでした"));
   render();
 }
 /** ホスト: その人を退出させる（接続を切り、このパーティーの間は入れない。ページを開き直した人は新しいリンクで防ぐ） */
@@ -805,7 +806,7 @@ function kick(cid: string) {
 }
 function received(peer: Peer, m: Msg) {
   if (m.t === "bye") { dropped(peer); return; }
-  if (m.t === "out") { if (role === "guest") end("ホストがあなたを退出させました"); return; }
+  if (m.t === "out") { if (role === "guest") end(t("ホストがあなたを退出させました")); return; }
   if (role === "host") { hostRoom(peer, m); return; }   // ホストが参加者から受け取るのは、抜けますと部屋のことだけ
   if (m.t === "peers") { hostName = m.host; guestNames = m.names; update(); }
   else if (m.t === "state") { last = m; update(); }
@@ -861,7 +862,7 @@ export function openParty() {
     dlg = document.createElement("div");
     dlg.className = "dlg-back";
     dlg.innerHTML = `<div class="dlg party" role="dialog" aria-modal="true" aria-labelledby="party-title">
-      <div class="dlg-head"><h2 id="party-title">リスニングパーティー</h2><button class="dlg-x" aria-label="閉じる">×</button></div>
+      <div class="dlg-head"><h2 id="party-title">${t("リスニングパーティー")}</h2><button class="dlg-x" aria-label="${t("閉じる")}">×</button></div>
       <div class="dlg-body"></div></div>`;
     dlg.addEventListener("pointerdown", e => { if (e.target === dlg && !inRoom()) closeDlg(); });
     dlg.querySelector<HTMLElement>(".dlg-x")!.onclick = () => { if (inRoom()) leave(); closeDlg(); };
@@ -888,18 +889,18 @@ const landShared = () => { try { return localStorage.getItem(LAND_KEY) === "1"; 
 /** ご当地の品をオンにしているホストだけ: 土地（都道府県・国）を参加者に届けるか */
 const LAND = () => {
   const here = hereLand();
-  return here ? `<label class="dlg-check"><input type="checkbox" id="party-land"${landShared() ? " checked" : ""}> ご当地の品のために、いまいる土地（${esc(landName(here))}）を入った人に知らせる（一緒に 30 分聴くと、その土地の品が届きます）</label>` : "";
+  return here ? `<label class="dlg-check"><input type="checkbox" id="party-land"${landShared() ? " checked" : ""}> ${esc(tp("いまいる土地「{0}」を入った人に知らせる。一緒に 30 分聴くと、その土地の品が届きます", landName(here)))}</label>` : "";
 };
-const RIGHTS = `<p class="dlg-note">招待リンクは、知っている人にだけ直接送ってください（SNS など誰でも見られる場所には貼らないでください）。流す曲の権利に気を配るのは、ホストの役目です。</p>`;
-const PRIVACY = `<p class="dlg-note">つなぐための情報は、公開の Nostr リレーを通して暗号化して受け渡します（鍵は招待リンクの中だけにあり、リレーには読めません）。つながるとホストと参加者の間でお互いの IP アドレスが見えるので、知っている人とだけ使ってください。参加者どうしはつながりません。</p>`;
-const nameField = () => `<label class="dlg-field"><span>あなたの名前（相手に見えます）</span><input id="party-name" type="text" maxlength="40" autocomplete="nickname" value="${esc(myName())}"></label>`;
+const RIGHTS = `<p class="dlg-note">${t("招待リンクは、知っている人にだけ直接送ってください。SNS など誰でも見られる場所には貼らないでください。流す曲の権利に気を配るのは、ホストの役目です。")}</p>`;
+const PRIVACY = `<p class="dlg-note">${t("つなぐための情報は、公開の Nostr リレーを通して暗号化して受け渡します。鍵は招待リンクの中だけにあり、リレーには読めません。つながるとホストと参加者の間でお互いの IP アドレスが見えるので、知っている人とだけ使ってください。参加者どうしはつながりません。")}</p>`;
+const nameField = () => `<label class="dlg-field"><span>${t("あなたの名前。相手に見えます")}</span><input id="party-name" type="text" maxlength="40" autocomplete="nickname" value="${esc(myName())}"></label>`;
 /** 送るアルバムのセット（タグ）を選ぶ欄。タグがなければ出さない */
 const setKey = (s: AlbumSet | null) => !s ? "" : `${s.not ? "-" : "+"}${s.tag}`;
 const SHARE = (s: AlbumSet | null) => {
   const tags = allTags();
   if (!tags.length) return "";
   const opt = (v: AlbumSet | null) => `<option value="${esc(setKey(v))}"${setKey(v) === setKey(s) ? " selected" : ""}>${esc(setLabel(v))}</option>`;
-  return `<label class="dlg-field"><span>見せるアルバム（タグで絞る。外のアルバムは棚・ジャケット・曲目・検索・リクエストのどれにも出しません）</span>
+  return `<label class="dlg-field"><span>${t("見せるアルバムをタグで絞る。外のアルバムは棚・ジャケット・曲目・検索・リクエストのどれにも出しません")}</span>
     <select id="party-set">${opt(null)}${tags.map(t => opt({ tag: t, not: false })).join("")}${tags.map(t => opt({ tag: t, not: true })).join("")}</select></label>`;
 };
 const parseSet = (v: string): AlbumSet | null => !v ? null : { tag: v.slice(1), not: v[0] === "-" };
@@ -922,26 +923,26 @@ function render() {
   const body = dlg.querySelector<HTMLElement>(".dlg-body")!;
   const h = (s: string) => { body.innerHTML = s; };
   const x = dlg.querySelector<HTMLElement>(".dlg-x")!;
-  x.setAttribute("aria-label", inRoom() ? "抜ける" : "閉じる");
+  x.setAttribute("aria-label", t(inRoom() ? "抜ける" : "閉じる"));
   dlg.classList.toggle("party-room", inRoom());
   if (ph === "idle") h(`
-    <p class="dlg-lead">あなたが流している音を、そのまま友だちに届けて一緒に聴きます。相手は曲を持っていなくても聴けます（少し遅れて届きます。Spotify の曲は届けられません）。入った人は猫になって、あなたのホーム（の写し）に集まります。</p>
+    <p class="dlg-lead">${t("あなたが流している音を、そのまま友だちに届けて一緒に聴きます。相手は曲を持っていなくても聴けます。音は少し遅れて届き、Spotify の曲は届けられません。入った人は猫になって、あなたのホームの写しに集まります。")}</p>
     ${nameField()}
     ${SHARE(pickedSet === undefined ? currentSet() : pickedSet)}
     ${editorHtml()}
     ${LAND()}
     ${RIGHTS}
     ${relayHTML(true)}
-    <div class="dlg-actions"><button class="btn primary" id="party-host">パーティーを開く</button></div>
-    <p class="dlg-note">参加するときは、ホストから届いた招待リンクを開いてください。</p>
+    <div class="dlg-actions"><button class="btn primary" id="party-host">${t("パーティーを開く")}</button></div>
+    <p class="dlg-note">${t("参加するときは、ホストから届いた招待リンクを開いてください。")}</p>
     ${PRIVACY}`);
   else if (ph === "host") h(`
-    <p class="dlg-lead">この招待リンクを、一緒に聴く人に送ってください。開いた人が名乗ると、ここに出ます。「入れる」を押した人だけがつながります。</p>
+    <p class="dlg-lead">${t("この招待リンクを、一緒に聴く人に送ってください。開いた人が名乗ると、ここに出ます。「入れる」を押した人だけがつながります。")}</p>
     <input class="party-code" id="party-out" readonly value="${esc(inviteLink())}">
     <div class="party-row">
-      <button class="btn" data-copy>リンクをコピー</button>
-      ${"share" in navigator ? `<button class="btn" data-share>送る…</button>` : ""}
-      <button class="btn" id="party-renew">リンクを作り直す</button>
+      <button class="btn" data-copy>${t("リンクをコピー")}</button>
+      ${"share" in navigator ? `<button class="btn" data-share>${t("送る…")}</button>` : ""}
+      <button class="btn" id="party-renew">${t("リンクを作り直す")}</button>
     </div>
     <p class="dlg-note party-wait" id="party-relay"></p>
     <p class="dlg-note">${relayStatusHTML()}</p>
@@ -950,25 +951,25 @@ function render() {
     ${SHARE(shareSet())}
     ${LAND()}
     ${RIGHTS}
-    <p class="dlg-note">いつもどおりに曲を選んで操作してください。EQ をかけた音がそのまま届きます。</p>
-    <p class="dlg-note">入ってきた人の猫は、あなたのホームに来ます（パーティーの間は、いつもの猫はお出かけしています）。</p>
-    <div class="dlg-actions"><button class="btn" id="party-leave">パーティーを閉じる</button></div>`);
+    <p class="dlg-note">${t("いつもどおりに曲を選んで操作してください。EQ をかけた音がそのまま届きます。")}</p>
+    <p class="dlg-note">${t("入ってきた人の猫は、あなたのホームに来ます。パーティーの間、いつもの猫はお出かけしています。")}</p>
+    <div class="dlg-actions"><button class="btn" id="party-leave">${t("パーティーを閉じる")}</button></div>`);
   else if (ph === "guest-name") h(`
-    <p class="dlg-lead">リスニングパーティーに招かれています。名前と猫を決めて名乗ると、ホストに「入れてください」が届きます。入っている間は、ホストのホーム（の写し）で猫になって、ホストの流す音だけを聴きます（あなたのライブラリや再生には触れません）。</p>
+    <p class="dlg-lead">${t("リスニングパーティーに招かれています。名前と猫を決めて名乗ると、ホストに「入れてください」が届きます。入っている間は、ホストのホームの写しで猫になって、ホストの流す音だけを聴きます。あなたのライブラリや再生には触れません。")}</p>
     ${nameField()}
     ${editorHtml()}
-    <div class="dlg-actions"><button class="btn primary" id="party-knock">入れてもらう</button><button class="btn" id="party-leave">やめる</button></div>
+    <div class="dlg-actions"><button class="btn primary" id="party-knock">${t("入れてもらう")}</button><button class="btn" id="party-leave">${t("やめる")}</button></div>
     ${relayHTML(false)}
     ${PRIVACY}`);
   else if (ph === "guest-knock" || ph === "guest-connect") h(`
     <p class="dlg-lead party-wait" id="party-relay"></p>
-    <div class="dlg-actions"><button class="btn" id="party-leave">やめる</button></div>`);
+    <div class="dlg-actions"><button class="btn" id="party-leave">${t("やめる")}</button></div>`);
   else if (ph === "guest-in") h(`
-    <p class="dlg-lead party-wait"><b>${esc(label(hostName))}</b>さんのホームに入っています…</p>
-    <div class="dlg-actions"><button class="btn" id="party-leave">やめる</button></div>`);
+    <p class="dlg-lead party-wait">${esc(tp("{0}さんのホームに入っています…", label(hostName)))}</p>
+    <div class="dlg-actions"><button class="btn" id="party-leave">${t("やめる")}</button></div>`);
   else if (ph === "guest-ended") h(`
     <p class="dlg-lead">${esc(ended)}。</p>${tipHTML()}${endTip === "turn" ? relayHTML(false) : ""}
-    <div class="dlg-actions"><button class="btn primary" id="party-done">閉じる</button></div>`);
+    <div class="dlg-actions"><button class="btn primary" id="party-done">${t("閉じる")}</button></div>`);
 
   const $ = <T extends HTMLElement>(s: string) => body.querySelector<T>(s);
   const name = $<HTMLInputElement>("#party-name");
@@ -986,7 +987,7 @@ function render() {
   if (pick) pick.onchange = () => changeShare(parseSet(pick.value));
   wireEditor(body, () => name?.value.trim() ?? myName());
   body.querySelector<HTMLButtonElement>("[data-copy]")?.addEventListener("click", e => copy(e.currentTarget as HTMLButtonElement, inviteLink()));
-  body.querySelector<HTMLButtonElement>("[data-share]")?.addEventListener("click", () => navigator.share?.({ title: "Kona のリスニングパーティー", url: inviteLink() }).catch(() => {}));
+  body.querySelector<HTMLButtonElement>("[data-share]")?.addEventListener("click", () => navigator.share?.({ title: t("Kona のリスニングパーティー"), url: inviteLink() }).catch(() => {}));
   // 入れる・断るは、描き直しても効くよう委ねる
   body.onclick = e => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-admit],[data-refuse]");
@@ -998,7 +999,7 @@ function render() {
 function inviteLink() { return `${location.origin}${location.pathname}${HASH}${roomKey}.${hostId}`; }
 function copy(b: HTMLButtonElement, text: string) {
   const was = b.textContent;
-  navigator.clipboard?.writeText(text).then(() => { b.textContent = "コピーしました"; setTimeout(() => b.textContent = was, 1500); })
+  navigator.clipboard?.writeText(text).then(() => { b.textContent = t("コピーしました"); setTimeout(() => b.textContent = was, 1500); })
     .catch(() => dlg?.querySelector<HTMLInputElement>("#party-out")?.select());
 }
 
@@ -1013,29 +1014,29 @@ function update() {
   if (out && out.value !== inviteLink()) out.value = inviteLink();
   const relay = dlg.querySelector<HTMLElement>("#party-relay");
   if (relay) relay.textContent = role === "host"
-    ? (relaysOpen ? `仲介のリレー ${relaysOpen} つにつながっています` : "仲介のリレーにつないでいます…")
-    : guestStep === "connect" ? `${label(hostName)}さんとつないでいます…`
-    : relaysOpen ? "ホストが入れてくれるのを待っています…" : "仲介のリレーにつないでいます…";
+    ? (relaysOpen ? tp("仲介のリレー {0} つにつながっています", relaysOpen) : t("仲介のリレーにつないでいます…"))
+    : guestStep === "connect" ? tp("{0}さんとつないでいます…", label(hostName))
+    : relaysOpen ? t("ホストが入れてくれるのを待っています…") : t("仲介のリレーにつないでいます…");
   const kn = dlg.querySelector<HTMLElement>("#party-knocks");
-  if (kn) kn.innerHTML = knocks.map(k => `<div class="party-knock"><span><b>${esc(label(k.name))}</b>さんが入りたがっています</span>
-      <button class="btn primary" data-admit="${esc(k.id)}" ${peers.length >= MAX_PEERS ? "disabled" : ""}>入れる</button><button class="btn" data-refuse="${esc(k.id)}">断る</button></div>`).join("");
+  if (kn) kn.innerHTML = knocks.map(k => `<div class="party-knock"><span>${esc(tp("{0}さんが入りたがっています", label(k.name)))}</span>
+      <button class="btn primary" data-admit="${esc(k.id)}" ${peers.length >= MAX_PEERS ? "disabled" : ""}>${t("入れる")}</button><button class="btn" data-refuse="${esc(k.id)}">${t("断る")}</button></div>`).join("");
   const people = dlg.querySelector<HTMLElement>("#party-people");
   if (people) {
-    const list = role === "host" ? [`${label(hostName)}（あなた・ホスト）`, ...peers.map(p => label(p.name) + (p.open ? "" : "（つないでいます…）"))]
-      : [`${label(hostName)}（ホスト）`, ...guestNames.map(n => label(n))];
-    people.innerHTML = `<span class="dlg-note">参加している人 ${list.length}</span><ul>${list.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`;
+    const list = role === "host" ? [tp("{0}・あなた・ホスト", label(hostName)), ...peers.map(p => label(p.name) + (p.open ? "" : t("・つないでいます…")))]
+      : [tp("{0}・ホスト", label(hostName)), ...guestNames.map(n => label(n))];
+    people.innerHTML = `<span class="dlg-note">${tp("参加している人 {0}", list.length)}</span><ul>${list.map(n => `<li>${esc(n)}</li>`).join("")}</ul>`;
   }
 }
 
 /** 部屋の下の帯に出す「いま流れているもの」 */
 function nowText(): string {
   const st = role === "host" ? snapshot() as Extract<Msg, { t: "state" }> : last, t = st?.track;
-  if (role === "guest" && blocked) return "ブラウザに音を止められました。画面のどこかを押すと鳴ります";
-  if (!st) return "待っています…";
-  if (!t) return role === "host" ? "何も流していません" : "ホストは何も流していません";
+  if (role === "guest" && blocked) return tr("ブラウザに音を止められました。画面のどこかを押すと鳴ります");
+  if (!st) return tr("待っています…");
+  if (!t) return role === "host" ? tx("何も流していません") : tx("ホストは何も流していません");
   const what = `${t.title} — ${[t.artist, t.album].filter(Boolean).join(" · ")}`;
-  if (st.ext) return `${what}（Spotify の曲は届けられません）`;
-  return `${st.playing ? "♪ " : "一時停止中 · "}${what}`;
+  if (st.ext) return tp("{0}。Spotify の曲は届けられません", what);
+  return `${st.playing ? "♪ " : tr("一時停止中 · ")}${what}`;
 }
 
 // パーティーを開いている間だけ、ホストの上の帯に人数の札を出す（押すとパーティーの画面）。参加者は部屋の画面の中にいるので出さない
@@ -1054,8 +1055,8 @@ function renderPill() {
   if (anchor && pill.nextElementSibling !== anchor) anchor.before(pill);
   const live = peers.filter(p => p.open).length;
   const n = live + 1;
-  pill.innerHTML = `<i></i>${knocks.length ? `${n}人 · ${knocks.length}人待ち` : `${n}人`}`;
-  pill.title = "リスニングパーティー（ホスト）";
+  pill.innerHTML = `<i></i>${knocks.length ? tp("{0}人 · {1}人待ち", n, knocks.length) : tp("{0}人", n)}`;
+  pill.title = t("リスニングパーティーのホスト");
   pill.setAttribute("aria-label", pill.title);
 }
 
@@ -1074,7 +1075,7 @@ export function initParty(opts: { toast: (t: string) => void }) {
     // リンクは開いたらすぐ消す（履歴や画面に部屋の鍵を残さない）
     history.replaceState(null, "", location.pathname + location.search + "#home");
     if (key && isRoomKey(key) && /^[0-9a-f]{64}$/.test(id ?? "")) { startGuest(key, id); setTimeout(() => openParty(), 300); }
-    else setTimeout(() => toastFn?.("招待リンクが壊れています"), 300);
+    else setTimeout(() => toastFn?.(t("招待リンクが壊れています")), 300);
   }
 }
 /** 参加者としてホストの部屋にいて、ホストが鳴らしているとき: ホストの土地と名前（ご当地の品。region.ts） */

@@ -1,17 +1,16 @@
 <h1>Listening on Spotify</h1>
 <p>Kona has no server. Your browser talks to Spotify directly to play music. To allow this, you create an app in Spotify for Developers and enter its Client ID in Kona. This is done once and costs nothing.</p>
-<p>Requirements: a Spotify Premium account (required by the Web Playback SDK and, since February 2026, by Spotify's rules for developer apps), and a desktop browser with DRM (Widevine) support such as Chrome, Edge or Firefox. Phone browsers cannot play Spotify.</p>
-<p>Labels below are those of the English interface. Where a control is shown only in Japanese, the Japanese label follows in parentheses.</p>
+<p>Requirements: a Spotify Premium account, which the Web Playback SDK and, since February 2026, Spotify's rules for developer apps require. A desktop browser with Widevine DRM support, such as Chrome, Edge or Firefox. Phone browsers cannot play Spotify.</p>
 
 <h2>How it works</h2>
 <table>
   <tbody>
     <tr><th>Client ID</th><td>From your own Spotify for Developers account. Kona contains no one's ID.</td></tr>
     <tr><th>Sign-in</th><td>PKCE, which uses no client secret. The secret is never entered anywhere.</td></tr>
-    <tr><th>Scopes</th><td>Playback (<code>streaming</code>), profile (<code>user-read-email</code> <code>user-read-private</code>, required by the SDK), saved albums (<code>user-library-read</code>), playback state and control (<code>user-read-playback-state</code> <code>user-modify-playback-state</code>). No scope that changes playlists or your library is requested.</td></tr>
-    <tr><th>Token</th><td>Kept only in this browser (localStorage). Signing out removes it.</td></tr>
+    <tr><th>Scopes</th><td><code>streaming</code> for playback; <code>user-read-email</code> and <code>user-read-private</code> for the profile the SDK requires; <code>user-library-read</code> for saved albums; <code>user-read-playback-state</code> and <code>user-modify-playback-state</code> for playback state and control. No scope that changes playlists or your library is requested.</td></tr>
+    <tr><th>Token</th><td>Kept only in this browser's localStorage. Signing out removes it.</td></tr>
     <tr><th>Network</th><td>Spotify only: <code>accounts.spotify.com</code>, <code>api.spotify.com</code>, the player at <code>sdk.scdn.co</code> and covers at <code>i.scdn.co</code>. Nothing is sent to anyone else, including the developer.</td></tr>
-    <tr><th>Stored on the device</th><td>The token, play counts and listening history (track titles and the like, as for any album). Track lists and covers are not stored; they are read from Spotify each time.</td></tr>
+    <tr><th>Stored on the device</th><td>The token, play counts and listening history, which include track titles as for any album. Track lists and covers are not stored; they are read from Spotify each time.</td></tr>
     <tr><th>Third-party scripts</th><td>Spotify's Web Playback SDK, loaded only after you choose to use Spotify.</td></tr>
   </tbody>
 </table>
@@ -19,9 +18,9 @@
 <h2>What works and what does not</h2>
 <ul>
   <li>Albums saved in Spotify appear on a shelf named Spotify.</li>
-  <li>Shelves, cats and listening history work from track information (title, artist, length) as usual.</li>
+  <li>Shelves, cats and listening history work from the title, artist and length of each track as usual.</li>
   <li>Covers are not altered. Spines and record labels use only the average colour.</li>
-  <li>The track panel shows Open in Spotify (Spotify で開く).</li>
+  <li>The track panel shows Open in Spotify.</li>
   <li>Spotify audio is protected by DRM and cannot pass through Kona's audio processing. Equalizer, waveform, spectrum, level, volume normalisation, crossfade, layered sounds and reverb do not apply. The sleep timer lowers the volume gradually and then stops.</li>
   <li>Under Spotify's rules, a developer app in Development Mode can be used by at most five people.</li>
 </ul>
@@ -31,19 +30,19 @@
   <li>Open the <a href="https://developer.spotify.com/dashboard">Spotify for Developers dashboard</a> and log in with your Spotify account.</li>
   <li>Press Create app and fill in:
     <ul>
-      <li>App name and App description: anything (for example <code>Kona</code>).</li>
-      <li>Redirect URIs: the URL where you open Kona, exactly (for example <code>https://wentolia.github.io/kona-open/</code>), including the trailing <code>/</code>. Copying the string shown in Settings → Other → Sources avoids mistakes.</li>
+      <li>App name and App description: anything, for example <code>Kona</code>.</li>
+      <li>Redirect URIs: the URL where you open Kona, exactly, including the trailing <code>/</code>. For the public build this is <code>https://wentolia.github.io/kona-open/</code>. Copying the text shown in Settings → Other → Google Drive and Spotify avoids mistakes.</li>
       <li>Which API/SDKs are you planning to use?: Web API and Web Playback SDK.</li>
       <li>Read and accept the Developer Terms of Service and Design Guidelines, then save.</li>
     </ul>
   </li>
-  <li>The Client ID (32 alphanumeric characters) is under Settings → Basic Information. The client secret is not used.</li>
+  <li>The 32-character Client ID is under Settings → Basic Information. The client secret is not used.</li>
   <li>If others will use it, add their name and Spotify email address under User Management.</li>
 </ol>
 
 <h2>2. Enter it in Kona</h2>
 <ol>
-  <li>Open Settings → Other → Sources (Google Drive, Spotify).</li>
+  <li>Open Settings → Other → Google Drive and Spotify.</li>
   <li>Paste the Client ID and press Save and sign in.</li>
   <li>Allow access on Spotify's screen.</li>
   <li>Your saved albums appear on the shelf.</li>
@@ -52,18 +51,18 @@
 
 <h2>Troubleshooting</h2>
 <table>
-  <thead><tr><th>Message (shown in Japanese)</th><th>Check</th></tr></thead>
+  <thead><tr><th>Message</th><th>Check</th></tr></thead>
   <tbody>
-    <tr><td>Spotify にサインインできませんでした (sign-in failed)</td><td>The Client ID is correct, and the Redirect URI matches the one shown in Kona character for character.</td></tr>
-    <tr><td>Premium のアカウントが要ります (Premium required)</td><td>The account is Premium.</td></tr>
-    <tr><td>このブラウザでは Spotify の曲を鳴らせません (this browser cannot play)</td><td>You are using Chrome, Edge or Firefox on a computer, and playback of protected content (DRM) is not disabled.</td></tr>
-    <tr><td>再生を始められませんでした (playback could not start)</td><td>Spotify is not being controlled from another device. Wait a moment and try again.</td></tr>
+    <tr><td>Couldn't sign in to Spotify</td><td>The Client ID is correct, and the Redirect URI matches the one shown in Kona character for character.</td></tr>
+    <tr><td>Playing Spotify tracks needs a Premium account</td><td>The account is Premium.</td></tr>
+    <tr><td>This browser can't play Spotify tracks</td><td>You are using Chrome, Edge or Firefox on a computer, and DRM playback of protected content is not disabled.</td></tr>
+    <tr><td>Couldn't start playback on Spotify</td><td>Spotify is not being controlled from another device. Wait a moment and try again.</td></tr>
   </tbody>
 </table>
 
 <h2>Stopping</h2>
 <ul>
-  <li>Sign out under Settings → Other → Sources removes the token from this browser. Remove Client ID deletes the setting as well.</li>
+  <li>Sign out under Settings → Other → Google Drive and Spotify removes the token from this browser. Remove Client ID deletes the setting as well.</li>
   <li>To revoke access itself, remove Kona under <a href="https://www.spotify.com/account/apps/">Apps in your Spotify account</a>.</li>
   <li>Deleting the app in the dashboard also invalidates the Client ID.</li>
 </ul>

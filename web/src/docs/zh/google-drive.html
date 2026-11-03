@@ -1,30 +1,29 @@
 <h1>从 Google Drive 收听</h1>
 <p>Kona 没有服务器。Google Drive 中的音乐由用户的浏览器直接从 Google 读取。为此，需要在用户自己的 Google Cloud 中创建 OAuth 客户端 ID 并填入 Kona。只需创建一次，不产生费用。</p>
-<p>Kona 的界面提供日语和英语。下文使用英语界面的名称；只以日语显示的项目，在括号中附上日语名称。</p>
 
 <h2>工作方式</h2>
 <table>
   <tbody>
     <tr><th>客户端 ID</th><td>来自用户自己的 Google Cloud。Kona 中不含任何人的 ID。</td></tr>
-    <tr><th>权限</th><td>仅读取（<code>drive.readonly</code>）。Kona 无法写入 Drive。</td></tr>
-    <tr><th>令牌</th><td>只保存在此标签页内（sessionStorage），约 1 小时后失效。不接收刷新令牌。</td></tr>
-    <tr><th>通信对象</th><td>仅 Google API（<code>www.googleapis.com</code>）。不向包括开发者在内的任何其他人发送任何内容。</td></tr>
-    <tr><th>设备上保留的内容</th><td>已读取的标签和封面，以及选择保留在设备上的专辑曲目。清除浏览器的网站数据即可删除。</td></tr>
+    <tr><th>权限</th><td>只读的 <code>drive.readonly</code>。Kona 无法写入 Drive。</td></tr>
+    <tr><th>令牌</th><td>只保存在此标签页的 sessionStorage 中，约 1 小时后失效。不接收刷新令牌。</td></tr>
+    <tr><th>通信对象</th><td>仅 Google API <code>www.googleapis.com</code>。不向包括开发者在内的任何其他人发送任何内容。</td></tr>
+    <tr><th>设备上保留的内容</th><td>已读取的标签和封面，以及选择“保留在设备上”的专辑曲目。清除浏览器的网站数据即可删除。</td></tr>
     <tr><th>外部脚本</th><td>不加载。不使用 Google 的库，并由 CSP 禁止。</td></tr>
   </tbody>
 </table>
-<p>使用 Google 的文件选择器（Picker）可以把权限限制在所选文件上，但 Picker 需要加载 Google 的脚本，与不加载外部脚本的方针相冲突。因此 Kona 使用只读权限，并在应用内选择文件夹。</p>
+<p>使用 Google 的文件选择器 Picker 可以把权限限制在所选文件上，但 Picker 需要加载 Google 的脚本，与不加载外部脚本的方针相冲突。因此 Kona 使用只读权限，并在应用内选择文件夹。</p>
 
 <h2>1. 创建项目并启用 Drive API</h2>
 <ol>
-  <li>打开 <a href="https://console.cloud.google.com/">Google Cloud 控制台</a>，在项目选择器中新建项目。名称不限（例如 <code>kona</code>）。</li>
+  <li>打开 <a href="https://console.cloud.google.com/">Google Cloud 控制台</a>，在项目选择器中新建项目。名称不限，例如 <code>kona</code>。</li>
   <li>在“API 和服务”→“库”中搜索 Google Drive API 并启用。</li>
 </ol>
 
-<h2>2. 配置同意屏幕</h2>
+<h2>2. 设置同意屏幕</h2>
 <ol>
-  <li>打开“API 和服务”→“OAuth 同意屏幕”（或 Google Auth Platform），点击“开始”。</li>
-  <li>输入应用名称（例如 <code>Kona</code>）和支持邮箱。</li>
+  <li>打开“API 和服务”→“OAuth 同意屏幕”，点击“开始”。有的界面中它叫 Google Auth Platform。</li>
+  <li>输入应用名称和支持邮箱。应用名称例如 <code>Kona</code>。</li>
   <li>受众选择“外部”。</li>
   <li>输入联系邮箱并创建。</li>
   <li>在“受众”中确认发布状态为“测试”，并将自己的 Google 账号添加为测试用户。保持测试状态即可使用，无需审核。只有测试用户可以登录。</li>
@@ -35,31 +34,31 @@
 <ol>
   <li>点击“客户端”→“创建客户端”。</li>
   <li>类型选择“Web 应用”。</li>
-  <li>在“已获授权的 JavaScript 来源”中输入打开 Kona 的 URL 的源（例如 <code>https://wentolia.github.io</code>）。</li>
-  <li>在“已获授权的重定向 URI”中原样输入打开 Kona 的 URL（例如 <code>https://wentolia.github.io/kona-open/</code>），末尾的 <code>/</code> 也须一致。复制 Kona 的 Drive 对话框中显示的字符串最为可靠。</li>
-  <li>创建后会显示客户端 ID（<code>…apps.googleusercontent.com</code>）。不使用客户端密钥。</li>
+  <li>在“已获授权的 JavaScript 来源”中输入打开 Kona 的 URL 的源。公开版为 <code>https://wentolia.github.io</code>。</li>
+  <li>在“已获授权的重定向 URI”中原样输入打开 Kona 的 URL。公开版为 <code>https://wentolia.github.io/kona-open/</code>。末尾的 <code>/</code> 也须一致。复制 Kona 的 Drive 对话框中显示的字符串最为可靠。</li>
+  <li>创建后会显示以 <code>…apps.googleusercontent.com</code> 结尾的客户端 ID。不使用客户端密钥。</li>
 </ol>
 
 <h2>4. 填入 Kona</h2>
 <ol>
-  <li>在设置的 Other → Sources (Google Drive, Spotify) 中点击 Enter client ID。填入后，也可从开始画面和 Folders 菜单打开。</li>
-  <li>粘贴客户端 ID，点击 Save and sign in（保存してサインイン）。</li>
-  <li>在 Google 的页面上选择账号。如果显示“Google 尚未验证此应用”，点击“继续”。这表示您自己创建的应用未经审核。</li>
+  <li>在设置的“其他”→“Google Drive 和 Spotify”中点击“输入客户端 ID”。填入后，也可从开始画面和“文件夹”菜单打开。</li>
+  <li>粘贴客户端 ID，点击“保存并登录”。</li>
+  <li>在 Google 的页面上选择账号。如果显示“Google 尚未验证此应用”，点击“继续”。这表示你自己创建的应用未经审核。</li>
   <li>进入存放音乐的文件夹并打开。</li>
 </ol>
 <p>此后开始画面会显示该文件夹。令牌约 1 小时后失效，失效时请从通知中重新登录。</p>
 
 <h2>在手机上使用</h2>
 <ul>
-  <li>曲目在播放时从 Drive 获取。使用移动数据时会消耗流量（FLAC 每首约 20–40 MB）。</li>
-  <li>常听的专辑可在曲目列表中选择 Keep on device（端末に残す）保存到浏览器内，之后不再下载。</li>
+  <li>曲目在播放时从 Drive 获取。使用移动数据时会消耗流量。FLAC 每首约 20–40 MB。</li>
+  <li>常听的专辑可在曲目列表中选择“保留在设备上”保存到浏览器内，之后不再下载。</li>
   <li>标签和封面读取一次后会保留在设备上，之后的加载更快。</li>
   <li>iPhone 上的 Safari 可能会删除一段时间未使用的网站数据。添加到主屏幕后更不容易被删除。</li>
 </ul>
 
 <h2>停止使用</h2>
 <ul>
-  <li>在 Kona 中点击 Sign out 可删除此标签页中的令牌。</li>
+  <li>在 Kona 中点击“退出登录”可删除此标签页中的令牌。</li>
   <li>要撤销权限本身，请在 <a href="https://myaccount.google.com/connections">Google 账号的第三方连接</a>中移除 Kona。</li>
   <li>删除 Google Cloud 项目后，客户端 ID 也随之失效。</li>
 </ul>

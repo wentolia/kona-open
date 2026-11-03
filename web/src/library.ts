@@ -1,5 +1,6 @@
 // ライブラリの構築: 選んだフォルダ直下のサブフォルダを「棚」、音声ファイルを直接含むフォルダを「アルバム」とみなす
 
+import { t } from "./i18n";
 import { parseBlob, parseBuffer, type IAudioMetadata } from "music-metadata";
 import { isDriveEntry, type DriveEntry } from "./drive";
 import { kvGet, kvSet } from "./store";
@@ -95,12 +96,12 @@ export async function scan(entries: AsyncIterable<Entry> | Iterable<Entry>, onPr
   for (const [dir, { audio, images }] of byDir) {
     if (!audio.length) continue;
     audio.sort((a, b) => collator.compare(a.path, b.path));
-    const shelf = dir.includes("/") ? dir.slice(0, dir.indexOf("/")) : (dir || "未分類");
+    const shelf = dir.includes("/") ? dir.slice(0, dir.indexOf("/")) : (dir || t("未分類"));
     albums.push({
       key: dir || ".",
       shelf,
-      dir: base(dir) || "未分類",
-      title: base(dir) || "未分類",
+      dir: base(dir) || t("未分類"),
+      title: base(dir) || t("未分類"),
       artist: "",
       tracks: audio.map((entry, i) => ({ entry, title: base(entry.path).replace(AUDIO, ""), no: i + 1, disc: 1 })),
       coverEntry: images.find(i => IMAGE.test(base(i.path))) ?? images[0],
@@ -199,7 +200,7 @@ async function thumbOf(url: string): Promise<Blob | undefined> {
 /** 前に読んだときに覚えたタグだけで、アルバムを組み立てる（フォルダを読む許可を待つ間の棚）。
  *  ファイルはまだ読めないので、曲は鳴らせない。再生するときに許可をもらって、本物に入れ替える */
 export function cachedAlbums(): Album[] {
-  const locked = () => Promise.reject(new DOMException("フォルダを読む許可がまだありません", "NotAllowedError"));
+  const locked = () => Promise.reject(new DOMException(t("フォルダを読む許可がまだありません"), "NotAllowedError"));
   const pathOf = (sig?: string) => sig ? sig.split("|").slice(0, -2).join("|") : ""; // 目印は「パス|大きさ|更新日時」
   return cachedHeads().map(({ key, head, tracks }) => {
     const dir = key === "." ? "" : key;
@@ -210,8 +211,8 @@ export function cachedAlbums(): Album[] {
         .sort((x, y) => x.disc - y.disc || x.no - y.no)
       : [{ entry: { path: first, getFile: locked }, title: base(first).replace(AUDIO, ""), no: 1, disc: 1 }];
     return {
-      key, dir: base(dir) || "未分類",
-      shelf: dir.includes("/") ? dir.slice(0, dir.indexOf("/")) : (dir || "未分類"),
+      key, dir: base(dir) || t("未分類"),
+      shelf: dir.includes("/") ? dir.slice(0, dir.indexOf("/")) : (dir || t("未分類")),
       title: head.title, artist: head.artist, year: tracks?.year ?? head.year, genre: tracks?.genre ?? head.genre,
       color: head.color, ratio: head.ratio,
       cover: img ? URL.createObjectURL(img) : undefined,

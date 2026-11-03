@@ -13,4 +13,4 @@ function art() {
     ${poly("#1f3326", [[52, B], [60, 58], [68, B]])}`;
 }
 
-export default { key: "frame", label: "額（夜の丘）", at: "wall", w: 96, h: 74, x: 0.3, y: 0.15, cat: "飾り", order: 100, art } satisfies ItemDef;
+export default { key: "frame", label: "夜の丘の額", at: "wall", w: 96, h: 74, x: 0.3, y: 0.15, cat: "飾り", order: 100, art } satisfies ItemDef;
