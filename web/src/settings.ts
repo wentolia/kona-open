@@ -126,7 +126,7 @@ function roomTab() {
       <div class="set-checks">
         ${check("set-roomlight", roomLightOn(), t("部屋の明かりも時刻で変える"))}
         ${check("set-marks", q.marks, t("棚板に暮らした跡を残す"))}
-        ${check("set-chime", chimeOn(), t("置き時計が正時に鐘を鳴らす"))}
+        ${check("set-chime", chimeOn(), t("時計が正時に鐘を鳴らす"))}
       </div>`)}`;
 }
 

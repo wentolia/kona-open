@@ -702,7 +702,7 @@ function mountObjects() {
     acTitle.textContent = dcTitle.textContent = `${now.getHours()}時${now.getMinutes()}分`;
     if (now.getHours() !== lastHour) { lastHour = now.getHours(); if (chimeOn() && now.getMinutes() === 0 && placedClock()) chimeHour(lastHour); }
   };
-  const placedClock = () => ["aclock", "dclock"].some(k => els.get(k)?.closest("#view-home"));
+  const placedClock = () => ["aclock", "dclock"].some(k => els.get(k)?.closest("#view-home")) || !!document.querySelector("#view-home .clock");
   tickClock();
 
   everyFrame(root, () => {

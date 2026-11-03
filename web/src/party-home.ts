@@ -21,7 +21,7 @@ import { inSet, type AlbumSet } from "./tags";
 // hs: 背表紙の高さ・ジャケットの切り取り位置を決める数（ホストの棚と同じばらつきにする）。r: ジャケットの縦横比
 export interface SnapAlbum { id: string; t: string; a: string; c: string; n: number; y?: number; hs?: number; r?: number }
 // pos: 面陳の位置（0 左端〜1 右端）。sid: 雑貨の棚の番号（小物の置き場所は棚ごと）
-export interface SnapMod { type: ModuleType; title: string; h: number; kind?: string; albums?: string[]; face?: string; pos?: number; sid?: string; goods?: string[]; at?: Record<string, string> }
+export interface SnapMod { type: ModuleType; title: string; h: number; kind?: string; albums?: string[]; face?: string; pos?: number; sid?: string; goods?: string[]; at?: Record<string, number> }
 /** ホームの見た目の設定: <html> の data-*（棚板・壁・床・字体）と色などの変数、モジュールの設定（localStorage の値） */
 export interface SnapLook { ds: Record<string, string>; css: Record<string, string>; store: Record<string, string> }
 const LOOK_DS = ["shelf", "wall", "floor", "font"];
@@ -120,17 +120,10 @@ export function snapshotHome(): { rows: SnapRow[]; albums: SnapAlbum[] } | undef
           if (m.dataset.id && /^[\w-]{1,24}$/.test(m.dataset.id)) mod.sid = m.dataset.id;
           const goods = [...m.querySelectorAll<SVGElement>(".goods [data-goods]")].map(e => e.dataset.goods!).filter(Boolean);
           if (goods.length) mod.goods = goods;
-          // アルバムのあいだに置いた小物: どのアルバムの後ろか（"" は列の頭）
-          const pane = m.querySelector<HTMLElement>(".spines");
-          if (pane) {
-            const at: Record<string, string> = {}; let prev = "";
-            for (const e of pane.children) {
-              const el = e as HTMLElement;
-              if (el.classList.contains("spine") && el.dataset.key) { const a = byKey(el.dataset.key); prev = ok(a) ? idOf(a) : prev; }
-              else if (el.classList.contains("goods-slot") && el.dataset.slot && goods.includes(el.dataset.slot)) at[el.dataset.slot] = prev;
-            }
-            if (Object.keys(at).length) mod.at = at;
-          }
+          // アルバムの並ぶ所に置いた小物: 棚の中の左右の位置（0〜1）
+          const at: Record<string, number> = {};
+          m.querySelectorAll<HTMLElement>(".row > .goods-slot[data-slot]").forEach(el => { const x = parseFloat(el.dataset.x ?? ""); if (goods.includes(el.dataset.slot!) && Number.isFinite(x)) at[el.dataset.slot!] = Math.max(0, Math.min(1, x)); });
+          if (Object.keys(at).length) mod.at = at;
         }
         return mod;
       }),
@@ -219,8 +212,8 @@ export function cleanRows(x: unknown): SnapRow[] | undefined {
           if (typeof m.sid === "string" && /^[\w-]{1,24}$/.test(m.sid)) mod.sid = m.sid;
           if (Array.isArray(m.goods)) mod.goods = [...new Set((m.goods as unknown[]).filter((k): k is string => typeof k === "string" && OBJECTS.some(o => o.key === k)))];
           if (m.at && typeof m.at === "object" && mod.goods) {
-            const at: Record<string, string> = {};
-            for (const [k, v] of Object.entries(m.at as Record<string, unknown>)) if (mod.goods.includes(k) && (v === "" || (isId(v) && mod.albums?.includes(v as string)))) at[k] = v as string;
+            const at: Record<string, number> = {};
+            for (const [k, v] of Object.entries(m.at as Record<string, unknown>)) if (mod.goods.includes(k) && typeof v === "number" && Number.isFinite(v)) at[k] = num(v, 0, 1);
             if (Object.keys(at).length) mod.at = at;
           }
         }
@@ -312,27 +305,25 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
       art(first, face);
       face.onclick = e => { e.stopPropagation(); opts.open(face.dataset.id!); };
       const at = m.pos ?? 0;
-      // 小物の場所（ホストと同じく、そのアルバムの後ろに小物の幅だけ隙間をあける）
-      const slot = (p: HTMLElement, after: string) => Object.entries(m.at ?? {}).forEach(([k, a]) => {
-        if (a !== after) return;
+      // 小物の場所（ホストと同じく、棚の決まった位置に区切りを置き、アルバムはそのあいだの窓を流れる）
+      const slot = (k: string) => {
         const el = document.createElement("i");
         el.className = "goods-slot"; el.dataset.slot = k; el.setAttribute("aria-hidden", "true");
         el.style.setProperty("--s", String(mountingWith(opts.src.over, () => objectSize(k))));
         el.style.setProperty("--ow", String(OBJECTS.find(o => o.key === k)?.w ?? 50));
-        p.append(el);
-      });
-      const pane = (side: "l" | "r") => { const p = document.createElement("div"); p.className = `spines pane-${side}`; slot(p, ""); list.forEach(id => { p.append(spine(id, face)); slot(p, id); }); return p; };
+        return el;
+      };
+      const pane = (side: "l" | "r") => { const p = document.createElement("div"); p.className = `spines pane-${side}`; list.forEach(id => p.append(spine(id, face))); return p; };
       row.style.setProperty("--pos", String(at));
-      if (at > 0 && at < 1) {
-        row.classList.add("two-panes");
-        const l = pane("l"), r = pane("r");
-        row.append(l, face, r);
-        mountTwin(row, l, r);
-      } else {
-        const p = pane(at <= 0 ? "r" : "l");
-        if (at <= 0) row.append(face, p); else row.append(p, face);
-        mountSingle(p);
-      }
+      const cuts = [{ x: at, el: face as HTMLElement }, ...Object.entries(m.at ?? {}).map(([k, x]) => ({ x, el: slot(k) }))].sort((p, q) => p.x - q.x);
+      const parts: HTMLElement[] = [], panes: HTMLElement[] = [];
+      let x0 = 0;
+      const addPane = (x1: number) => { const p = pane(panes.length ? "r" : "l"); p.style.flex = `${Math.max(0, x1 - x0)} 1 0px`; panes.push(p); parts.push(p); };
+      cuts.forEach((k, i) => { if (!(i === 0 && k.x <= 0)) addPane(k.x); parts.push(k.el); x0 = k.x; });
+      if (x0 < 1) addPane(1);
+      row.append(...parts);
+      if (panes.length > 1) { row.classList.add("two-panes"); mountTwin(row, ...panes); }
+      else { panes[0].style.flex = ""; mountSingle(panes[0]); }
     }
     line.append(row);
     body.append(line);
@@ -372,7 +363,6 @@ export function buildHome(rows: SnapRow[], albums: Map<string, SnapAlbum>, opts:
             float.hidden = false;
             const go = () => floatGoods(line);
             requestAnimationFrame(go);
-            line.addEventListener("scroll", go, { capture: true, passive: true });
             new ResizeObserver(go).observe(line);
           }
         }
@@ -492,16 +482,12 @@ function mountNowCard(body: HTMLElement, player: Player, opts: { open(id: string
   });
 }
 
-/** 隙間の上に小物を立てる（ホストのホームと同じ。窓が 2 つある段では見えている方の隙間に） */
+/** 区切りの上に小物を立てる（ホストのホームと同じ。足もとはアルバムの背と同じ高さ） */
 function floatGoods(line: HTMLElement) {
   const L = line.getBoundingClientRect();
   line.querySelectorAll<SVGSVGElement>(".goods-float > svg").forEach(svg => {
-    let best: DOMRect | undefined;
-    for (const sl of line.querySelectorAll<HTMLElement>(`.goods-slot[data-slot="${svg.dataset.goods}"]`)) {
-      const r = sl.getBoundingClientRect(), p = sl.closest(".spines")!.getBoundingClientRect();
-      if (r.width && r.left >= p.left - 1 && r.right <= p.right + 1) { best = r; break; }
-    }
-    svg.style.visibility = best ? "" : "hidden";
-    if (best) svg.style.left = `${(best.left - L.left).toFixed(1)}px`;
+    const r = line.querySelector<HTMLElement>(`.goods-slot[data-slot="${svg.dataset.goods}"]`)?.getBoundingClientRect();
+    svg.style.visibility = r?.width ? "" : "hidden";
+    if (r?.width) { svg.style.left = `${(r.left - L.left).toFixed(1)}px`; svg.style.bottom = `${Math.max(0, L.bottom - r.bottom).toFixed(1)}px`; }
   });
 }

@@ -7,8 +7,8 @@ import { roomSurface, setRoomSurface } from "./room-surface";
 import { renderSettings } from "./settings";
 
 export interface PlaceHooks {
-  /** 小物を棚に置く（at は棚の右端の小物の中で何番目か、after はアルバムのあいだに置くときの前のアルバム）。shelfId がなければしまう */
-  putObject(key: string, shelfId?: string, at?: number, after?: string): void;
+  /** 小物を棚に置く（at は棚の右端の小物の中で何番目か、x はアルバムの並ぶ所に置くときの棚の中の左右の位置）。shelfId がなければしまう */
+  putObject(key: string, shelfId?: string, at?: number, x?: number): void;
   /** 置ける棚か */
   isShelf(id: string): boolean;
   /** 置いてある棚 */
@@ -44,19 +44,15 @@ function dropAt(x: number, y: number, src: Src, h: PlaceHooks): Drop {
   return undefined;
 }
 
-/** アルバムのあいだに落としたなら、その前のアルバムの key（列の頭なら ""）。棚の右端の小物の所や、アルバムのない棚なら undefined */
-function anchorIn(mod: HTMLElement, x: number, y: number): string | undefined {
+/** アルバムの並ぶ所に落としたなら、その棚の中の左右の位置（0 左端〜1 右端）。棚の右端の小物の所や、アルバムのない棚なら undefined */
+function anchorIn(mod: HTMLElement, x: number, y: number): number | undefined {
   if (mod.dataset.kind === "goods") return undefined;
   const end = mod.querySelector(".goods:not(.goods-float)");
   if (end && !(end as HTMLElement).hidden) { const r = end.getBoundingClientRect(); if (x >= r.left - 4 && y >= r.top && y <= r.bottom) return undefined; }
-  const seen = [...mod.querySelectorAll<HTMLElement>(".spines .spine:not(.cut)")].filter(sp => {
-    const r = sp.getBoundingClientRect(), p = sp.closest(".spines")!.getBoundingClientRect();
-    return r.width > 0 && r.left >= p.left - 1 && r.right <= p.right + 1;
-  });
-  if (!seen.length) return undefined;
-  let prev: HTMLElement | undefined;
-  for (const sp of seen) { const r = sp.getBoundingClientRect(); if (r.left + r.width / 2 < x && (!prev || r.left > prev.getBoundingClientRect().left)) prev = sp; }
-  return prev?.dataset.key ?? "";
+  const row = mod.querySelector<HTMLElement>(".shelf-line > .row");
+  if (!row || !row.querySelector(".spine")) return undefined;
+  const r = row.getBoundingClientRect();
+  return Math.round(Math.max(0.02, Math.min(0.98, (x - r.left) / Math.max(1, r.width))) * 1000) / 1000;
 }
 
 /** 落とした位置が、その棚の小物の中で何番目か（ドラッグしている小物自身は数えない） */

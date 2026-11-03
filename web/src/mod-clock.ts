@@ -1,7 +1,8 @@
 // 時計まわり: 正時の鐘と、スリープタイマーの予約（アルバムの終わりで止める）。
-// 時計そのものは棚の小物（mod-objects.ts のアナログ時計・デジタル時計）。以前の時計のモジュールと種類のメニューはない
+// 時計は 2 通り: 棚に立てる置き時計（mod-objects.ts のアナログ時計・デジタル時計）と、空中に掛ける時計のモジュール。
+// モジュールにはメニューを付けない。文字盤を押すと、デジタルとアナログが入れ替わる
 
-import { ctx } from "./modctx";
+import { ctx, everyFrame } from "./modctx";
 
 interface Sleep { until?: number; albumEnd: boolean; fading: boolean; choice?: number }
 const sleep: Sleep = { albumEnd: false, fading: false };
@@ -19,9 +20,10 @@ export const albumEndArmed = () => !!sleep.albumEnd;
 const LOOK_KEY = "kona.clock";
 const readLook = (): { kind?: string; chime: boolean } => { try { const v = JSON.parse(localStorage.getItem(LOOK_KEY) ?? "{}"); return { kind: typeof v.kind === "string" ? v.kind : undefined, chime: v.chime === true }; } catch { return { chime: false }; } };
 export const chimeOn = () => readLook().chime;
-export function setChime(on: boolean) { try { localStorage.setItem(LOOK_KEY, JSON.stringify({ chime: on })); } catch { /* ignore */ } }
-/** 以前の時計のモジュールの種類（アナログ / デジタル / 振り子）。置き時計に置き換えるときに使う */
-export const legacyClockKind = () => readLook().kind;
+const writeLook = (v: { kind?: string; chime: boolean }) => { try { localStorage.setItem(LOOK_KEY, JSON.stringify(v)); } catch { /* ignore */ } };
+export function setChime(on: boolean) { writeLook({ ...readLook(), chime: on }); }
+/** 時計のモジュールの種類。以前の振り子はアナログとして描く */
+const moduleKind = (): "digital" | "analog" => { const k = readLook().kind; return k === "analog" || k === "pendulum" ? "analog" : "digital"; };
 
 // 鐘の音: 鐘らしい倍音（1 : 2 : 2.76 : 5.4）を重ね、ゆっくり消える
 function bell(ac: AudioContext, out: AudioNode, at: number, freq: number, vol: number) {
@@ -40,4 +42,58 @@ export function chimeHour(_hour: number) {
   if (!io) return; // まだ一度も再生していない（ブラウザが音を出させてくれない）ときは鳴らさない
   const { ctx: ac, input } = io, t = ac.currentTime + .05;
   bell(ac, input, t, 784, .06); bell(ac, input, t + .7, 659, .06);
+}
+
+// 文字盤の目盛り（12 本、3・6・9・12 は太く）
+const TICKS = Array.from({ length: 12 }, (_, i) => {
+  const a = i * Math.PI / 6, big = i % 3 === 0, r1 = big ? 37 : 40;
+  const f = (n: number) => n.toFixed(2);
+  return `<line x1="${f(50 + Math.sin(a) * r1)}" y1="${f(50 - Math.cos(a) * r1)}" x2="${f(50 + Math.sin(a) * 44)}" y2="${f(50 - Math.cos(a) * 44)}"${big ? ' class="big"' : ""}/>`;
+}).join("");
+const ANALOG = `<svg class="ck-analog" viewBox="0 0 100 100" role="img"><circle class="ck-dial" cx="50" cy="50" r="46"/><g class="ck-ticks">${TICKS}</g><g class="ck-hands"><line class="ck-h" x1="50" y1="54" x2="50" y2="27"/><line class="ck-m" x1="50" y1="56" x2="50" y2="15"/><line class="ck-s" x1="50" y1="60" x2="50" y2="12"/><circle cx="50" cy="50" r="2.2"/></g></svg>`;
+
+/** 時計のモジュール: 棚に乗せず、空中（好きな列）に掛ける時計 */
+export function mountClock(body: HTMLElement) {
+  body.innerHTML = `
+    <div class="clock" role="button" tabindex="0" title="押すとデジタル / アナログを切り替える">
+      <div class="clock-face">
+        <div class="clock-dial"></div>
+        <time class="clock-time"></time>
+        <span class="clock-date"></span>
+      </div>
+    </div>`;
+  const root = body.querySelector<HTMLElement>(".clock")!;
+  const time = root.querySelector<HTMLTimeElement>(".clock-time")!, date = root.querySelector<HTMLElement>(".clock-date")!;
+  const dial = root.querySelector<HTMLElement>(".clock-dial")!;
+  let hands: { h: SVGElement; m: SVGElement; s: SVGElement } | undefined;
+  let lastMin = -1;
+  const draw = () => {
+    const kind = moduleKind();
+    root.dataset.kind = kind;
+    dial.innerHTML = kind === "analog" ? ANALOG : "";
+    const q = (c: string) => dial.querySelector<SVGElement>(c)!;
+    hands = kind === "analog" ? { h: q(".ck-h"), m: q(".ck-m"), s: q(".ck-s") } : undefined;
+    lastMin = -1;
+  };
+  const flip = () => { writeLook({ ...readLook(), kind: moduleKind() === "analog" ? "digital" : "analog" }); draw(); };
+  root.addEventListener("click", flip);
+  root.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+  draw();
+  everyFrame(root, () => {
+    const now = new Date();
+    if (now.getMinutes() !== lastMin) {
+      lastMin = now.getMinutes();
+      time.textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
+      time.dateTime = now.toISOString();
+      date.textContent = now.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" });
+      dial.firstElementChild?.setAttribute("aria-label", `${now.getHours()}時${now.getMinutes()}分`);
+    }
+    if (hands) {
+      const s = now.getSeconds(), m = now.getMinutes() + s / 60, h = (now.getHours() % 12) + m / 60;
+      hands.h.setAttribute("transform", `rotate(${h * 30} 50 50)`);
+      hands.m.setAttribute("transform", `rotate(${m * 6} 50 50)`);
+      hands.s.setAttribute("transform", `rotate(${s * 6} 50 50)`);
+    }
+    root.classList.toggle("clock-tick", now.getSeconds() % 2 === 0);
+  });
 }
